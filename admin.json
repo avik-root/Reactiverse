@@ -7,6 +7,7 @@
     "phone": "+919294969890",
     "passwordHash": "$2a$10$m.5RNxWXs7xb31J3gLBRauCnti8NtEs3avv86Xcj1skcvPjlU9QJ2",
     "avatarUrl": "https://placehold.co/100x100.png?text=A",
-    "twoFactorEnabled": false
+    "twoFactorEnabled": true,
+    "twoFactorPinHash": "$2a$10$mJDqyxSdQcL2T402Ewqy4ePfL9xajzRfWnS3b13UIYDw9lFUU8Vea"
   }
 ]

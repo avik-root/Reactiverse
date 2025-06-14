@@ -16,8 +16,8 @@ const DEFAULT_SITE_SETTINGS: SiteSettings = {
   siteTitle: "Reactiverse",
   allowNewUserRegistrations: true,
   themeColors: {
-    primaryHSL: "271 100% 75.3%", 
-    accentHSL: "300 100% 70%",   
+    primaryHSL: "271 100% 75.3%",
+    accentHSL: "300 100% 70%",
   },
   logoPath: "/default-logo.png" // Example default, actual logo might be Layers3 icon
 };
@@ -144,7 +144,13 @@ export async function getUsersFromFile(): Promise<StoredUser[]> {
     }
     const jsonData = await fs.readFile(USERS_FILE_PATH, 'utf-8');
     const users = JSON.parse(jsonData) as StoredUser[];
-    return users;
+    // Initialize new fields if they are missing
+    return users.map(user => ({
+      ...user,
+      failedPinAttempts: user.failedPinAttempts === undefined ? 0 : user.failedPinAttempts,
+      isLocked: user.isLocked === undefined ? false : user.isLocked,
+      twoFactorEnabled: user.twoFactorEnabled === undefined ? false : user.twoFactorEnabled,
+    }));
   } catch (error) {
     console.error('Failed to read users.json:', error);
     return [];
@@ -154,11 +160,16 @@ export async function getUsersFromFile(): Promise<StoredUser[]> {
 export async function saveUserToFile(newUser: StoredUser): Promise<void> {
   try {
     const users = await getUsersFromFile();
-    users.push(newUser);
+    users.push({
+        ...newUser,
+        failedPinAttempts: newUser.failedPinAttempts || 0,
+        isLocked: newUser.isLocked || false,
+        twoFactorEnabled: newUser.twoFactorEnabled || false,
+    });
     await fs.writeFile(USERS_FILE_PATH, JSON.stringify(users, null, 2), 'utf-8');
   } catch (error) {
     console.error('Failed to save user to users.json:', error);
-    throw error; 
+    throw error;
   }
 }
 
@@ -170,12 +181,17 @@ export async function updateUserInFile(updatedUser: StoredUser): Promise<boolean
       console.error('User not found for update:', updatedUser.id);
       return false;
     }
-    users[userIndex] = { ...users[userIndex], ...updatedUser };
+    users[userIndex] = {
+        ...users[userIndex],
+        ...updatedUser,
+        failedPinAttempts: updatedUser.failedPinAttempts === undefined ? users[userIndex].failedPinAttempts : updatedUser.failedPinAttempts,
+        isLocked: updatedUser.isLocked === undefined ? users[userIndex].isLocked : updatedUser.isLocked,
+    };
     await fs.writeFile(USERS_FILE_PATH, JSON.stringify(users, null, 2), 'utf-8');
     return true;
   } catch (error) {
     console.error('Failed to update user in users.json:', error);
-    throw error; 
+    throw error;
   }
 }
 
@@ -186,10 +202,10 @@ export async function deleteUserFromFile(userId: string): Promise<boolean> {
     users = users.filter(u => u.id !== userId);
     if (users.length === initialLength) {
       console.warn('User not found for deletion:', userId);
-      return false; 
+      return false;
     }
     await fs.writeFile(USERS_FILE_PATH, JSON.stringify(users, null, 2), 'utf-8');
-    
+
     let designs = await getDesignsFromFile();
     const designsByDeletedUser = designs.filter(d => d.submittedByUserId === userId);
     if (designsByDeletedUser.length > 0) {
@@ -253,7 +269,7 @@ export async function updateDesignInFile(updatedDesign: Design): Promise<boolean
     return true;
   } catch (error) {
     console.error('Failed to update design in designs.json:', error);
-    throw error; 
+    throw error;
   }
 }
 
@@ -264,7 +280,7 @@ export async function deleteDesignFromFile(designId: string): Promise<boolean> {
     designs = designs.filter(d => d.id !== designId);
     if (designs.length === initialLength) {
       console.warn('Design not found for deletion:', designId);
-      return false; 
+      return false;
     }
     await saveDesignsToFile(designs);
     return true;
@@ -340,7 +356,7 @@ export async function saveSiteLogo(fileBuffer: Buffer, fileName: string): Promis
     } catch {
       await fs.mkdir(publicDir, { recursive: true });
     }
-    
+
     const filePath = path.join(publicDir, fileName);
     await fs.writeFile(filePath, fileBuffer);
     return `/${fileName}`; // Return the public path
@@ -349,4 +365,3 @@ export async function saveSiteLogo(fileBuffer: Buffer, fileName: string): Promis
     throw error;
   }
 }
-

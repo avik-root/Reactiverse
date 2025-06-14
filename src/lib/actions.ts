@@ -45,11 +45,13 @@ import type {
   GuidelinesPageContent,
   TopDesignersPageContent,
   SiteLogoUploadState,
+  AdminSetUser2FAStatusFormState,
 } from './types';
 import { revalidatePath } from 'next/cache';
 import { hashPassword, comparePassword, hashPin, comparePin } from './auth-utils';
 
 const ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS = 'admin-auth-token';
+const MAX_PIN_ATTEMPTS = 5;
 
 const LoginSchema = z.object({
   identifier: z.string().min(1, { message: 'Username or email is required.' }),
@@ -168,7 +170,6 @@ const SiteSettingsSchema = z.object({
   accentHSL: HSLColorSchema,
 });
 
-// Schemas for Admin Account Settings
 const UpdateAdminProfileSchema = z.object({
   adminId: z.string(),
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -200,7 +201,13 @@ const DisableAdminTwoFactorSchema = z.object({
   currentPasswordFor2FA: z.string().min(1, { message: "Current password is required to disable 2FA." }),
 });
 
-// Schemas for Page Content Editing
+const AdminSetUser2FAStatusSchema = z.object({
+    userId: z.string().min(1, "User ID is required."),
+    enable: z.preprocess((val) => String(val).toLowerCase() === 'true', z.boolean()),
+    adminId: z.string().min(1, "Admin ID is required for authorization."),
+});
+
+
 const AboutUsContentSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().min(1, "Description is required"),
@@ -214,7 +221,7 @@ const AboutUsContentSchema = z.object({
   offerItems: z.preprocess(
     (val) => {
       const items: { title: string; description: string }[] = [];
-      const data = val as Record<string, any>; 
+      const data = val as Record<string, any>;
       let i = 0;
       while(data[`offerItems[${i}].title`] !== undefined || data[`offerItems[${i}].description`] !== undefined) {
         items.push({
@@ -224,7 +231,7 @@ const AboutUsContentSchema = z.object({
         i++;
       }
       if (items.length > 0) return items;
-      return val; 
+      return val;
     },
     z.array(
       z.object({
@@ -275,8 +282,7 @@ const GuidelinesPageContentSchema = z.object({
       // Error or invalid JSON, keep original keyAreas (if any) or let Zod handle it.
     }
   }
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { keyAreasJSON, ...rest } = data; 
+  const { keyAreasJSON, ...rest } = data;
   return rest;
 });
 
@@ -315,6 +321,7 @@ export type LoginFormState = {
   };
   requiresPin?: boolean;
   userIdForPin?: string;
+  accountLocked?: boolean; // Added for 2FA lockout
 };
 
 export type SignupFormState = {
@@ -413,31 +420,51 @@ export async function loginUser(prevState: LoginFormState, formData: FormData): 
 
   const { identifier, password, pin, userIdForPin } = validatedFields.data;
   const users = await getUsersFromFile();
-
   let targetUser: StoredUser | undefined;
 
-  if (userIdForPin && pin) {
+  if (userIdForPin && pin) { // PIN verification stage
     targetUser = users.find(u => u.id === userIdForPin);
     if (!targetUser) {
       return { message: 'User not found for PIN verification.', errors: { general: ['An error occurred. Please try logging in again.'] } };
     }
+
+    if (targetUser.isLocked) {
+      return { message: 'Your account is locked due to too many failed 2FA attempts. Please contact support.', accountLocked: true, errors: { general: ['Account locked.'] } };
+    }
+
     if (!targetUser.twoFactorEnabled || !targetUser.twoFactorPinHash) {
       return { message: '2FA is not enabled for this user or PIN not set up.', errors: { general: ['2FA error. Please try logging in again.'] } };
     }
+
     const pinMatches = await comparePin(pin, targetUser.twoFactorPinHash);
     if (!pinMatches) {
+      targetUser.failedPinAttempts = (targetUser.failedPinAttempts || 0) + 1;
+      if (targetUser.failedPinAttempts >= MAX_PIN_ATTEMPTS) {
+        targetUser.isLocked = true;
+        await updateUserInFile(targetUser);
+        return {
+          message: 'Invalid PIN. Your account has been locked due to too many failed attempts. Please contact support.',
+          errors: { pin: ['Incorrect PIN. Account locked.'] },
+          requiresPin: true, // Keep showing PIN stage, but it won't work
+          userIdForPin: targetUser.id,
+          accountLocked: true,
+        };
+      }
+      await updateUserInFile(targetUser);
       return {
-        message: 'Invalid PIN.',
+        message: `Invalid PIN. ${MAX_PIN_ATTEMPTS - targetUser.failedPinAttempts} attempts remaining.`,
         errors: { pin: ['Incorrect PIN.'] },
         requiresPin: true,
         userIdForPin: targetUser.id
       };
     }
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    // PIN is correct
+    targetUser.failedPinAttempts = 0; // Reset attempts
+    await updateUserInFile(targetUser);
     const { passwordHash, twoFactorPinHash: removedPinHash, ...userToReturn } = targetUser;
     return { message: 'Login successful!', user: {...userToReturn, isAdmin: false} };
 
-  } else {
+  } else { // Initial username/password stage
     if (!identifier || !password) {
         return { message: 'Username/email and password are required.', errors: { general: ['Username/email and password are required.'] } };
     }
@@ -445,6 +472,11 @@ export async function loginUser(prevState: LoginFormState, formData: FormData): 
     if (!targetUser || !targetUser.passwordHash) {
       return { message: 'Invalid credentials.', errors: { general: ['Invalid username/email or password.'] } };
     }
+
+    if (targetUser.isLocked) {
+      return { message: 'Your account is locked. Please contact support.', accountLocked: true, errors: { general: ['Account locked.'] } };
+    }
+
     const passwordMatches = await comparePassword(password, targetUser.passwordHash);
     if (!passwordMatches) {
       return { message: 'Invalid credentials.', errors: { general: ['Invalid username/email or password.'] } };
@@ -457,7 +489,6 @@ export async function loginUser(prevState: LoginFormState, formData: FormData): 
         userIdForPin: targetUser.id
       };
     } else {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { passwordHash, twoFactorPinHash: removedPinHash, ...userToReturn } = targetUser;
       return { message: 'Login successful!', user: {...userToReturn, isAdmin: false} };
     }
@@ -502,10 +533,11 @@ export async function signupUser(prevState: SignupFormState, formData: FormData)
     passwordHash: hashedPassword,
     avatarUrl: `https://placehold.co/100x100.png?text=${name.charAt(0).toUpperCase()}`,
     twoFactorEnabled: false,
+    failedPinAttempts: 0,
+    isLocked: false,
   };
 
   await saveUserToFile(newUser);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { passwordHash, twoFactorPinHash, ...userToReturnForState } = newUser;
 
   return { message: 'Signup successful! Please log in.', user: {...userToReturnForState, isAdmin: false} };
@@ -525,7 +557,7 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
   const adminUsers = await getAdminUsers();
   let targetAdmin: StoredAdminUser | undefined;
 
-  if (adminIdForPin && pin) { // PIN verification step
+  if (adminIdForPin && pin) {
     targetAdmin = adminUsers.find(admin => admin.id === adminIdForPin);
     if (!targetAdmin) {
       return { message: 'Admin user not found for PIN verification.', errors: { general: ['An error occurred. Please try logging in again.'] } };
@@ -542,8 +574,7 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
         adminIdForPin: targetAdmin.id,
       };
     }
-    // PIN is correct, proceed to login
-  } else if (username && password) { // Initial username/password step
+  } else if (username && password) {
     targetAdmin = adminUsers.find(admin => admin.username === username);
     if (!targetAdmin || !targetAdmin.passwordHash) {
       return { message: 'Invalid username or password.', errors: { general: ['Invalid username or password.'] } };
@@ -560,17 +591,14 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
         adminIdForPin: targetAdmin.id,
       };
     }
-    // Password correct and 2FA not enabled, proceed to login
   } else {
-    // This case should not happen if form is structured correctly
     return { message: 'Invalid login attempt.', errors: { general: ['Invalid login state.'] } };
   }
 
-  if (!targetAdmin) { // Should be caught earlier, but as a safeguard
+  if (!targetAdmin) {
     return { message: 'Admin user not found.', errors: { general: ['Admin user not found.'] } };
   }
 
-  // If all checks pass (either direct login or PIN verification successful)
   cookies().set(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS, targetAdmin.id, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -579,7 +607,6 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
     sameSite: 'lax',
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { passwordHash, twoFactorPinHash, ...adminUserToReturn } = targetAdmin;
   return { message: 'Admin login successful!', adminUser: { ...adminUserToReturn, isAdmin: true } };
 }
@@ -638,7 +665,6 @@ export async function submitDesignAction(prevState: AddDesignFormState, formData
   if (!storedDesigner) {
     return { message: 'Designer user not found.', success: false, errors: { general: ['Designer user not found.'] } };
   }
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { passwordHash, twoFactorPinHash, ...designerInfo } = storedDesigner;
 
   let parsedCodeBlocksRaw: Array<{ language: string; code: string }>;
@@ -732,7 +758,6 @@ export async function updateDesignAction(prevState: UpdateDesignFormState, formD
   if (!storedDesigner) {
     return { message: 'Designer user not found.', success: false, errors: { general: ['Designer user not found.'] } };
   }
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { passwordHash: designerPasswordHash, twoFactorPinHash: designerPinHash, ...designerInfo } = storedDesigner;
 
 
@@ -802,7 +827,6 @@ export async function updateProfileAction(prevState: UpdateProfileFormState, for
   try {
     const success = await updateUserInFile(updatedUserData);
     if (!success) throw new Error("Update operation failed at server-data");
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { passwordHash, twoFactorPinHash, ...userToReturn } = updatedUserData;
     revalidatePath('/dashboard/profile');
     revalidatePath('/dashboard');
@@ -932,10 +956,9 @@ export async function getAllDesignsAction(): Promise<Design[]> {
   try {
     const designs = await getDesignsFromFile();
     return designs.map(design => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const sanitizedDesigner = design.designer
         ? (({ passwordHash, twoFactorPinHash, ...rest }: StoredUser) => rest)(design.designer as StoredUser) as User
-        : { id: 'unknown', name: 'Unknown Designer', username: '@unknown', avatarUrl: '', email: 'unknown@example.com', phone: '', twoFactorEnabled: false };
+        : { id: 'unknown', name: 'Unknown Designer', username: '@unknown', avatarUrl: '', email: 'unknown@example.com', phone: '', twoFactorEnabled: false, failedPinAttempts: 0, isLocked: false };
 
       return {
         ...design,
@@ -954,10 +977,9 @@ export async function getDesignByIdAction(id: string): Promise<Design | undefine
     const designs = await getDesignsFromFile();
     const design = designs.find(d => d.id === id);
     if (design) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const sanitizedDesigner = design.designer
         ? (({ passwordHash, twoFactorPinHash, ...rest }: StoredUser) => rest)(design.designer as StoredUser) as User
-        : { id: 'unknown', name: 'Unknown Designer', username: '@unknown', avatarUrl: '', email: 'unknown@example.com', phone: '', twoFactorEnabled: false };
+        : { id: 'unknown', name: 'Unknown Designer', username: '@unknown', avatarUrl: '', email: 'unknown@example.com', phone: '', twoFactorEnabled: false, failedPinAttempts: 0, isLocked: false };
       return {
         ...design,
         designer: sanitizedDesigner,
@@ -982,8 +1004,8 @@ export async function deleteDesignAction(designId: string): Promise<DeleteDesign
       return { success: false, message: 'Design not found or already deleted.' };
     }
     revalidatePath('/dashboard/designs');
-    revalidatePath('/admin/designs'); 
-    revalidatePath('/'); 
+    revalidatePath('/admin/designs');
+    revalidatePath('/');
     return { success: true, message: 'Design deleted successfully.' };
   } catch (error) {
     console.error('Error deleting design via action:', error);
@@ -997,7 +1019,7 @@ export async function checkAdminDataExistsAction(): Promise<{ adminExists: boole
     return { adminExists: admins.length > 0 };
   } catch (error) {
     console.error("Error checking admin data:", error);
-    return { adminExists: false }; 
+    return { adminExists: false };
   }
 }
 
@@ -1035,7 +1057,7 @@ export async function createAdminAccountAction(prevState: AdminCreateAccountForm
     phone,
     passwordHash: hashedPassword,
     avatarUrl: `https://placehold.co/100x100.png?text=${name.charAt(0).toUpperCase()}`,
-    twoFactorEnabled: false, 
+    twoFactorEnabled: false,
   };
 
   try {
@@ -1053,9 +1075,13 @@ export async function getAllUsersAdminAction(): Promise<User[]> {
   try {
     const storedUsers = await getUsersFromFile();
     return storedUsers.map(user => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { passwordHash, twoFactorPinHash, ...sanitizedUser } = user;
-      return sanitizedUser;
+      return {
+        ...sanitizedUser,
+        failedPinAttempts: user.failedPinAttempts || 0,
+        isLocked: user.isLocked || false,
+        twoFactorEnabled: user.twoFactorEnabled || false,
+      };
     });
   } catch (error) {
     console.error("Error fetching all users for admin:", error);
@@ -1154,7 +1180,6 @@ export async function updateAdminProfileAction(
 
   try {
     await updateAdminInFile(updatedAdminData);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { passwordHash, twoFactorPinHash, ...adminToReturn } = updatedAdminData;
     revalidatePath('/admin/account-settings');
     return { message: 'Admin profile updated successfully!', success: true, adminUser: adminToReturn };
@@ -1335,7 +1360,7 @@ export async function updatePageContentAction<T extends PageContentKeys>(
     }
     if (offerItems.length > 0) {
       rawData.offerItems = offerItems;
-    } else if (!rawData.offerItems) { 
+    } else if (!rawData.offerItems) {
       rawData.offerItems = [];
     }
   }
@@ -1347,13 +1372,13 @@ export async function updatePageContentAction<T extends PageContentKeys>(
           if (Array.isArray(parsedKeyAreas)) {
             rawData.keyAreas = parsedKeyAreas;
           } else {
-             rawData.keyAreas = []; 
+             rawData.keyAreas = [];
           }
       } catch (e) {
           if(!rawData.keyAreas) rawData.keyAreas = [];
       }
   } else if (pageKey === 'guidelines' && !rawData.keyAreas) {
-    rawData.keyAreas = []; 
+    rawData.keyAreas = [];
   }
 
 
@@ -1395,17 +1420,57 @@ export async function updateSiteLogoAction(prevState: SiteLogoUploadState, formD
 
   try {
     const buffer = Buffer.from(await logoFile.arrayBuffer());
-    const fileName = "site_logo.png"; 
+    const fileName = "site_logo.png";
     const filePath = await saveSiteLogoToServer(buffer, fileName);
 
-    revalidatePath('/'); 
-    revalidatePath('/admin/edit-content/logo'); 
-    
+    revalidatePath('/');
+    revalidatePath('/admin/edit-content/logo');
+
     return { message: 'Site logo updated successfully!', success: true, filePath };
   } catch (error) {
     console.error('Error uploading site logo:', error);
     return { message: 'Failed to upload logo. Please try again.', success: false, errors: { general: ['Server error during upload.'] } };
   }
 }
- 
-    
+
+export async function adminSetUser2FAStatusAction(
+  prevState: AdminSetUser2FAStatusFormState,
+  formData: FormData
+): Promise<AdminSetUser2FAStatusFormState> {
+  const adminToken = cookies().get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
+  if (!adminToken) {
+    return { message: "Admin authorization failed.", success: false, errors: { general: ["Not authorized."] } };
+  }
+  // Potentially verify adminToken maps to a valid admin user if more robust auth is needed here.
+
+  const validatedFields = AdminSetUser2FAStatusSchema.safeParse(Object.fromEntries(formData.entries()));
+  if (!validatedFields.success) {
+    return { errors: validatedFields.error.flatten().fieldErrors, message: 'Invalid input.', success: false };
+  }
+
+  const { userId, enable } = validatedFields.data;
+  const users = await getUsersFromFile();
+  const userIndex = users.findIndex(u => u.id === userId);
+
+  if (userIndex === -1) {
+    return { message: 'User not found.', success: false, errors: { userId: ['User not found.'] } };
+  }
+
+  const userToUpdate = users[userIndex];
+  userToUpdate.twoFactorEnabled = enable;
+  if (!enable) {
+    userToUpdate.twoFactorPinHash = undefined;
+    userToUpdate.failedPinAttempts = 0;
+    userToUpdate.isLocked = false;
+  }
+
+  try {
+    await updateUserInFile(userToUpdate);
+    revalidatePath('/admin/users');
+    const { passwordHash, twoFactorPinHash, ...userToReturn } = userToUpdate;
+    return { message: `User 2FA status ${enable ? 'enabled' : 'disabled'} successfully.`, success: true, updatedUser: userToReturn };
+  } catch (error) {
+    console.error("Error setting user 2FA status by admin:", error);
+    return { message: 'Failed to update user 2FA status.', success: false, errors: { general: ['Server error.'] } };
+  }
+}

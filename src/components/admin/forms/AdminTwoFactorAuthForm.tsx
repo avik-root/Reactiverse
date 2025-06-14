@@ -37,6 +37,8 @@ export default function AdminTwoFactorAuthForm() {
   const [showEnableForm, setShowEnableForm] = useState(false);
   const [showDisableForm, setShowDisableForm] = useState(false);
   const [showCurrentPasswordFor2FA, setShowCurrentPasswordFor2FA] = useState(false);
+  const [showPinInput, setShowPinInput] = useState(false);
+  const [showConfirmPinInput, setShowConfirmPinInput] = useState(false);
   const [lastProcessedMessage, setLastProcessedMessage] = useState<string | null | undefined>(null);
 
   useEffect(() => {
@@ -49,7 +51,7 @@ export default function AdminTwoFactorAuthForm() {
     const activeState = enableState?.actionType === 'enable' ? enableState : disableState;
 
     if (activeState?.message && activeState.message !== lastProcessedMessage) {
-      setLastProcessedMessage(activeState.message); // Mark this message as processed
+      setLastProcessedMessage(activeState.message);
 
       toast({
         title: activeState.success ? 'Success!' : 'Error',
@@ -71,6 +73,8 @@ export default function AdminTwoFactorAuthForm() {
         setShowEnableForm(false);
         setShowDisableForm(false);
         setShowCurrentPasswordFor2FA(false);
+        setShowPinInput(false);
+        setShowConfirmPinInput(false);
         const enableForm = document.getElementById('enableAdmin2FAForm') as HTMLFormElement;
         const disableForm = document.getElementById('disableAdmin2FAForm') as HTMLFormElement;
         enableForm?.reset();
@@ -85,6 +89,8 @@ export default function AdminTwoFactorAuthForm() {
 
   const handleToggleChange = useCallback((checked: boolean) => {
     setShowCurrentPasswordFor2FA(false);
+    setShowPinInput(false);
+    setShowConfirmPinInput(false);
     if (checked) {
         setShowEnableForm(true);
         setShowDisableForm(false);
@@ -122,18 +128,58 @@ export default function AdminTwoFactorAuthForm() {
             <input type="hidden" name="adminId" value={adminUser.id} />
             <p className="text-sm text-muted-foreground">To enable 2FA, set a 6-digit PIN and confirm your current password.</p>
             <div className="space-y-2">
-              <Label htmlFor="pin">New 6-Digit PIN</Label>
+              <Label htmlFor="pin_admin_enable">New 6-Digit PIN</Label>
               <div className="relative">
                 <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input id="pin" name="pin" type="password" maxLength={6} placeholder="••••••" required className="pl-10 tracking-[0.3em] text-center" aria-describedby="enable-pin-error"/>
+                <Input
+                  id="pin_admin_enable"
+                  name="pin"
+                  type={showPinInput ? 'text' : 'password'}
+                  maxLength={6}
+                  placeholder="••••••"
+                  required
+                  className="pl-10 pr-10 tracking-[0.3em] text-center"
+                  aria-describedby="enable-pin-error"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowPinInput(!showPinInput)}
+                  aria-label={showPinInput ? "Hide PIN" : "Show PIN"}
+                  tabIndex={-1}
+                >
+                  {showPinInput ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
               </div>
               {enableState?.errors?.pin && <p id="enable-pin-error" className="text-sm text-destructive">{enableState.errors.pin.join(', ')}</p>}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="confirmPin">Confirm PIN</Label>
+              <Label htmlFor="confirmPin_admin_enable">Confirm PIN</Label>
               <div className="relative">
                 <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input id="confirmPin" name="confirmPin" type="password" maxLength={6} placeholder="••••••" required className="pl-10 tracking-[0.3em] text-center" aria-describedby="enable-confirmPin-error"/>
+                <Input
+                  id="confirmPin_admin_enable"
+                  name="confirmPin"
+                  type={showConfirmPinInput ? 'text' : 'password'}
+                  maxLength={6}
+                  placeholder="••••••"
+                  required
+                  className="pl-10 pr-10 tracking-[0.3em] text-center"
+                  aria-describedby="enable-confirmPin-error"
+                />
+                 <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowConfirmPinInput(!showConfirmPinInput)}
+                  aria-label={showConfirmPinInput ? "Hide Confirm PIN" : "Show Confirm PIN"}
+                  tabIndex={-1}
+                >
+                  {showConfirmPinInput ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
               </div>
               {enableState?.errors?.confirmPin && <p id="enable-confirmPin-error" className="text-sm text-destructive">{enableState.errors.confirmPin.join(', ')}</p>}
             </div>
@@ -166,7 +212,7 @@ export default function AdminTwoFactorAuthForm() {
             {enableState?.errors?.general && <p className="text-sm text-destructive">{enableState.errors.general.join(', ')}</p>}
             <CardFooter className="p-0 pt-2 flex gap-2">
               <SubmitButton actionType="enable" />
-              <Button variant="outline" type="button" onClick={() => {setShowEnableForm(false); setShowCurrentPasswordFor2FA(false);}} className="w-full sm:w-auto">Cancel</Button>
+              <Button variant="outline" type="button" onClick={() => {setShowEnableForm(false); setShowCurrentPasswordFor2FA(false); setShowPinInput(false); setShowConfirmPinInput(false);}} className="w-full sm:w-auto">Cancel</Button>
             </CardFooter>
           </form>
         )}

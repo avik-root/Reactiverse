@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useActionState, useEffect, useState } from 'react';
@@ -13,60 +12,65 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { LogIn, KeyRound, User, ShieldCheck, Eye, EyeOff } from 'lucide-react';
+import { LogIn, KeyRound, User, ShieldCheck, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 
 function SubmitButton({ isPinStage }: { isPinStage: boolean }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" className="w-full" disabled={pending}>
-      {pending ? (isPinStage ? 'Verifying PIN...' : 'Logging in...') : 
+      {pending ? (isPinStage ? 'Verifying PIN...' : 'Logging in...') :
         isPinStage ? <><ShieldCheck className="mr-2 h-4 w-4" /> Verify PIN</> : <><LogIn className="mr-2 h-4 w-4" /> Login</>}
     </Button>
   );
 }
 
 export default function LoginForm() {
-  const initialState: LoginFormState = { message: null, errors: {}, requiresPin: false };
+  const initialState: LoginFormState = { message: null, errors: {}, requiresPin: false, accountLocked: false };
   const [state, dispatch] = useActionState(loginUser, initialState);
   const { toast } = useToast();
   const { login: authLogin, user: authUser, isAdmin } = useAuth();
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
+  const [showPinInput, setShowPinInput] = useState(false); // For show/hide PIN
 
-  // Persist userIdForPin across form submissions if PIN is required
   const [userIdForPin, setUserIdForPin] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     if (state?.message) {
-      if (state.user) { // Successful login
+      if (state.accountLocked) {
+        toast({
+          title: 'Account Locked',
+          description: state.message || 'Your account is locked due to too many failed 2FA attempts. Please contact support.',
+          variant: 'destructive',
+        });
+        setUserIdForPin(undefined); // Clear PIN stage if locked
+      } else if (state.user) { // Successful login
         authLogin(state.user, false); // false for isAdmin
         toast({
           title: 'Login Successful',
           description: 'Welcome back!',
         });
-        router.push('/dashboard'); 
+        router.push('/dashboard');
       } else if (state.requiresPin && state.userIdForPin) {
-        // PIN is required, update local state to show PIN input
         setUserIdForPin(state.userIdForPin);
         toast({
           title: '2FA Required',
           description: state.message || 'Please enter your 6-digit PIN.',
-          variant: 'default' 
+          variant: 'default'
         });
-      } else if (!state.requiresPin) { // Login failed before PIN stage
+      } else if (!state.requiresPin) { // Login failed before PIN stage (username/password)
         toast({
           title: 'Login Failed',
           description: state.message || 'An error occurred.',
           variant: 'destructive',
         });
-        setUserIdForPin(undefined); // Clear any previous PIN stage
-      } else if (state.requiresPin && !state.user) { // PIN verification failed
+        setUserIdForPin(undefined);
+      } else if (state.requiresPin && !state.user) { // PIN verification failed but not locked yet
          toast({
           title: 'PIN Verification Failed',
           description: state.message || 'Incorrect PIN.',
           variant: 'destructive',
         });
-        // Keep userIdForPin so user can retry PIN
       }
     }
   }, [state, toast, authLogin, router]);
@@ -81,7 +85,30 @@ export default function LoginForm() {
     }
   }, [authUser, isAdmin, router]);
 
-  const isPinStage = !!(state?.requiresPin || userIdForPin);
+  const isPinStage = !!(state?.requiresPin || userIdForPin) && !state?.accountLocked;
+
+  if (state?.accountLocked) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Card className="w-full max-w-md shadow-xl">
+          <CardHeader className="text-center">
+            <AlertTriangle className="mx-auto h-12 w-12 text-destructive mb-4" />
+            <CardTitle className="text-2xl font-headline text-destructive">Account Locked</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-center text-muted-foreground">
+              {state.message || 'Your account has been locked due to too many failed 2FA attempts. Please contact support to unlock your account.'}
+            </p>
+          </CardContent>
+          <CardFooter>
+             <Button variant="outline" asChild className="w-full">
+                <Link href="/support">Contact Support</Link>
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center justify-center py-12">
@@ -116,11 +143,11 @@ export default function LoginForm() {
                   <Label htmlFor="password">Password</Label>
                   <div className="relative">
                     <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      id="password" 
-                      name="password" 
-                      type={showPassword ? 'text' : 'password'} 
-                      required 
+                    <Input
+                      id="password"
+                      name="password"
+                      type={showPassword ? 'text' : 'password'}
+                      required
                       className="pl-10 pr-10"
                       aria-invalid={!!state?.errors?.password}
                       aria-describedby="password-error"
@@ -145,17 +172,28 @@ export default function LoginForm() {
                 <Label htmlFor="pin">6-Digit PIN</Label>
                  <div className="relative">
                     <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                        id="pin" 
-                        name="pin" 
-                        type="text" 
-                        maxLength={6} 
-                        placeholder="123456" 
-                        required 
-                        className="pl-10 tracking-[0.3em] text-center"
+                    <Input
+                        id="pin"
+                        name="pin"
+                        type={showPinInput ? 'text' : 'password'}
+                        maxLength={6}
+                        placeholder="••••••"
+                        required
+                        className="pl-10 pr-10 tracking-[0.3em] text-center"
                         aria-invalid={!!state?.errors?.pin}
                         aria-describedby="pin-error"
                     />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-foreground"
+                      onClick={() => setShowPinInput(!showPinInput)}
+                      aria-label={showPinInput ? "Hide PIN" : "Show PIN"}
+                      tabIndex={-1}
+                    >
+                      {showPinInput ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
                 </div>
                 {state?.errors?.pin && <p id="pin-error" className="text-sm text-destructive">{state.errors.pin.join(', ')}</p>}
               </div>

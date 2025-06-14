@@ -17,16 +17,16 @@ function SubmitButton({ actionType }: { actionType: 'enable' | 'disable' }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" className="w-full" disabled={pending} variant={actionType === 'disable' ? 'destructive' : 'default'}>
-      {pending ? (actionType === 'enable' ? 'Enabling 2FA...' : 'Disabling 2FA...') : 
+      {pending ? (actionType === 'enable' ? 'Enabling 2FA...' : 'Disabling 2FA...') :
         actionType === 'enable' ? <><ShieldCheck className="mr-2 h-4 w-4" /> Enable 2FA</> : <><ShieldOff className="mr-2 h-4 w-4" /> Disable 2FA</>}
     </Button>
   );
 }
 
 export default function TwoFactorAuthForm() {
-  const { user, updateAuthUser } = useAuth(); 
+  const { user, updateAuthUser } = useAuth();
   const { toast } = useToast();
-  
+
   const initialEnableState: TwoFactorAuthFormState = { message: null, errors: {}, success: false, actionType: 'enable' };
   const initialDisableState: TwoFactorAuthFormState = { message: null, errors: {}, success: false, actionType: 'disable' };
 
@@ -37,8 +37,9 @@ export default function TwoFactorAuthForm() {
   const [showEnableForm, setShowEnableForm] = useState(false);
   const [showDisableForm, setShowDisableForm] = useState(false);
   const [showCurrentPasswordFor2FA, setShowCurrentPasswordFor2FA] = useState(false);
+  const [showPinInput, setShowPinInput] = useState(false);
+  const [showConfirmPinInput, setShowConfirmPinInput] = useState(false);
   const [lastProcessedMessage, setLastProcessedMessage] = useState<string | null | undefined>(null);
-
 
   useEffect(() => {
     if (user && 'twoFactorEnabled' in user) {
@@ -48,9 +49,9 @@ export default function TwoFactorAuthForm() {
 
   useEffect(() => {
     const activeState = enableState?.actionType === 'enable' ? enableState : disableState;
-    
+
     if (activeState?.message && activeState.message !== lastProcessedMessage) {
-      setLastProcessedMessage(activeState.message); // Mark as processed
+      setLastProcessedMessage(activeState.message);
 
       toast({
         title: activeState.success ? 'Success!' : 'Error',
@@ -60,11 +61,9 @@ export default function TwoFactorAuthForm() {
 
       if (activeState.success) {
         const new2FAStatus = activeState.actionType === 'enable';
-        // setIsTwoFactorEnabledLocally is updated by the effect listening to `user`
-        if (user && 'id' in user) { 
+        if (user && 'id' in user) {
             updateAuthUser((currentUser) => {
-                if (!currentUser || !('id' in currentUser)) return currentUser; 
-                // Only return a new object if the status actually changed
+                if (!currentUser || !('id' in currentUser)) return currentUser;
                 if (('twoFactorEnabled' in currentUser) && currentUser.twoFactorEnabled !== new2FAStatus) {
                     return { ...currentUser, twoFactorEnabled: new2FAStatus };
                 }
@@ -73,23 +72,27 @@ export default function TwoFactorAuthForm() {
         }
         setShowEnableForm(false);
         setShowDisableForm(false);
-        setShowCurrentPasswordFor2FA(false); 
+        setShowCurrentPasswordFor2FA(false);
+        setShowPinInput(false);
+        setShowConfirmPinInput(false);
         (document.getElementById('enable2FAForm') as HTMLFormElement)?.reset();
         (document.getElementById('disable2FAForm') as HTMLFormElement)?.reset();
       }
     }
   }, [enableState, disableState, toast, updateAuthUser, user, lastProcessedMessage]);
 
-  if (!user || !('id' in user)) { 
+  if (!user || !('id' in user)) {
     return <p>Loading user data or 2FA not applicable...</p>;
   }
 
   const handleToggleChange = useCallback((checked: boolean) => {
-    setShowCurrentPasswordFor2FA(false); 
-    if (checked) { 
+    setShowCurrentPasswordFor2FA(false);
+    setShowPinInput(false);
+    setShowConfirmPinInput(false);
+    if (checked) {
         setShowEnableForm(true);
         setShowDisableForm(false);
-    } else { 
+    } else {
         setShowDisableForm(true);
         setShowEnableForm(false);
     }
@@ -101,8 +104,8 @@ export default function TwoFactorAuthForm() {
       <CardHeader>
         <CardTitle className="text-2xl font-headline text-primary">Two-Factor Authentication (2FA)</CardTitle>
         <CardDescription>
-          {isTwoFactorEnabledLocally 
-            ? "2FA is currently enabled. For enhanced security, you'll be asked for a PIN when logging in." 
+          {isTwoFactorEnabledLocally
+            ? "2FA is currently enabled. For enhanced security, you'll be asked for a PIN when logging in."
             : "2FA is currently disabled. Enable it for an extra layer of security."}
         </CardDescription>
       </CardHeader>
@@ -127,7 +130,27 @@ export default function TwoFactorAuthForm() {
               <Label htmlFor="pin">New 6-Digit PIN</Label>
               <div className="relative">
                 <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input id="pin" name="pin" type="password" maxLength={6} placeholder="••••••" required className="pl-10 tracking-[0.3em] text-center" aria-describedby="enable-pin-error"/>
+                <Input
+                  id="pin"
+                  name="pin"
+                  type={showPinInput ? 'text' : 'password'}
+                  maxLength={6}
+                  placeholder="••••••"
+                  required
+                  className="pl-10 pr-10 tracking-[0.3em] text-center"
+                  aria-describedby="enable-pin-error"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowPinInput(!showPinInput)}
+                  aria-label={showPinInput ? "Hide PIN" : "Show PIN"}
+                  tabIndex={-1}
+                >
+                  {showPinInput ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
               </div>
               {enableState?.errors?.pin && <p id="enable-pin-error" className="text-sm text-destructive">{enableState.errors.pin.join(', ')}</p>}
             </div>
@@ -135,7 +158,27 @@ export default function TwoFactorAuthForm() {
               <Label htmlFor="confirmPin">Confirm PIN</Label>
               <div className="relative">
                 <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input id="confirmPin" name="confirmPin" type="password" maxLength={6} placeholder="••••••" required className="pl-10 tracking-[0.3em] text-center" aria-describedby="enable-confirmPin-error"/>
+                <Input
+                  id="confirmPin"
+                  name="confirmPin"
+                  type={showConfirmPinInput ? 'text' : 'password'}
+                  maxLength={6}
+                  placeholder="••••••"
+                  required
+                  className="pl-10 pr-10 tracking-[0.3em] text-center"
+                  aria-describedby="enable-confirmPin-error"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowConfirmPinInput(!showConfirmPinInput)}
+                  aria-label={showConfirmPinInput ? "Hide Confirm PIN" : "Show Confirm PIN"}
+                  tabIndex={-1}
+                >
+                  {showConfirmPinInput ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
               </div>
               {enableState?.errors?.confirmPin && <p id="enable-confirmPin-error" className="text-sm text-destructive">{enableState.errors.confirmPin.join(', ')}</p>}
             </div>
@@ -143,12 +186,12 @@ export default function TwoFactorAuthForm() {
               <Label htmlFor="currentPasswordFor2FA_enable">Current Password</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                    id="currentPasswordFor2FA_enable" 
-                    name="currentPasswordFor2FA" 
-                    type={showCurrentPasswordFor2FA ? 'text' : 'password'} 
-                    required 
-                    className="pl-10 pr-10" 
+                <Input
+                    id="currentPasswordFor2FA_enable"
+                    name="currentPasswordFor2FA"
+                    type={showCurrentPasswordFor2FA ? 'text' : 'password'}
+                    required
+                    className="pl-10 pr-10"
                     aria-describedby="enable-currentPassword-error"
                 />
                  <Button
@@ -168,7 +211,7 @@ export default function TwoFactorAuthForm() {
             {enableState?.errors?.general && <p className="text-sm text-destructive">{enableState.errors.general.join(', ')}</p>}
             <CardFooter className="p-0 pt-2 flex gap-2">
               <SubmitButton actionType="enable" />
-              <Button variant="outline" type="button" onClick={() => {setShowEnableForm(false); setShowCurrentPasswordFor2FA(false);}} className="w-full sm:w-auto">Cancel</Button>
+              <Button variant="outline" type="button" onClick={() => {setShowEnableForm(false); setShowCurrentPasswordFor2FA(false); setShowPinInput(false); setShowConfirmPinInput(false);}} className="w-full sm:w-auto">Cancel</Button>
             </CardFooter>
           </form>
         )}
@@ -181,12 +224,12 @@ export default function TwoFactorAuthForm() {
               <Label htmlFor="currentPasswordFor2FA_disable">Current Password</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  id="currentPasswordFor2FA_disable" 
-                  name="currentPasswordFor2FA" 
-                  type={showCurrentPasswordFor2FA ? 'text' : 'password'} 
-                  required 
-                  className="pl-10 pr-10" 
+                <Input
+                  id="currentPasswordFor2FA_disable"
+                  name="currentPasswordFor2FA"
+                  type={showCurrentPasswordFor2FA ? 'text' : 'password'}
+                  required
+                  className="pl-10 pr-10"
                   aria-describedby="disable-currentPassword-error"
                 />
                 <Button

@@ -17,7 +17,7 @@ function SubmitButton({ isPinStage }: { isPinStage: boolean }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" className="w-full" disabled={pending}>
-      {pending ? (isPinStage ? 'Verifying PIN...' : 'Logging in...') : 
+      {pending ? (isPinStage ? 'Verifying PIN...' : 'Logging in...') :
         isPinStage ? <><PinIcon className="mr-2 h-4 w-4" /> Verify PIN</> : <><ShieldAlert className="mr-2 h-4 w-4" /> Admin Login</>}
     </Button>
   );
@@ -30,23 +30,24 @@ export default function AdminLoginForm() {
   const { login: authLogin, user: authUser, isAdmin } = useAuth();
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
+  const [showPinInput, setShowPinInput] = useState(false);
   const [adminIdForPin, setAdminIdForPin] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     if (state?.message) {
       if (state.adminUser) { // Successful login
-        authLogin(state.adminUser, true); 
+        authLogin(state.adminUser, true);
         toast({
           title: 'Admin Login Successful',
           description: 'Redirecting to dashboard...',
         });
-        router.push('/admin/dashboard'); // Directly redirect
+        router.push('/admin/dashboard');
       } else if (state.requiresPin && state.adminIdForPin) {
         setAdminIdForPin(state.adminIdForPin);
         toast({
           title: 'Admin 2FA Required',
           description: state.message || 'Please enter your 6-digit PIN.',
-          variant: 'default' 
+          variant: 'default'
         });
       } else if (!state.requiresPin && !state.adminUser) { // Login failed (password or username error)
         toast({
@@ -54,7 +55,7 @@ export default function AdminLoginForm() {
           description: state.message || 'An error occurred.',
           variant: 'destructive',
         });
-        setAdminIdForPin(undefined); 
+        setAdminIdForPin(undefined);
       } else if (state.requiresPin && !state.adminUser) { // PIN verification failed
          toast({
           title: 'Admin PIN Verification Failed',
@@ -65,20 +66,12 @@ export default function AdminLoginForm() {
     }
   }, [state, toast, authLogin, router]);
 
-  // This effect handles cases where a logged-in admin might try to access the login page.
   useEffect(() => {
     if (authUser && isAdmin) {
-      // If already logged in as admin and on the login page, redirect to dashboard.
-      // This prevents showing the login form to an already authenticated admin.
-      // We check router.pathname to ensure this only happens if they are ON the login page.
-      if (router.pathname === '/admin/login') { // Note: Next.js App Router uses usePathname() hook for path
-         // For app router, you'd get pathname from usePathname()
-         // For simplicity here, assuming this component is only for /admin/login
-         // router.push('/admin/dashboard'); // This might cause a loop if not careful with dependencies or component lifecycle
-      }
+      // No explicit redirect here to prevent loops; login handler pushes to dashboard.
+      // This effect mainly handles if user is already admin and lands here.
     }
-  }, [authUser, isAdmin, router]);
-
+  }, [authUser, isAdmin]);
 
   const isPinStageCurrent = !!(state?.requiresPin || adminIdForPin);
 
@@ -102,7 +95,7 @@ export default function AdminLoginForm() {
               <>
                 <div className="space-y-2">
                   <Label htmlFor="username">Username</Label>
-                  <Input id="username" name="username" type="text" placeholder="admin_user" required 
+                  <Input id="username" name="username" type="text" placeholder="admin_user" required
                     aria-invalid={!!state?.errors?.username}
                     aria-describedby="username-error"
                   />
@@ -112,11 +105,11 @@ export default function AdminLoginForm() {
                   <Label htmlFor="password">Password</Label>
                   <div className="relative">
                     <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      id="password" 
-                      name="password" 
-                      type={showPassword ? 'text' : 'password'} 
-                      required 
+                    <Input
+                      id="password"
+                      name="password"
+                      type={showPassword ? 'text' : 'password'}
+                      required
                       className="pl-10 pr-10"
                       aria-invalid={!!state?.errors?.password}
                       aria-describedby="password-error"
@@ -141,17 +134,28 @@ export default function AdminLoginForm() {
                 <Label htmlFor="pin">6-Digit PIN</Label>
                  <div className="relative">
                     <PinIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                        id="pin" 
-                        name="pin" 
-                        type="text" 
-                        maxLength={6} 
-                        placeholder="123456" 
-                        required 
-                        className="pl-10 tracking-[0.3em] text-center"
+                    <Input
+                        id="pin"
+                        name="pin"
+                        type={showPinInput ? 'text' : 'password'}
+                        maxLength={6}
+                        placeholder="••••••"
+                        required
+                        className="pl-10 pr-10 tracking-[0.3em] text-center"
                         aria-invalid={!!state?.errors?.pin}
                         aria-describedby="pin-error"
                     />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-foreground"
+                      onClick={() => setShowPinInput(!showPinInput)}
+                      aria-label={showPinInput ? "Hide PIN" : "Show PIN"}
+                      tabIndex={-1}
+                    >
+                      {showPinInput ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
                 </div>
                 {state?.errors?.pin && <p id="pin-error" className="text-sm text-destructive">{state.errors.pin.join(', ')}</p>}
               </div>

@@ -1,18 +1,20 @@
 
 export interface User {
   id: string;
-  name: string; 
-  username: string; 
+  name: string;
+  username: string;
   email?: string;
-  phone?: string; 
+  phone?: string;
   avatarUrl?: string;
-  passwordHash?: string; 
+  passwordHash?: string;
   twoFactorEnabled: boolean;
   twoFactorPinHash?: string;
+  failedPinAttempts?: number; // Added for 2FA lockout
+  isLocked?: boolean;         // Added for 2FA lockout
 }
 
 export interface CodeBlockItem {
-  id: string; 
+  id: string;
   language: string;
   code: string;
 }
@@ -20,12 +22,12 @@ export interface CodeBlockItem {
 export interface Design {
   id: string;
   title: string;
-  filterCategory: string; 
+  filterCategory: string;
   description: string;
-  codeBlocks: CodeBlockItem[]; 
+  codeBlocks: CodeBlockItem[];
   designer: User; // This will hold the sanitized User object
   tags: string[];
-  price?: number; 
+  price?: number;
   submittedByUserId?: string;
 }
 
@@ -35,15 +37,15 @@ export interface AdminUser {
   username: string;
   email: string;
   phone: string;
-  avatarUrl?: string; 
-  passwordHash?: string; 
+  avatarUrl?: string;
+  passwordHash?: string;
   twoFactorEnabled: boolean;
   twoFactorPinHash?: string;
 }
 
 // AuthUser is what's typically exposed to the client context or returned from non-sensitive actions
-export type AuthUser = 
-  | (Omit<User, 'passwordHash' | 'twoFactorPinHash'> & { isAdmin?: false }) 
+export type AuthUser =
+  | (Omit<User, 'passwordHash' | 'twoFactorPinHash'> & { isAdmin?: false })
   | (Omit<AdminUser, 'passwordHash' | 'twoFactorPinHash'> & { isAdmin: true });
 
 // StoredUser and StoredAdminUser represent the full objects as stored in JSON files, including hashes
@@ -99,7 +101,7 @@ export type SiteSettingsFormState = {
 export type UpdateAdminProfileFormState = {
   message?: string | null;
   success?: boolean;
-  adminUser?: Omit<AdminUser, 'passwordHash' | 'twoFactorPinHash'> | null; 
+  adminUser?: Omit<AdminUser, 'passwordHash' | 'twoFactorPinHash'> | null;
   errors?: {
     name?: string[];
     avatarUrl?: string[];
@@ -209,4 +211,14 @@ export type SiteLogoUploadState = {
         general?: string[];
     };
     filePath?: string | null;
+};
+
+export type AdminSetUser2FAStatusFormState = {
+  message?: string | null;
+  success?: boolean;
+  errors?: {
+    userId?: string[];
+    general?: string[];
+  };
+  updatedUser?: User | null; // To potentially update the user list in UI
 };

@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useActionState, useEffect, useState } from 'react';
+import { useActionState, useEffect, useState, useCallback } from 'react';
 import { useFormStatus } from 'react-dom';
 import { enableTwoFactorAction, disableTwoFactorAction, type TwoFactorAuthFormState } from '@/lib/actions';
 import { useAuth } from '@/contexts/AuthContext';
@@ -24,7 +24,7 @@ function SubmitButton({ actionType }: { actionType: 'enable' | 'disable' }) {
 }
 
 export default function TwoFactorAuthForm() {
-  const { user, updateAuthUser } = useAuth(); // Assuming useAuth provides a way to check current 2FA status
+  const { user, updateAuthUser } = useAuth(); 
   const { toast } = useToast();
   
   const initialEnableState: TwoFactorAuthFormState = { message: null, errors: {}, success: false, actionType: 'enable' };
@@ -33,8 +33,6 @@ export default function TwoFactorAuthForm() {
   const [enableState, enableDispatch] = useActionState(enableTwoFactorAction, initialEnableState);
   const [disableState, disableDispatch] = useActionState(disableTwoFactorAction, initialDisableState);
 
-  // Local state to manage the visual toggle and form display
-  // Initialize from the AuthContext user's 2FA status
   const [isTwoFactorEnabledLocally, setIsTwoFactorEnabledLocally] = useState(false);
   const [showEnableForm, setShowEnableForm] = useState(false);
   const [showDisableForm, setShowDisableForm] = useState(false);
@@ -54,35 +52,38 @@ export default function TwoFactorAuthForm() {
         variant: activeState.success ? 'default' : 'destructive',
       });
       if (activeState.success) {
-        // Update local state and AuthContext
         const new2FAStatus = activeState.actionType === 'enable';
         setIsTwoFactorEnabledLocally(new2FAStatus);
-        if (user && 'id' in user) { // ensure it's a regular user
-            updateAuthUser({ ...user, twoFactorEnabled: new2FAStatus });
+        // Ensure user is defined and is a regular user before trying to update context
+        if (user && 'id' in user) { 
+            // Pass a function to updateAuthUser to ensure it uses the latest user state from context
+            updateAuthUser((currentUser) => {
+                if (!currentUser || !('id' in currentUser)) return currentUser; // Should not happen if 'id' in user check passed
+                return { ...currentUser, twoFactorEnabled: new2FAStatus };
+            });
         }
         setShowEnableForm(false);
         setShowDisableForm(false);
-        // Reset forms
         (document.getElementById('enable2FAForm') as HTMLFormElement)?.reset();
         (document.getElementById('disable2FAForm') as HTMLFormElement)?.reset();
       }
     }
-  }, [enableState, disableState, toast, updateAuthUser, user]);
+  // Removed `user` from dependency array to prevent loop. `updateAuthUser` is stable.
+  }, [enableState, disableState, toast, updateAuthUser]);
 
-  if (!user || !('id' in user)) { // Ensure it's a regular User object
+  if (!user || !('id' in user)) { 
     return <p>Loading user data or 2FA not applicable...</p>;
   }
 
-  const handleToggleChange = (checked: boolean) => {
-    if (checked) { // Trying to enable
+  const handleToggleChange = useCallback((checked: boolean) => {
+    if (checked) { 
         setShowEnableForm(true);
         setShowDisableForm(false);
-    } else { // Trying to disable
+    } else { 
         setShowDisableForm(true);
         setShowEnableForm(false);
     }
-    // Don't change isTwoFactorEnabledLocally here, let the action success do it
-  };
+  }, [setShowEnableForm, setShowDisableForm]);
 
 
   return (

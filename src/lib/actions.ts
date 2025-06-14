@@ -3,12 +3,15 @@
 
 import { z } from 'zod';
 import { getUsersFromFile, saveUserToFile, getAdminUsers, addDesignToFile, updateUserInFile, getDesignsFromFile } from './server-data';
-import type { AdminUser, User, Design } from './types';
+import type { AdminUser, User, Design, AuthUser, StoredUser, StoredAdminUser } from './types';
 import { revalidatePath } from 'next/cache';
+import { hashPassword, comparePassword, hashPin, comparePin } from './auth-utils';
 
 const LoginSchema = z.object({
   identifier: z.string().min(1, { message: 'Username or email is required.' }),
-  password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
+  password: z.string().min(1, { message: 'Password is required.' }), // Min length check done by bcrypt comparison effectively
+  pin: z.string().length(6, { message: 'PIN must be 6 digits.' }).regex(/^\d{6}$/, "PIN must be 6 digits.").optional(),
+  userIdForPin: z.string().optional(), // To identify user during PIN verification step
 });
 
 const SignupSchema = z.object({
@@ -42,7 +45,7 @@ const AddDesignSchema = z.object({
 const UpdateProfileSchema = z.object({
   userId: z.string(),
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
-  avatarUrl: z.string().optional(), // Accepts any string (Data URL, existing URL, or empty)
+  avatarUrl: z.string().optional(),
 });
 
 const ChangePasswordSchema = z.object({
@@ -55,20 +58,38 @@ const ChangePasswordSchema = z.object({
   path: ['confirmPassword'],
 });
 
+const EnableTwoFactorSchema = z.object({
+  userId: z.string(),
+  pin: z.string().length(6, { message: 'PIN must be 6 digits.' }).regex(/^\d{6}$/, "PIN must be 6 digits."),
+  confirmPin: z.string(),
+  currentPasswordFor2FA: z.string().min(1, {message: "Current password is required to enable 2FA."}),
+}).refine(data => data.pin === data.confirmPin, {
+  message: "PINs don't match.",
+  path: ['confirmPin'],
+});
+
+const DisableTwoFactorSchema = z.object({
+  userId: z.string(),
+  currentPasswordFor2FA: z.string().min(1, {message: "Current password is required to disable 2FA."}),
+});
+
 
 export type LoginFormState = {
   message?: string | null;
-  user?: User | null;
+  user?: AuthUser | null; // Sanitized user
   errors?: {
     identifier?: string[];
     password?: string[];
+    pin?: string[];
     general?: string[];
   };
+  requiresPin?: boolean;
+  userIdForPin?: string; // To pass userId to PIN verification stage
 };
 
 export type SignupFormState = {
   message?: string | null;
-  user?: User | null;
+  user?: AuthUser | null; // Sanitized user
   errors?: {
     name?: string[];
     username?: string[];
@@ -81,7 +102,7 @@ export type SignupFormState = {
 
 export type AdminLoginFormState = {
   message?: string | null;
-  adminUser?: AdminUser | null;
+  adminUser?: AuthUser | null; // Sanitized admin user
   errors?: {
     username?: string[];
     password?: string[];
@@ -108,10 +129,10 @@ export type AddDesignFormState = {
 export type UpdateProfileFormState = {
   message?: string | null;
   success?: boolean;
-  user?: User | null;
+  user?: AuthUser | null; // Sanitized user
   errors?: {
     name?: string[];
-    avatarUrl?: string[]; // Error key remains avatarUrl for consistency
+    avatarUrl?: string[];
     general?: string[];
   };
 };
@@ -123,6 +144,18 @@ export type ChangePasswordFormState = {
     currentPassword?: string[];
     newPassword?: string[];
     confirmPassword?: string[];
+    general?: string[];
+  };
+};
+
+export type TwoFactorAuthFormState = {
+  message?: string | null;
+  success?: boolean;
+  actionType?: 'enable' | 'disable';
+  errors?: {
+    pin?: string[];
+    confirmPin?: string[];
+    currentPasswordFor2FA?: string[];
     general?: string[];
   };
 };
@@ -139,23 +172,55 @@ export async function loginUser(prevState: LoginFormState, formData: FormData): 
     };
   }
 
-  const { identifier, password } = validatedFields.data;
+  const { identifier, password, pin, userIdForPin } = validatedFields.data;
   const users = await getUsersFromFile();
-  
-  const foundUser = users.find(u => 
-    (u.email === identifier || u.username === identifier)
-  );
 
-  if (!foundUser) {
-    return { message: 'Invalid credentials.', errors: { general: ['Invalid username/email or password.'] } };
-  }
+  let targetUser: StoredUser | undefined;
 
-  if (foundUser.password === password) { // In a real app, use password hashing (e.g., bcrypt.compare)
-    const { password: _, ...userToReturn } = foundUser;
+  if (userIdForPin && pin) { // PIN verification stage
+    targetUser = users.find(u => u.id === userIdForPin);
+    if (!targetUser) {
+      return { message: 'User not found for PIN verification.', errors: { general: ['An error occurred. Please try logging in again.'] } };
+    }
+    if (!targetUser.twoFactorEnabled || !targetUser.twoFactorPinHash) {
+      return { message: '2FA is not enabled for this user or PIN not set up.', errors: { general: ['2FA error. Please try logging in again.'] } };
+    }
+    const pinMatches = await comparePin(pin, targetUser.twoFactorPinHash);
+    if (!pinMatches) {
+      return { 
+        message: 'Invalid PIN.', 
+        errors: { pin: ['Incorrect PIN.'] }, 
+        requiresPin: true, 
+        userIdForPin: targetUser.id 
+      };
+    }
+    // PIN is correct, proceed to login
+    const { passwordHash, twoFactorPinHash, ...userToReturn } = targetUser;
     return { message: 'Login successful!', user: userToReturn };
-  }
 
-  return { message: 'Invalid credentials.', errors: { general: ['Invalid username/email or password.'] } };
+  } else { // Initial login: username/email + password stage
+    targetUser = users.find(u => (u.email === identifier || u.username === identifier));
+    if (!targetUser || !targetUser.passwordHash) {
+      return { message: 'Invalid credentials.', errors: { general: ['Invalid username/email or password.'] } };
+    }
+    const passwordMatches = await comparePassword(password, targetUser.passwordHash);
+    if (!passwordMatches) {
+      return { message: 'Invalid credentials.', errors: { general: ['Invalid username/email or password.'] } };
+    }
+
+    // Password is correct, check for 2FA
+    if (targetUser.twoFactorEnabled) {
+      return { 
+        message: 'Please enter your 2FA PIN.', 
+        requiresPin: true, 
+        userIdForPin: targetUser.id 
+      };
+    } else {
+      // No 2FA, login directly
+      const { passwordHash, twoFactorPinHash, ...userToReturn } = targetUser;
+      return { message: 'Login successful!', user: userToReturn };
+    }
+  }
 }
 
 // User signup
@@ -179,19 +244,21 @@ export async function signupUser(prevState: SignupFormState, formData: FormData)
     return { message: 'This username is already taken.', errors: { username: ['Username already taken.'] } };
   }
 
-
-  const newUser: User = {
+  const hashedPassword = await hashPassword(password);
+  const newUser: StoredUser = {
     id: `user-${Date.now()}`,
     name,
     username,
     email,
     phone,
-    password, // In a real app, hash the password before saving (e.g., bcrypt.hash)
-    avatarUrl: `https://placehold.co/100x100.png?text=${name.charAt(0).toUpperCase()}`
+    passwordHash: hashedPassword,
+    avatarUrl: `https://placehold.co/100x100.png?text=${name.charAt(0).toUpperCase()}`,
+    twoFactorEnabled: false, 
+    // twoFactorPinHash will be set when user enables 2FA
   };
   
   await saveUserToFile(newUser);
-  const { password: _, ...userToReturnForState } = newUser;
+  const { passwordHash, twoFactorPinHash, ...userToReturnForState } = newUser;
 
   return { message: 'Signup successful! Please log in.', user: userToReturnForState };
 }
@@ -211,11 +278,16 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
   const adminUsers = await getAdminUsers();
   const adminUser = adminUsers.find(admin => admin.username === username);
 
-  if (!adminUser || adminUser.password !== password) {
+  if (!adminUser || !adminUser.passwordHash) {
     return { message: 'Invalid username or password.', errors: { general: ['Invalid username or password.'] } };
   }
   
-  const { password: _, ...adminUserToReturn } = adminUser;
+  const passwordMatches = await comparePassword(password, adminUser.passwordHash);
+  if (!passwordMatches) {
+    return { message: 'Invalid username or password.', errors: { general: ['Invalid username or password.'] } };
+  }
+  
+  const { passwordHash, ...adminUserToReturn } = adminUser;
   return { message: 'Admin login successful!', adminUser: adminUserToReturn };
 }
 
@@ -234,12 +306,12 @@ export async function submitDesignAction(prevState: AddDesignFormState, formData
   const { title, description, imageUrl, htmlCode, cssCode, jsCode, tags, price, submittedByUserId } = validatedFields.data;
   
   const users = await getUsersFromFile();
-  const designer = users.find(u => u.id === submittedByUserId);
+  const storedDesigner = users.find(u => u.id === submittedByUserId);
 
-  if (!designer) {
+  if (!storedDesigner) {
     return { message: 'Designer user not found.', success: false, errors: { general: ['Designer user not found.'] } };
   }
-  const { password, ...designerInfo } = designer;
+  const { passwordHash, twoFactorPinHash, ...designerInfo } = storedDesigner;
 
 
   const newDesign: Design = {
@@ -252,7 +324,7 @@ export async function submitDesignAction(prevState: AddDesignFormState, formData
       css: cssCode || '',
       js: jsCode || '',
     },
-    designer: designerInfo, 
+    designer: designerInfo as User, // Cast as User (sanitized version)
     tags: tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
     price,
     submittedByUserId,
@@ -290,10 +362,9 @@ export async function updateProfileAction(prevState: UpdateProfileFormState, for
     return { message: 'User not found.', success: false, errors: { general: ['User not found.'] } };
   }
 
-  const updatedUserData: User = {
+  const updatedUserData: StoredUser = {
     ...userToUpdate,
     name,
-    // avatarUrl will be the Data URL string from the client, or the existing URL if not changed, or empty
     avatarUrl: avatarUrl || userToUpdate.avatarUrl, 
   };
 
@@ -301,10 +372,10 @@ export async function updateProfileAction(prevState: UpdateProfileFormState, for
     const success = await updateUserInFile(updatedUserData);
     if (!success) throw new Error("Update operation failed at server-data");
     
-    const { password, ...userToReturn } = updatedUserData;
-    revalidatePath('/dashboard/profile'); // Revalidate profile page
-    revalidatePath('/dashboard'); // Revalidate dashboard overview (if it shows avatar in header)
-    revalidatePath('/'); // Revalidate home page (if avatar appears in header globally)
+    const { passwordHash, twoFactorPinHash, ...userToReturn } = updatedUserData;
+    revalidatePath('/dashboard/profile');
+    revalidatePath('/dashboard'); 
+    revalidatePath('/'); 
     return { message: 'Profile updated successfully!', success: true, user: userToReturn };
   } catch (error) {
     console.error("Error updating profile:", error);
@@ -329,17 +400,19 @@ export async function changePasswordAction(prevState: ChangePasswordFormState, f
   const users = await getUsersFromFile();
   const userToUpdate = users.find(u => u.id === userId);
 
-  if (!userToUpdate) {
-    return { message: 'User not found.', success: false, errors: { general: ['User not found.'] } };
+  if (!userToUpdate || !userToUpdate.passwordHash) {
+    return { message: 'User not found or password not set.', success: false, errors: { general: ['User not found.'] } };
   }
 
-  if (userToUpdate.password !== currentPassword) { // In a real app, use password hashing
+  const passwordMatches = await comparePassword(currentPassword, userToUpdate.passwordHash);
+  if (!passwordMatches) {
     return { message: 'Incorrect current password.', success: false, errors: { currentPassword: ['Incorrect current password.'] } };
   }
 
-  const updatedUserData: User = {
+  const newHashedPassword = await hashPassword(newPassword);
+  const updatedUserData: StoredUser = {
     ...userToUpdate,
-    password: newPassword, 
+    passwordHash: newHashedPassword, 
   };
 
   try {
@@ -353,11 +426,92 @@ export async function changePasswordAction(prevState: ChangePasswordFormState, f
   }
 }
 
+// Enable 2FA
+export async function enableTwoFactorAction(prevState: TwoFactorAuthFormState, formData: FormData): Promise<TwoFactorAuthFormState> {
+  const validatedFields = EnableTwoFactorSchema.safeParse(Object.fromEntries(formData.entries()));
+  if (!validatedFields.success) {
+    return { errors: validatedFields.error.flatten().fieldErrors, message: 'Invalid fields.', success: false, actionType: 'enable' };
+  }
+
+  const { userId, pin, currentPasswordFor2FA } = validatedFields.data;
+  const users = await getUsersFromFile();
+  const userToUpdate = users.find(u => u.id === userId);
+
+  if (!userToUpdate || !userToUpdate.passwordHash) {
+    return { message: 'User not found.', success: false, errors: { general: ['User not found.'] }, actionType: 'enable' };
+  }
+
+  const passwordMatches = await comparePassword(currentPasswordFor2FA, userToUpdate.passwordHash);
+  if (!passwordMatches) {
+    return { message: 'Incorrect current password.', success: false, errors: { currentPasswordFor2FA: ['Incorrect current password.'] }, actionType: 'enable' };
+  }
+
+  const hashedPin = await hashPin(pin);
+  const updatedUserData: StoredUser = {
+    ...userToUpdate,
+    twoFactorEnabled: true,
+    twoFactorPinHash: hashedPin,
+  };
+
+  try {
+    await updateUserInFile(updatedUserData);
+    revalidatePath('/dashboard/profile');
+    return { message: '2FA enabled successfully!', success: true, actionType: 'enable' };
+  } catch (error) {
+    console.error("Error enabling 2FA:", error);
+    return { message: 'Failed to enable 2FA.', success: false, errors: { general: ['Server error.'] }, actionType: 'enable' };
+  }
+}
+
+// Disable 2FA
+export async function disableTwoFactorAction(prevState: TwoFactorAuthFormState, formData: FormData): Promise<TwoFactorAuthFormState> {
+  const validatedFields = DisableTwoFactorSchema.safeParse(Object.fromEntries(formData.entries()));
+  if (!validatedFields.success) {
+    return { errors: validatedFields.error.flatten().fieldErrors, message: 'Invalid fields.', success: false, actionType: 'disable' };
+  }
+
+  const { userId, currentPasswordFor2FA } = validatedFields.data;
+  const users = await getUsersFromFile();
+  const userToUpdate = users.find(u => u.id === userId);
+
+  if (!userToUpdate || !userToUpdate.passwordHash) {
+    return { message: 'User not found.', success: false, errors: { general: ['User not found.'] }, actionType: 'disable' };
+  }
+
+  const passwordMatches = await comparePassword(currentPasswordFor2FA, userToUpdate.passwordHash);
+  if (!passwordMatches) {
+    return { message: 'Incorrect current password.', success: false, errors: { currentPasswordFor2FA: ['Incorrect current password.'] }, actionType: 'disable' };
+  }
+
+  const updatedUserData: StoredUser = {
+    ...userToUpdate,
+    twoFactorEnabled: false,
+    twoFactorPinHash: undefined, // Clear the PIN hash
+  };
+
+  try {
+    await updateUserInFile(updatedUserData);
+    revalidatePath('/dashboard/profile');
+    return { message: '2FA disabled successfully!', success: true, actionType: 'disable' };
+  } catch (error) {
+    console.error("Error disabling 2FA:", error);
+    return { message: 'Failed to disable 2FA.', success: false, errors: { general: ['Server error.'] }, actionType: 'disable' };
+  }
+}
+
+
 // Action to get all designs
 export async function getAllDesignsAction(): Promise<Design[]> {
   try {
     const designs = await getDesignsFromFile();
-    return designs;
+    // Sanitize designer info in each design
+    return designs.map(design => {
+      if (design.designer) {
+        const { passwordHash, twoFactorPinHash, ...sanitizedDesigner } = design.designer as StoredUser;
+        return { ...design, designer: sanitizedDesigner as User };
+      }
+      return design;
+    });
   } catch (error) {
     console.error("Error fetching all designs via action:", error);
     return []; 
@@ -368,7 +522,12 @@ export async function getAllDesignsAction(): Promise<Design[]> {
 export async function getDesignByIdAction(id: string): Promise<Design | undefined> {
   try {
     const designs = await getDesignsFromFile();
-    return designs.find(design => design.id === id);
+    const design = designs.find(d => d.id === id);
+    if (design && design.designer) {
+      const { passwordHash, twoFactorPinHash, ...sanitizedDesigner } = design.designer as StoredUser;
+      return { ...design, designer: sanitizedDesigner as User };
+    }
+    return design;
   } catch (error) {
     console.error(`Error fetching design by ID (${id}) via action:`, error);
     return undefined;

@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -25,7 +26,8 @@ const Header = () => {
     return nameToProcess.split(' ').map(n => n[0]).join('').toUpperCase();
   }
   
-  const displayName = user ? ('name' in user && user.name ? user.name : ('username' in user ? user.username : 'User')) : 'User';
+  const displayName = user ? (('name' in user && user.name) ? user.name : (('username' in user) ? user.username : 'User')) : 'User';
+  const displayEmail = user && 'email' in user ? user.email : undefined;
 
 
   return (
@@ -40,7 +42,7 @@ const Header = () => {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                   <Avatar className="h-9 w-9">
-                    <AvatarImage src={(user as any).avatarUrl || `https://placehold.co/100x100.png?text=${getInitials(displayName)}`} alt={displayName} data-ai-hint="profile avatar" />
+                    <AvatarImage src={(user && 'avatarUrl' in user ? user.avatarUrl : undefined) || `https://placehold.co/100x100.png?text=${getInitials(displayName)}`} alt={displayName} data-ai-hint="profile avatar" />
                     <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
                   </Avatar>
                 </Button>
@@ -51,9 +53,9 @@ const Header = () => {
                     <p className="text-sm font-medium leading-none font-headline">
                       {displayName}
                     </p>
-                    { 'email' in user && user.email && (
+                    { displayEmail && (
                        <p className="text-xs leading-none text-muted-foreground">
-                         {user.email}
+                         {displayEmail}
                        </p>
                     )}
                   </div>

@@ -1,7 +1,8 @@
+
 // src/components/dashboard/forms/ChangePasswordForm.tsx
 'use client';
 
-import { useActionState, useEffect } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { changePasswordAction, type ChangePasswordFormState } from '@/lib/actions';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,6 +12,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Lock, KeyRound, ShieldCheck } from 'lucide-react';
+import PasswordStrengthMeter from '@/components/auth/PasswordStrengthMeter';
+
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -27,6 +30,7 @@ export default function ChangePasswordForm() {
   
   const initialState: ChangePasswordFormState = { message: null, errors: {}, success: false };
   const [state, dispatch] = useActionState(changePasswordAction, initialState);
+  const [newPassword, setNewPassword] = useState('');
 
   useEffect(() => {
     if (state?.message) {
@@ -37,15 +41,17 @@ export default function ChangePasswordForm() {
       });
       if (state.success) {
         // Form can be reset here if needed by managing input values with useState
-        // For example, by finding the form element and calling reset()
-        // document.getElementById('changePasswordForm')?.reset(); // This is a simple way
+        const form = document.getElementById('changePasswordForm') as HTMLFormElement;
+        form?.reset();
+        setNewPassword('');
       }
     }
   }, [state, toast]);
 
-  if (!user || !('id' in user)) {
+  if (!user || !('id' in user)) { // Check if user is a regular user with an id
     return <p>Loading user data...</p>;
   }
+
 
   return (
     <Card className="w-full shadow-xl mt-8">
@@ -82,9 +88,12 @@ export default function ChangePasswordForm() {
                     type="password" 
                     required 
                     className="pl-10"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
                     aria-describedby="newPassword-error"
                 />
             </div>
+            <PasswordStrengthMeter password={newPassword} />
             {state?.errors?.newPassword && <p id="newPassword-error" className="text-sm text-destructive">{state.errors.newPassword.join(', ')}</p>}
           </div>
 

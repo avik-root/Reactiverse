@@ -1,16 +1,16 @@
 
 'use client';
 
-import type { AuthUser, User } from '@/lib/types';
+import type { AuthUser, User as StoredUserType } from '@/lib/types'; // Use StoredUserType for full user from storage
 import type React from 'react';
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 interface AuthContextType {
-  user: AuthUser | null;
+  user: AuthUser | null; // This will hold the sanitized user object for the UI
   isAdmin: boolean;
   login: (userData: AuthUser, isAdmin?: boolean) => void;
   logout: () => void;
-  updateAuthUser: (updatedUserData: Partial<AuthUser>) => void;
+  updateAuthUser: (updatedUserData: Partial<AuthUser>) => void; // Partial of sanitized AuthUser
   isLoading: boolean;
 }
 
@@ -23,10 +23,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     try {
-      const storedUser = localStorage.getItem('reactiverseUser');
+      const storedUserJSON = localStorage.getItem('reactiverseUser');
       const storedIsAdmin = localStorage.getItem('reactiverseIsAdmin') === 'true';
-      if (storedUser) {
-        setUser(JSON.parse(storedUser));
+      if (storedUserJSON) {
+        const storedUser = JSON.parse(storedUserJSON) as AuthUser; // Assume stored user is already sanitized
+        setUser(storedUser);
         setIsAdmin(storedIsAdmin);
       }
     } catch (error) {
@@ -38,6 +39,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = useCallback((userData: AuthUser, adminStatus: boolean = false) => {
+    // userData here should already be sanitized (no passwordHash or twoFactorPinHash)
     setUser(userData);
     setIsAdmin(adminStatus);
     try {
@@ -60,9 +62,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const updateAuthUser = useCallback((updatedUserData: Partial<AuthUser>) => {
+    // updatedUserData should be partial of the sanitized AuthUser
     setUser(prevUser => {
       if (!prevUser) return null;
-      const newUser = { ...prevUser, ...updatedUserData };
+      // Ensure that if it's a regular user, the twoFactorEnabled field might be updated
+      let newUser: AuthUser;
+      if ('id' in prevUser && 'id' in updatedUserData && prevUser.id === updatedUserData.id) { // Regular user update
+        newUser = { 
+          ...prevUser, 
+          ...updatedUserData,
+          // Explicitly carry over twoFactorEnabled if present in updatedUserData
+          twoFactorEnabled: 'twoFactorEnabled' in updatedUserData 
+                              ? updatedUserData.twoFactorEnabled 
+                              : ('twoFactorEnabled' in prevUser ? prevUser.twoFactorEnabled : false)
+        } as AuthUser; 
+      } else if (!('id' in prevUser) && !('id' in updatedUserData) && prevUser.username === updatedUserData.username ) { // Admin update
+         newUser = { ...prevUser, ...updatedUserData } as AuthUser;
+      }
+      else { // Mismatch or unexpected update, fallback to previous user to be safe
+        newUser = prevUser;
+      }
+      
       try {
         localStorage.setItem('reactiverseUser', JSON.stringify(newUser));
       } catch (error) {

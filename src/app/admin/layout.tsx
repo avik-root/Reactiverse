@@ -3,9 +3,9 @@
 
 import { useEffect, type ReactNode } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter, usePathname } from 'next/navigation'; // Added usePathname
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { LayoutDashboard, Users, Palette, Settings, LogOut, ShieldCheck, UserCog, FileText, Image as ImageIcon } from 'lucide-react';
+import { LayoutDashboard, Users, Palette, Settings, LogOut, ShieldCheck, UserCog, FileText, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Logo from '@/components/core/Logo';
 import { Button } from '@/components/ui/button';
@@ -47,11 +47,17 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     }
   }, [user, isAdmin, isLoading, router, pathname, isPublicAdminPage]);
 
+  const handleLogout = async () => {
+    await logout(); 
+    router.push('/'); 
+  };
+
   if (isPublicAdminPage) {
     return <>{children}</>;
   }
   
-  if (isLoading || !user || !isAdmin) {
+  // For protected admin pages:
+  if (isLoading) { // AuthContext is genuinely loading its state
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background">
         <ShieldCheck className="h-16 w-16 animate-spin text-primary mb-6" />
@@ -59,7 +65,22 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       </div>
     );
   }
+
+  // AuthContext has loaded (isLoading is false)
+  if (!user || !isAdmin) {
+    // User is not an admin according to client-side AuthContext.
+    // The useEffect above should trigger a redirect to /admin/login.
+    // Show a "Redirecting..." message to avoid flashing dashboard content.
+    return (
+        <div className="flex flex-col items-center justify-center min-h-screen bg-background">
+            <Loader2 className="h-16 w-16 animate-spin text-primary mb-6" />
+            <p className="text-xl text-muted-foreground">Redirecting...</p>
+      </div>
+    );
+  }
   
+  // If we reach here, AuthContext is loaded (isLoading is false) AND user is an admin.
+  // Render the full admin UI.
   const getInitials = (name?: string) => {
     if (!name) return 'A';
     const nameToProcess = user && isAdmin && 'name' in user && user.name ? user.name : 'Admin';
@@ -68,11 +89,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   const displayName = user && isAdmin && 'name' in user && user.name ? user.name : 'Admin';
   const avatarUrl = user && isAdmin && 'avatarUrl' in user && user.avatarUrl ? user.avatarUrl : undefined;
-
-  const handleLogout = async () => {
-    await logout(); // This will clear client state and admin cookie
-    router.push('/'); // Redirect to homepage AFTER logout completes
-  };
 
   return (
     <div className="flex min-h-screen bg-muted/30">

@@ -5,7 +5,7 @@ import type { Design } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { IndianRupee, Lock, Filter, Code2 } from 'lucide-react'; 
+import { IndianRupee, Filter, Code2 } from 'lucide-react'; 
 
 interface DesignCardProps {
   design: Design;
@@ -33,8 +33,9 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
       <CardHeader className="p-4 relative bg-muted/30 flex items-center justify-center aspect-[16/9] min-h-[150px]">
         <Code2 className="h-16 w-16 text-primary/70" />
         {isPriced && (
-          <Badge variant="destructive" className="absolute top-2 right-2 text-xs">
-            <IndianRupee className="h-3 w-3 mr-1" /> Priced
+          <Badge variant="secondary" className="absolute top-3 right-3 text-xs px-2 py-1 flex items-center">
+            <IndianRupee className="h-3 w-3 mr-1" />
+            {design.price?.toFixed(2)}
           </Badge>
         )}
       </CardHeader>

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Layers3, Linkedin, Github, Mail } from 'lucide-react'; // Changed Flame to Layers3
+import { Layers3, Linkedin, Github, Mail } from 'lucide-react'; 
 
 const FooterLink: React.FC<{ href: string; children: React.ReactNode }> = ({ href, children }) => (
   <li>
@@ -19,11 +19,11 @@ const Footer = () => {
           {/* Reactiverse Info */}
           <div className="md:col-span-12 lg:col-span-5">
             <Link href="/" className="flex items-center gap-2 mb-3 text-[hsl(var(--footer-foreground))] hover:opacity-80 transition-opacity">
-              <Layers3 size={28} /> {/* Changed icon */}
-              <span className="text-2xl font-headline font-semibold">Reactiverse</span> {/* Changed text */}
+              <Layers3 size={28} /> 
+              <span className="text-2xl font-headline font-semibold">Reactiverse</span> 
             </Link>
             <p className="text-sm text-[hsl(var(--footer-muted-foreground))] mb-6 max-w-xs">
-              A platform for designers to showcase their components and designs. {/* Changed tagline */}
+              A platform for designers to showcase their components and designs. 
             </p>
             <div className="flex space-x-4">
               <Link href="#" aria-label="LinkedIn" className="text-[hsl(var(--footer-muted-foreground))] hover:text-[hsl(var(--footer-foreground))] transition-colors">
@@ -46,9 +46,9 @@ const Footer = () => {
             <h3 className="font-semibold text-base mb-4 text-[hsl(var(--footer-foreground))]">Discover</h3>
             <ul className="space-y-2">
               <FooterLink href="/">Browse Designs</FooterLink>
-              <FooterLink href="/design/submit">Submit Your Design</FooterLink> {/* Placeholder Link */}
-              <FooterLink href="/designers">Top Designers</FooterLink> {/* Placeholder Link */}
-              <FooterLink href="/guidelines">Design Guidelines</FooterLink> {/* Placeholder Link */}
+              <FooterLink href="/dashboard/designs/submit">Submit Your Design</FooterLink>
+              <FooterLink href="/designers">Top Designers</FooterLink>
+              <FooterLink href="/guidelines">Design Guidelines</FooterLink>
             </ul>
           </div>
 
@@ -56,9 +56,9 @@ const Footer = () => {
           <div className="md:col-span-6 lg:col-span-3">
             <h3 className="font-semibold text-base mb-4 text-[hsl(var(--footer-foreground))]">Connect</h3>
             <ul className="space-y-2">
-              <FooterLink href="/about">About Us</FooterLink> {/* Placeholder Link */}
-              <FooterLink href="/community">Community Forum</FooterLink> {/* Placeholder Link */}
-              <FooterLink href="/contact">Contact Support</FooterLink> {/* Placeholder Link */}
+              <FooterLink href="/about">About Us</FooterLink>
+              <FooterLink href="/community">Community Forum</FooterLink>
+              <FooterLink href="/support">Contact Support</FooterLink> 
               <FooterLink href="/admin/login">Admin Login</FooterLink>
             </ul>
           </div>
@@ -67,7 +67,7 @@ const Footer = () => {
       <div className="border-t border-[hsl(var(--footer-border))]">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 text-center">
           <p className="text-sm text-[hsl(var(--footer-muted-foreground))]">
-            &copy; {currentYear} Reactiverse by MintFire. All Rights Reserved. {/* Updated copyright */}
+            &copy; {currentYear} Reactiverse by MintFire. All Rights Reserved. 
           </p>
         </div>
       </div>

@@ -23,11 +23,13 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
   const isPriced = design.price && design.price > 0;
 
   const previewSrcDoc = useMemo(() => {
-    if (isPriced || !design.codeBlocks || design.codeBlocks.length === 0) {
+    // Attempt to generate preview if there are code blocks
+    if (!design.codeBlocks || design.codeBlocks.length === 0) {
       return null;
     }
 
     const htmlBlock = design.codeBlocks.find(block => block.language.toLowerCase() === 'html');
+    // If no HTML block, no preview can be generated for the card
     if (!htmlBlock) {
       return null; 
     }
@@ -35,7 +37,7 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
     const cssBlocks = design.codeBlocks.filter(block => 
       block.language.toLowerCase() === 'css' || 
       block.language.toLowerCase() === 'scss' ||
-      block.language.toLowerCase() === 'tailwind css'
+      block.language.toLowerCase() === 'tailwind css' // Tailwind might not work well without processing
     );
     
     const htmlContent = htmlBlock.code;
@@ -52,7 +54,7 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
               align-items: center; 
               height: 100vh; 
               overflow: hidden; 
-              background-color: transparent;
+              background-color: transparent; /* Ensures transparency for card background */
             }
             ${cssContent}
           </style>
@@ -62,7 +64,7 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
         </body>
       </html>
     `;
-  }, [design.codeBlocks, isPriced]);
+  }, [design.codeBlocks]);
 
   return (
     <Card 
@@ -74,20 +76,23 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
       aria-label={`View details for ${design.title}`}
     >
       <CardHeader className="p-0 relative bg-muted/30 flex items-center justify-center aspect-[16/9] min-h-[150px] overflow-hidden">
-        {previewSrcDoc && !isPriced ? (
+        {/* Show preview if srcDoc is available, regardless of price */}
+        {previewSrcDoc ? (
           <div className="w-full h-full transform scale-[0.35] origin-center flex items-center justify-center pointer-events-none">
             <iframe
               srcDoc={previewSrcDoc}
               title={`${design.title} card preview`}
-              sandbox="allow-same-origin"
+              sandbox="allow-same-origin" // Basic sandboxing
               className="w-[calc(100%/0.35)] h-[calc(100%/0.35)] border-0 overflow-hidden bg-transparent"
               scrolling="no"
             />
           </div>
         ) : ( 
+          // Fallback to Code2 icon if no previewSrcDoc (e.g., no HTML block)
           <Code2 className="h-16 w-16 text-primary/70" />
         )}
 
+        {/* Badge for price or "Free" */}
         {isPriced ? (
           <Badge variant="secondary" className="absolute top-2 right-2 text-xs px-2 py-1 flex items-center z-10">
             <IndianRupee className="h-3 w-3 mr-1" />

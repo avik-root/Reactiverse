@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react';
 import type { Design } from '@/lib/types';
 import DesignCard from '@/components/design/DesignCard';
 import DesignDetailDialog from '@/components/design/DesignDetailDialog';
-import { getDesigns } from '@/lib/data'; // Assuming this function fetches designs
+import { getDesigns } from '@/lib/data'; 
 import { Skeleton } from '@/components/ui/skeleton';
+import ScrambledText from '@/components/effects/ScrambledText'; // Import the new component
 
 export default function HomePage() {
   const [designs, setDesigns] = useState<Design[]>([]);
@@ -39,10 +40,10 @@ export default function HomePage() {
         <h1 className="text-4xl md:text-5xl font-bold font-headline text-primary mb-4">
           Welcome to Reactiverse
         </h1>
-        <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
+        <ScrambledText className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
           Discover amazing React components and designs shared by our talented community.
           Dive in and get inspired!
-        </p>
+        </ScrambledText>
       </section>
 
       <section>

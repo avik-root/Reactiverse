@@ -1,0 +1,5 @@
+/* src/components/effects/ScrambledText.css */
+.text-block .char {
+  display: inline-block; /* GSAP sets this, but can be explicit */
+  position: relative; /* Optional, for potential pseudo-element effects */
+}

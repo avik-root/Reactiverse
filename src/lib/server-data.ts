@@ -24,6 +24,18 @@ export async function getAdminUsers(): Promise<StoredAdminUser[]> {
   }
 }
 
+export async function saveFirstAdminUser(newAdmin: StoredAdminUser): Promise<void> {
+  try {
+    // This function assumes it's saving the *only* admin account.
+    // The calling action should ensure admin.json is empty or handle errors.
+    await fs.writeFile(ADMIN_USERS_FILE_PATH, JSON.stringify([newAdmin], null, 2), 'utf-8');
+  } catch (error) {
+    console.error('Failed to save first admin user to admin.json:', error);
+    throw error;
+  }
+}
+
+
 export async function getUsersFromFile(): Promise<StoredUser[]> {
   try {
     const jsonData = await fs.readFile(USERS_FILE_PATH, 'utf-8');

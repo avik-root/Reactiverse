@@ -11,9 +11,10 @@ import {
   getDesignsFromFile,
   updateDesignInFile,
   deleteDesignFromFile,
-  saveDesignsToFile
+  saveDesignsToFile,
+  saveFirstAdminUser
 } from './server-data';
-import type { AdminUser, User, Design, AuthUser, StoredUser, StoredAdminUser, CodeBlockItem, DeleteDesignResult } from './types';
+import type { AdminUser, User, Design, AuthUser, StoredUser, StoredAdminUser, CodeBlockItem, DeleteDesignResult, AdminCreateAccountFormState } from './types';
 import { revalidatePath } from 'next/cache';
 import { hashPassword, comparePassword, hashPin, comparePin } from './auth-utils';
 
@@ -39,6 +40,16 @@ const AdminLoginSchema = z.object({
   username: z.string().min(1, { message: 'Username is required.' }),
   password: z.string().min(1, { message: 'Password is required.' }),
 });
+
+const AdminCreateAccountSchema = z.object({
+  username: z.string().min(4, { message: 'Username must be at least 4 characters.' }).regex(/^[a-zA-Z0-9_]+$/, { message: 'Username can only contain letters, numbers, or underscores.'}),
+  password: z.string().min(8, { message: 'Password must be at least 8 characters.' }),
+  confirmPassword: z.string(),
+}).refine(data => data.password === data.confirmPassword, {
+  message: "Passwords don't match.",
+  path: ['confirmPassword'],
+});
+
 
 const CodeBlockSchema = z.object({
   language: z.string().min(1, "Language is required."),
@@ -714,3 +725,49 @@ export async function deleteDesignAction(designId: string): Promise<DeleteDesign
   }
 }
 
+export async function checkAdminDataExistsAction(): Promise<{ adminExists: boolean }> {
+  try {
+    const admins = await getAdminUsers();
+    return { adminExists: admins.length > 0 };
+  } catch (error) {
+    console.error("Error checking admin data:", error);
+    return { adminExists: false }; // Default to false on error, forcing creation flow
+  }
+}
+
+export async function createAdminAccountAction(prevState: AdminCreateAccountFormState, formData: FormData): Promise<AdminCreateAccountFormState> {
+  const validatedFields = AdminCreateAccountSchema.safeParse(Object.fromEntries(formData.entries()));
+
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: 'Invalid fields. Please check your input.',
+      success: false,
+    };
+  }
+
+  const { username, password } = validatedFields.data;
+
+  // Double check if admin already exists (safeguard)
+  const existingAdmins = await getAdminUsers();
+  if (existingAdmins.length > 0) {
+    return { message: 'An admin account already exists. Please login.', success: false, errors: { general: ['Setup already completed.'] } };
+  }
+
+  const hashedPassword = await hashPassword(password);
+  const newAdmin: StoredAdminUser = {
+    id: `admin-${Date.now()}`,
+    username,
+    passwordHash: hashedPassword,
+  };
+
+  try {
+    await saveFirstAdminUser(newAdmin);
+    revalidatePath('/admin/login'); // In case someone was on create page
+    revalidatePath('/admin');
+    return { message: 'Admin account created successfully! You can now log in.', success: true };
+  } catch (error) {
+    console.error("Error creating admin account:", error);
+    return { message: 'Failed to create admin account. Please try again.', success: false, errors: { general: ['Server error during account creation.'] } };
+  }
+}

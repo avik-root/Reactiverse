@@ -46,3 +46,14 @@ export interface DeleteDesignResult {
   success: boolean;
   message: string;
 }
+
+export type AdminCreateAccountFormState = {
+  message?: string | null;
+  success?: boolean;
+  errors?: {
+    username?: string[];
+    password?: string[];
+    confirmPassword?: string[];
+    general?: string[];
+  };
+};

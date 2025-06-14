@@ -3,21 +3,21 @@
 
 import { useEffect, type ReactNode } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation'; // Added usePathname
 import Link from 'next/link';
-import { LayoutDashboard, Users, Palette, Settings, LogOut, ShieldCheck, UserCog, FileText, Image as ImageIcon } from 'lucide-react'; 
+import { LayoutDashboard, Users, Palette, Settings, LogOut, ShieldCheck, UserCog, FileText, Image as ImageIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { usePathname } from 'next/navigation';
-import { Card, CardContent } from '@/components/ui/card';
 import Logo from '@/components/core/Logo';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
-
 interface AdminLayoutProps {
   children: ReactNode;
 }
+
+// List of admin paths that do NOT require the user to be an authenticated admin
+const PUBLIC_ADMIN_PATHS = ['/admin/login', '/admin/create-account', '/admin', '/admin/'];
 
 const mainNavItems = [
   { href: '/admin/dashboard', label: 'Overview', icon: LayoutDashboard },
@@ -40,36 +40,54 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
 
+  const isPublicAdminPage = PUBLIC_ADMIN_PATHS.includes(pathname);
+
   useEffect(() => {
-    // This client-side check remains important for UX after initial load,
-    // even with middleware. Middleware handles server-side protection.
-    if (!isLoading && (!user || !isAdmin)) {
+    // If on a PROTECTED admin page, and initial auth loading is done,
+    // and user is NOT an admin, redirect to login.
+    if (!isPublicAdminPage && !isLoading && (!user || !isAdmin)) {
       router.push('/admin/login');
     }
-  }, [user, isAdmin, isLoading, router]);
+  }, [user, isAdmin, isLoading, router, pathname, isPublicAdminPage]);
 
-  if (isLoading || !user || !isAdmin) {
+  // For PROTECTED admin pages:
+  // If auth is still loading OR (if loading is done but user is not an admin),
+  // show a loading/verification screen. The useEffect above will handle redirection if not admin.
+  if (!isPublicAdminPage && (isLoading || !user || !isAdmin)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background">
         <ShieldCheck className="h-16 w-16 animate-spin text-primary mb-6" />
-        <p className="text-xl text-muted-foreground">Loading Admin Area...</p>
+        <p className="text-xl text-muted-foreground">Verifying Admin Access...</p>
       </div>
     );
   }
+
+  // For PUBLIC admin pages (like /admin/login, /admin/create-account),
+  // render children directly without the full admin layout.
+  // This assumes these pages provide their own complete structure.
+  if (isPublicAdminPage && (pathname === '/admin/login' || pathname === '/admin/create-account')) {
+    return <>{children}</>;
+  }
   
+  // For the root /admin page (which handles its own redirection) or 
+  // if it's a protected page and the user is authenticated as admin, render the full layout.
+  // Note: The root /admin page will briefly show this layout before its own client-side redirect kicks in.
+  // This is generally acceptable.
+
   const getInitials = (name?: string) => {
     if (!name) return 'A';
-    return name.split(' ').map(n => n[0]).join('').toUpperCase();
+    // Ensure user and user.name exist and user is admin for admin context
+    const nameToProcess = user && isAdmin && 'name' in user && user.name ? user.name : 'Admin';
+    return nameToProcess.split(' ').map(n => n[0]).join('').toUpperCase();
   };
-  
-  const displayName = user && user.isAdmin && user.name ? user.name : 'Admin';
-  const avatarUrl = user && user.isAdmin && user.avatarUrl ? user.avatarUrl : undefined;
+
+  const displayName = user && isAdmin && 'name' in user && user.name ? user.name : 'Admin';
+  const avatarUrl = user && isAdmin && 'avatarUrl' in user && user.avatarUrl ? user.avatarUrl : undefined;
 
   const handleLogout = async () => {
-    await logout(); // AuthContext logout is now async
-    router.push('/'); // Redirect to home after logout
+    await logout();
+    router.push('/');
   };
-
 
   return (
     <div className="flex min-h-screen bg-muted/30">
@@ -117,8 +135,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
               </AccordionContent>
             </AccordionItem>
           </Accordion>
-
-
         </nav>
 
         <div className="mt-auto border-t pt-4">
@@ -138,11 +154,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         </div>
       </aside>
       <main className="flex-1 md:ml-72 p-4 sm:p-6 lg:p-8 overflow-y-auto">
-        {/* Header for mobile */}
         <header className="md:hidden sticky top-0 bg-background/80 backdrop-blur-md z-30 p-4 mb-4 border-b rounded-lg shadow-sm">
             <div className="flex items-center justify-between">
                 <Logo />
-                {/* Mobile menu trigger could be added here if sidebar is collapsible on mobile */}
             </div>
         </header>
         {children}

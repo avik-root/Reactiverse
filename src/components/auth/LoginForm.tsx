@@ -27,7 +27,7 @@ export default function LoginForm() {
   const initialState: LoginFormState = { message: null, errors: {} };
   const [state, dispatch] = useActionState(loginUser, initialState);
   const { toast } = useToast();
-  const { login: authLogin, user: authUser } = useAuth();
+  const { login: authLogin, user: authUser, isAdmin } = useAuth(); // Added isAdmin from useAuth
   const router = useRouter();
 
   useEffect(() => {
@@ -44,15 +44,23 @@ export default function LoginForm() {
         title: 'Login Successful',
         description: 'Welcome back!',
       });
-      router.push('/'); 
+      // Redirect to dashboard for regular users, keep admins (if they somehow use this form) going to /
+      // However, admins have their own login page. So this path is primarily for regular users.
+      router.push('/dashboard'); 
     }
   }, [state, toast, authLogin, router]);
 
   useEffect(() => {
+    // If user is already logged in and is a regular user, redirect to dashboard
+    // If user is already logged in and is an admin, they should use /admin/login, but if they land here, redirect to admin dashboard
     if (authUser) {
-      router.push('/');
+      if (isAdmin) {
+        router.push('/admin/dashboard');
+      } else {
+        router.push('/dashboard');
+      }
     }
-  }, [authUser, router]);
+  }, [authUser, isAdmin, router]);
 
   return (
     <div className="flex items-center justify-center py-12">

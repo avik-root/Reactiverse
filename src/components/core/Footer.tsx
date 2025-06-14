@@ -23,7 +23,7 @@ const Footer = () => {
               <span className="text-2xl font-headline font-semibold">Reactiverse</span> {/* Changed text */}
             </Link>
             <p className="text-sm text-[hsl(var(--footer-muted-foreground))] mb-6 max-w-xs">
-              A platform for designers to showcase their React components and designs. {/* Changed tagline */}
+              A platform for designers to showcase their components and designs. {/* Changed tagline */}
             </p>
             <div className="flex space-x-4">
               <Link href="#" aria-label="LinkedIn" className="text-[hsl(var(--footer-muted-foreground))] hover:text-[hsl(var(--footer-foreground))] transition-colors">

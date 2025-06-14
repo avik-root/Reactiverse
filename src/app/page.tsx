@@ -41,7 +41,7 @@ export default function HomePage() {
           Welcome to Reactiverse
         </h1>
         <ScrambledText className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-          Discover amazing React components and designs shared by our talented community.
+          Discover amazing components and designs shared by our talented community.
           Dive in and get inspired!
         </ScrambledText>
       </section>

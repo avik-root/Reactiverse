@@ -9,7 +9,7 @@ interface AuthContextType {
   user: AuthUser | null; 
   isAdmin: boolean;
   login: (userData: AuthUser, isAdmin?: boolean) => void;
-  logout: () => Promise<void>; // Changed to Promise<void>
+  logout: () => Promise<void>; 
   updateAuthUser: (updatedUserDataOrFn: Partial<AuthUser> | ((currentUser: AuthUser | null) => AuthUser | null) ) => void;
   isLoading: boolean;
 }
@@ -22,6 +22,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
+    // This effect runs on initial mount to load from localStorage
+    setIsLoading(true); // Start with loading true
     try {
       const storedUserJSON = localStorage.getItem('reactiverseUser');
       const storedIsAdmin = localStorage.getItem('reactiverseIsAdmin') === 'true';
@@ -35,10 +37,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.removeItem('reactiverseUser');
       localStorage.removeItem('reactiverseIsAdmin');
     }
-    setIsLoading(false);
+    setIsLoading(false); // Done loading from localStorage
   }, []);
 
   const login = useCallback((userData: AuthUser, adminStatus: boolean = false) => {
+    setIsLoading(true); // Indicate loading during login state change
     setUser(userData);
     setIsAdmin(adminStatus);
     try {
@@ -47,10 +50,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error("Failed to save user to localStorage", error);
     }
+    setIsLoading(false); // Login state change complete
   }, []);
 
   const logout = useCallback(async () => {
-    const currentIsAdminStatus = isAdmin; // Capture before clearing state
+    setIsLoading(true); // Set loading to true at the start of logout
+    const currentIsAdminStatus = isAdmin; 
 
     setUser(null);
     setIsAdmin(false);
@@ -59,15 +64,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.removeItem('reactiverseIsAdmin');
 
       if (currentIsAdminStatus) {
-        // Dynamically import and call the server action only if the user was an admin
         const { logoutAdminAction } = await import('@/lib/actions');
         await logoutAdminAction();
       }
     } catch (error) {
       console.error("Failed to logout or clear admin session", error);
-      // Potentially show a toast message to the user here if logout fails critically
     }
-  }, [isAdmin]); // isAdmin is a dependency now
+    // isLoading will be reset to false by the useEffect in AuthContext 
+    // when the app re-initializes on the new page (e.g., homepage)
+    // or if the component remains mounted and the initial useEffect re-runs.
+    // For a full page navigation, the context re-initializes naturally.
+  }, [isAdmin]);
 
   const updateAuthUser = useCallback((updatedUserDataOrFn: Partial<AuthUser> | ((currentUser: AuthUser | null) => AuthUser | null) ) => {
     setUser(prevUser => {
@@ -85,10 +92,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } catch (error) {
           console.error("Failed to update user in localStorage", error);
         }
-      } else { // If newUser becomes null (e.g. from function), clear storage
+      } else { 
          localStorage.removeItem('reactiverseUser');
-         // Potentially also clear isAdmin if user becomes null
-         // localStorage.removeItem('reactiverseIsAdmin');
       }
       return newUser;
     });

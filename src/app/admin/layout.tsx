@@ -16,7 +16,6 @@ interface AdminLayoutProps {
   children: ReactNode;
 }
 
-// List of admin paths that do NOT require the user to be an authenticated admin
 const PUBLIC_ADMIN_PATHS = ['/admin/login', '/admin/create-account', '/admin', '/admin/'];
 
 const mainNavItems = [
@@ -43,23 +42,15 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const isPublicAdminPage = PUBLIC_ADMIN_PATHS.includes(pathname);
 
   useEffect(() => {
-    // If on a PROTECTED admin page, and initial auth loading is done,
-    // and user is NOT an admin, redirect to login.
     if (!isPublicAdminPage && !isLoading && (!user || !isAdmin)) {
       router.push('/admin/login');
     }
   }, [user, isAdmin, isLoading, router, pathname, isPublicAdminPage]);
 
-  // For PUBLIC admin pages (like /admin/login, /admin/create-account, or /admin root page),
-  // render children directly. These pages provide their own complete structure or handle redirects.
   if (isPublicAdminPage) {
     return <>{children}</>;
   }
   
-  // For PROTECTED admin pages:
-  // If auth is still loading OR (if loading is done but user is not an admin),
-  // show a loading/verification screen. The useEffect above will handle redirection if not admin.
-  // This block is only reached if !isPublicAdminPage.
   if (isLoading || !user || !isAdmin) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background">
@@ -69,10 +60,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     );
   }
   
-  // If it's a protected page and the user is authenticated as admin, render the full layout.
   const getInitials = (name?: string) => {
     if (!name) return 'A';
-    // Ensure user and user.name exist and user is admin for admin context
     const nameToProcess = user && isAdmin && 'name' in user && user.name ? user.name : 'Admin';
     return nameToProcess.split(' ').map(n => n[0]).join('').toUpperCase();
   };
@@ -81,8 +70,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const avatarUrl = user && isAdmin && 'avatarUrl' in user && user.avatarUrl ? user.avatarUrl : undefined;
 
   const handleLogout = async () => {
-    await logout();
-    router.push('/'); // Redirect to homepage after logout
+    await logout(); // This will clear client state and admin cookie
+    router.push('/'); // Redirect to homepage AFTER logout completes
   };
 
   return (

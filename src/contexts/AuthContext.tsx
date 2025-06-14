@@ -23,8 +23,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    // This effect runs on initial mount to load from localStorage
-    setIsLoading(true); // Start with loading true
+    setIsLoading(true);
     try {
       const storedUserJSON = localStorage.getItem('reactiverseUser');
       const storedIsAdmin = localStorage.getItem('reactiverseIsAdmin') === 'true';
@@ -38,11 +37,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.removeItem('reactiverseUser');
       localStorage.removeItem('reactiverseIsAdmin');
     }
-    setIsLoading(false); // Done loading from localStorage
+    setIsLoading(false);
   }, []);
 
   const login = useCallback((userData: AuthUser, adminStatus: boolean = false) => {
-    setIsLoading(true); // Indicate loading during login state change
+    setIsLoading(true);
     setUser(userData);
     setIsAdmin(adminStatus);
     try {
@@ -51,30 +50,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error("Failed to save user to localStorage", error);
     }
-    setIsLoading(false); // Login state change complete
+    setIsLoading(false);
   }, []);
 
   const logout = useCallback(async () => {
-    setIsLoading(true); // Set loading to true at the start of logout
-    const currentIsAdminStatus = isAdmin;
+    setIsLoading(true);
+    const currentIsAdminStatus = isAdmin; // Capture before clearing
 
     setUser(null);
     setIsAdmin(false);
+
     try {
       localStorage.removeItem('reactiverseUser');
       localStorage.removeItem('reactiverseIsAdmin');
 
       if (currentIsAdminStatus) {
-        await logoutAdminAction(); // Call statically imported action
+        await logoutAdminAction();
       }
     } catch (error) {
-      console.error("Failed to logout or clear admin session", error);
+      console.error("Error during logout process:", error);
     }
-    // isLoading will be reset to false by the useEffect in AuthContext
-    // when the app re-initializes on the new page (e.g., homepage)
-    // or if the component remains mounted and the initial useEffect re-runs.
-    // For a full page navigation, the context re-initializes naturally.
-  }, [isAdmin]);
+    // Set loading to false after all operations. Navigation is handled by the caller.
+    setIsLoading(false);
+  }, [isAdmin]); // Depend on isAdmin to correctly capture its status before clearing
 
   const updateAuthUser = useCallback((updatedUserDataOrFn: Partial<AuthUser> | ((currentUser: AuthUser | null) => AuthUser | null) ) => {
     setUser(prevUser => {

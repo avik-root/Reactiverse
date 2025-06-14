@@ -7,6 +7,7 @@ import Logo from './Logo';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserCircle, LogOut, ShieldCheck, UserPlus, LogIn, LayoutDashboard, Home, Users, LifeBuoy, Info } from 'lucide-react'; 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useRouter } from 'next/navigation'; // Import useRouter
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,6 +26,7 @@ const navLinks = [
 
 const Header = () => {
   const { user, isAdmin, logout, isLoading } = useAuth();
+  const router = useRouter(); // Initialize router
 
   const getInitials = (name?: string) => {
     if (!name) return 'U';
@@ -35,6 +37,10 @@ const Header = () => {
   const displayName = user ? (('name' in user && user.name) ? user.name : (('username' in user) ? user.username : 'User')) : 'User';
   const displayEmail = user && 'email' in user ? user.email : undefined;
 
+  const handleLogoutAndRedirect = async () => {
+    await logout(); // from AuthContext, clears state and cookies
+    router.push('/'); // Redirect to homepage after logout completes
+  };
 
   return (
     <header className="bg-card border-b border-border shadow-sm sticky top-0 z-50">
@@ -126,7 +132,7 @@ const Header = () => {
                     </Link>
                   </DropdownMenuItem>
                 )}
-                 <DropdownMenuItem onClick={logout} className="cursor-pointer text-destructive focus:text-destructive-foreground focus:bg-destructive">
+                 <DropdownMenuItem onClick={handleLogoutAndRedirect} className="cursor-pointer text-destructive focus:text-destructive-foreground focus:bg-destructive">
                   <>
                     <LogOut className="mr-2 h-4 w-4" />
                     Log out
@@ -169,4 +175,3 @@ const Header = () => {
 };
 
 export default Header;
-

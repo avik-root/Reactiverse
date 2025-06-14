@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { z } from 'zod';
@@ -42,7 +43,11 @@ const AdminLoginSchema = z.object({
 });
 
 const AdminCreateAccountSchema = z.object({
+  name: z.string().min(2, { message: 'Full name must be at least 2 characters.' }),
   username: z.string().min(4, { message: 'Username must be at least 4 characters.' }).regex(/^[a-zA-Z0-9_]+$/, { message: 'Username can only contain letters, numbers, or underscores.'}),
+  email: z.string().email({ message: 'Invalid email address.' }),
+  phone: z.string().min(10, { message: 'Please enter a valid phone number with country code.' })
+    .regex(/^\+[1-9]\d{1,14}$/, { message: 'Phone number must start with + and country code (e.g., +1234567890).' }),
   password: z.string().min(8, { message: 'Password must be at least 8 characters.' }),
   confirmPassword: z.string(),
 }).refine(data => data.password === data.confirmPassword, {
@@ -244,7 +249,7 @@ export async function loginUser(prevState: LoginFormState, formData: FormData): 
     }
     
     const { passwordHash, twoFactorPinHash, ...userToReturn } = targetUser;
-    return { message: 'Login successful!', user: userToReturn };
+    return { message: 'Login successful!', user: {...userToReturn, isAdmin: false} };
 
   } else { 
     targetUser = users.find(u => (u.email === identifier || u.username === identifier));
@@ -264,7 +269,7 @@ export async function loginUser(prevState: LoginFormState, formData: FormData): 
       };
     } else {
       const { passwordHash, twoFactorPinHash, ...userToReturn } = targetUser;
-      return { message: 'Login successful!', user: userToReturn };
+      return { message: 'Login successful!', user: {...userToReturn, isAdmin: false} };
     }
   }
 }
@@ -304,7 +309,7 @@ export async function signupUser(prevState: SignupFormState, formData: FormData)
   await saveUserToFile(newUser);
   const { passwordHash, twoFactorPinHash, ...userToReturnForState } = newUser;
 
-  return { message: 'Signup successful! Please log in.', user: userToReturnForState };
+  return { message: 'Signup successful! Please log in.', user: {...userToReturnForState, isAdmin: false} };
 }
 
 export async function loginAdmin(prevState: AdminLoginFormState, formData: FormData): Promise<AdminLoginFormState> {
@@ -331,7 +336,7 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
   }
 
   const { passwordHash, ...adminUserToReturn } = adminUser;
-  return { message: 'Admin login successful!', adminUser: adminUserToReturn };
+  return { message: 'Admin login successful!', adminUser: {...adminUserToReturn, isAdmin: true} };
 }
 
 export async function submitDesignAction(prevState: AddDesignFormState, formData: FormData): Promise<AddDesignFormState> {
@@ -544,7 +549,7 @@ export async function updateProfileAction(prevState: UpdateProfileFormState, for
     revalidatePath('/dashboard/profile');
     revalidatePath('/dashboard');
     revalidatePath('/');
-    return { message: 'Profile updated successfully!', success: true, user: userToReturn };
+    return { message: 'Profile updated successfully!', success: true, user: {...userToReturn, isAdmin: false} };
   } catch (error) {
     console.error("Error updating profile:", error);
     return { message: 'Failed to update profile. Please try again.', success: false, errors: { general: ['Server error.'] } };
@@ -746,24 +751,34 @@ export async function createAdminAccountAction(prevState: AdminCreateAccountForm
     };
   }
 
-  const { username, password } = validatedFields.data;
+  const { name, username, email, phone, password } = validatedFields.data;
 
-  // Double check if admin already exists (safeguard)
   const existingAdmins = await getAdminUsers();
   if (existingAdmins.length > 0) {
     return { message: 'An admin account already exists. Please login.', success: false, errors: { general: ['Setup already completed.'] } };
   }
+  if (existingAdmins.some(admin => admin.email === email)) {
+    return { message: 'Admin with this email already exists.', success: false, errors: { email: ['Email already in use.'] } };
+  }
+  if (existingAdmins.some(admin => admin.username === username)) {
+    return { message: 'This admin username is already taken.', success: false, errors: { username: ['Username already taken.'] } };
+  }
+
 
   const hashedPassword = await hashPassword(password);
   const newAdmin: StoredAdminUser = {
     id: `admin-${Date.now()}`,
+    name,
     username,
+    email,
+    phone,
     passwordHash: hashedPassword,
+    avatarUrl: `https://placehold.co/100x100.png?text=${name.charAt(0).toUpperCase()}`,
   };
 
   try {
     await saveFirstAdminUser(newAdmin);
-    revalidatePath('/admin/login'); // In case someone was on create page
+    revalidatePath('/admin/login'); 
     revalidatePath('/admin');
     return { message: 'Admin account created successfully! You can now log in.', success: true };
   } catch (error) {
@@ -771,3 +786,4 @@ export async function createAdminAccountAction(prevState: AdminCreateAccountForm
     return { message: 'Failed to create admin account. Please try again.', success: false, errors: { general: ['Server error during account creation.'] } };
   }
 }
+

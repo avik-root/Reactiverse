@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useActionState, useEffect, useState } from 'react';
@@ -11,7 +12,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import PasswordStrengthMeter from '@/components/auth/PasswordStrengthMeter';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { UserPlus, KeyRound, ShieldCheck, AtSign } from 'lucide-react';
+import { UserPlus, KeyRound, ShieldCheck, AtSign, UserSquare2, Phone } from 'lucide-react';
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -43,8 +44,8 @@ export default function AdminCreateAccountForm() {
   }, [state, toast, router]);
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-muted/30">
-      <Card className="w-full max-w-md shadow-2xl">
+    <div className="flex items-center justify-center min-h-screen bg-muted/30 py-12">
+      <Card className="w-full max-w-lg shadow-2xl">
         <CardHeader className="text-center">
           <div className="inline-flex justify-center mb-3">
              <UserPlus className="h-10 w-10 text-primary" />
@@ -54,23 +55,81 @@ export default function AdminCreateAccountForm() {
         </CardHeader>
         <form action={dispatch}>
           <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Full Name</Label>
+                <div className="relative">
+                  <UserSquare2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                      id="name" 
+                      name="name" 
+                      type="text" 
+                      placeholder="Admin Full Name" 
+                      required 
+                      className="pl-10"
+                      aria-invalid={!!state?.errors?.name}
+                      aria-describedby="name-error"
+                  />
+                </div>
+                {state?.errors?.name && <p id="name-error" className="text-sm text-destructive">{state.errors.name.join(', ')}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="username">Admin Username</Label>
+                <div className="relative">
+                  <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                      id="username" 
+                      name="username" 
+                      type="text" 
+                      placeholder="e.g., admin_user" 
+                      required 
+                      className="pl-10"
+                      aria-invalid={!!state?.errors?.username}
+                      aria-describedby="username-error"
+                  />
+                </div>
+                {state?.errors?.username && <p id="username-error" className="text-sm text-destructive">{state.errors.username.join(', ')}</p>}
+              </div>
+            </div>
+
             <div className="space-y-2">
-              <Label htmlFor="username">Admin Username</Label>
-              <div className="relative">
+              <Label htmlFor="email">Email</Label>
+               <div className="relative">
                 <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input 
-                    id="username" 
-                    name="username" 
-                    type="text" 
-                    placeholder="e.g., admin_user" 
+                    id="email" 
+                    name="email" 
+                    type="email" 
+                    placeholder="admin@example.com" 
                     required 
                     className="pl-10"
-                    aria-invalid={!!state?.errors?.username}
-                    aria-describedby="username-error"
+                    aria-invalid={!!state?.errors?.email}
+                    aria-describedby="email-error"
                 />
               </div>
-              {state?.errors?.username && <p id="username-error" className="text-sm text-destructive">{state.errors.username.join(', ')}</p>}
+              {state?.errors?.email && <p id="email-error" className="text-sm text-destructive">{state.errors.email.join(', ')}</p>}
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone Number (with country code)</Label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                    id="phone" 
+                    name="phone" 
+                    type="tel" 
+                    placeholder="+1234567890" 
+                    required 
+                    className="pl-10"
+                    aria-invalid={!!state?.errors?.phone}
+                    aria-describedby="phone-error"
+                />
+              </div>
+              {state?.errors?.phone && <p id="phone-error" className="text-sm text-destructive">{state.errors.phone.join(', ')}</p>}
+            </div>
+
+
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <div className="relative">
@@ -116,3 +175,4 @@ export default function AdminCreateAccountForm() {
     </div>
   );
 }
+

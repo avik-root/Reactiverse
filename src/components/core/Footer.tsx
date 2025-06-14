@@ -1,3 +1,4 @@
+
 import Link from 'next/link';
 import { Layers3, Linkedin, Github, Mail } from 'lucide-react'; 
 
@@ -59,7 +60,7 @@ const Footer = () => {
               <FooterLink href="/about">About Us</FooterLink>
               <FooterLink href="/community">Community Forum</FooterLink>
               <FooterLink href="/support">Contact Support</FooterLink> 
-              <FooterLink href="/admin/login">Admin Login</FooterLink>
+              <FooterLink href="/admin">Admin Access</FooterLink>
             </ul>
           </div>
         </div>
@@ -76,3 +77,4 @@ const Footer = () => {
 };
 
 export default Footer;
+

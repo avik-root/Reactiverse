@@ -60,8 +60,10 @@ const Header = () => {
              <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon">
-                  <LayoutDashboard className="h-5 w-5" />
-                  <span className="sr-only">Toggle navigation</span>
+                  <>
+                    <LayoutDashboard className="h-5 w-5" />
+                    <span className="sr-only">Toggle navigation</span>
+                  </>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -125,8 +127,10 @@ const Header = () => {
                   </DropdownMenuItem>
                 )}
                  <DropdownMenuItem onClick={logout} className="cursor-pointer text-destructive focus:text-destructive-foreground focus:bg-destructive">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Log out
+                  <>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Log out
+                  </>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -165,3 +169,4 @@ const Header = () => {
 };
 
 export default Header;
+

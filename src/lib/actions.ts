@@ -3,15 +3,15 @@
 
 import { z } from 'zod';
 import { getUsersFromFile, saveUserToFile, getAdminUsers, addDesignToFile, updateUserInFile, getDesignsFromFile } from './server-data';
-import type { AdminUser, User, Design, AuthUser, StoredUser, StoredAdminUser } from './types';
+import type { AdminUser, User, Design, AuthUser, StoredUser, StoredAdminUser, CodeBlockItem } from './types';
 import { revalidatePath } from 'next/cache';
 import { hashPassword, comparePassword, hashPin, comparePin } from './auth-utils';
 
 const LoginSchema = z.object({
   identifier: z.string().min(1, { message: 'Username or email is required.' }),
-  password: z.string().min(1, { message: 'Password is required.' }), // Min length check done by bcrypt comparison effectively
+  password: z.string().min(1, { message: 'Password is required.' }), 
   pin: z.string().length(6, { message: 'PIN must be 6 digits.' }).regex(/^\d{6}$/, "PIN must be 6 digits.").optional(),
-  userIdForPin: z.string().optional(), // To identify user during PIN verification stage
+  userIdForPin: z.string().optional(), 
 });
 
 const SignupSchema = z.object({
@@ -30,13 +30,15 @@ const AdminLoginSchema = z.object({
   password: z.string().min(1, { message: 'Password is required.' }),
 });
 
+// AddDesignSchema will temporarily keep single language/codeSnippet
+// for the current form. The action will convert it to codeBlocks array.
 const AddDesignSchema = z.object({
   title: z.string().min(3, { message: 'Title must be at least 3 characters.' }),
   filterCategory: z.string().min(3, {message: 'Filter category must be at least 3 characters.'}),
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
   imageUrl: z.string().url({ message: 'Please enter a valid image URL for visual preview.' }),
-  language: z.string().min(1, { message: 'Please select a language/framework.' }),
-  codeSnippet: z.string().min(10, { message: 'Code snippet must be at least 10 characters.' }),
+  language: z.string().min(1, { message: 'Please select a language/framework.' }), // For the first code block
+  codeSnippet: z.string().min(10, { message: 'Code snippet must be at least 10 characters.' }), // For the first code block
   tags: z.string().min(1, {message: 'Please add at least one tag.'}),
   price: z.coerce.number().min(0, { message: 'Price cannot be negative.' }).default(0),
   submittedByUserId: z.string(),
@@ -76,7 +78,7 @@ const DisableTwoFactorSchema = z.object({
 
 export type LoginFormState = {
   message?: string | null;
-  user?: AuthUser | null; // Sanitized user
+  user?: AuthUser | null; 
   errors?: {
     identifier?: string[];
     password?: string[];
@@ -84,12 +86,12 @@ export type LoginFormState = {
     general?: string[];
   };
   requiresPin?: boolean;
-  userIdForPin?: string; // To pass userId to PIN verification stage
+  userIdForPin?: string; 
 };
 
 export type SignupFormState = {
   message?: string | null;
-  user?: AuthUser | null; // Sanitized user
+  user?: AuthUser | null; 
   errors?: {
     name?: string[];
     username?: string[];
@@ -102,7 +104,7 @@ export type SignupFormState = {
 
 export type AdminLoginFormState = {
   message?: string | null;
-  adminUser?: AuthUser | null; // Sanitized admin user
+  adminUser?: AuthUser | null; 
   errors?: {
     username?: string[];
     password?: string[];
@@ -118,8 +120,8 @@ export type AddDesignFormState = {
     filterCategory?: string[];
     description?: string[];
     imageUrl?: string[];
-    language?: string[];
-    codeSnippet?: string[];
+    language?: string[];    // For the first block
+    codeSnippet?: string[]; // For the first block
     tags?: string[];
     price?: string[];
     general?: string[];
@@ -129,7 +131,7 @@ export type AddDesignFormState = {
 export type UpdateProfileFormState = {
   message?: string | null;
   success?: boolean;
-  user?: AuthUser | null; // Sanitized user
+  user?: AuthUser | null; 
   errors?: {
     name?: string[];
     avatarUrl?: string[];
@@ -161,7 +163,6 @@ export type TwoFactorAuthFormState = {
 };
 
 
-// User login
 export async function loginUser(prevState: LoginFormState, formData: FormData): Promise<LoginFormState> {
   const validatedFields = LoginSchema.safeParse(Object.fromEntries(formData.entries()));
 
@@ -177,7 +178,7 @@ export async function loginUser(prevState: LoginFormState, formData: FormData): 
 
   let targetUser: StoredUser | undefined;
 
-  if (userIdForPin && pin) { // PIN verification stage
+  if (userIdForPin && pin) { 
     targetUser = users.find(u => u.id === userIdForPin);
     if (!targetUser) {
       return { message: 'User not found for PIN verification.', errors: { general: ['An error occurred. Please try logging in again.'] } };
@@ -194,11 +195,11 @@ export async function loginUser(prevState: LoginFormState, formData: FormData): 
         userIdForPin: targetUser.id
       };
     }
-    // PIN is correct, proceed to login
+    
     const { passwordHash, twoFactorPinHash, ...userToReturn } = targetUser;
     return { message: 'Login successful!', user: userToReturn };
 
-  } else { // Initial login: username/email + password stage
+  } else { 
     targetUser = users.find(u => (u.email === identifier || u.username === identifier));
     if (!targetUser || !targetUser.passwordHash) {
       return { message: 'Invalid credentials.', errors: { general: ['Invalid username/email or password.'] } };
@@ -208,7 +209,6 @@ export async function loginUser(prevState: LoginFormState, formData: FormData): 
       return { message: 'Invalid credentials.', errors: { general: ['Invalid username/email or password.'] } };
     }
 
-    // Password is correct, check for 2FA
     if (targetUser.twoFactorEnabled) {
       return {
         message: 'Please enter your 2FA PIN.',
@@ -216,14 +216,12 @@ export async function loginUser(prevState: LoginFormState, formData: FormData): 
         userIdForPin: targetUser.id
       };
     } else {
-      // No 2FA, login directly
       const { passwordHash, twoFactorPinHash, ...userToReturn } = targetUser;
       return { message: 'Login successful!', user: userToReturn };
     }
   }
 }
 
-// User signup
 export async function signupUser(prevState: SignupFormState, formData: FormData): Promise<SignupFormState> {
   const validatedFields = SignupSchema.safeParse(Object.fromEntries(formData.entries()));
 
@@ -254,7 +252,6 @@ export async function signupUser(prevState: SignupFormState, formData: FormData)
     passwordHash: hashedPassword,
     avatarUrl: `https://placehold.co/100x100.png?text=${name.charAt(0).toUpperCase()}`,
     twoFactorEnabled: false,
-    // twoFactorPinHash will be set when user enables 2FA
   };
 
   await saveUserToFile(newUser);
@@ -263,7 +260,6 @@ export async function signupUser(prevState: SignupFormState, formData: FormData)
   return { message: 'Signup successful! Please log in.', user: userToReturnForState };
 }
 
-// Admin login
 export async function loginAdmin(prevState: AdminLoginFormState, formData: FormData): Promise<AdminLoginFormState> {
   const validatedFields = AdminLoginSchema.safeParse(Object.fromEntries(formData.entries()));
 
@@ -291,7 +287,6 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
   return { message: 'Admin login successful!', adminUser: adminUserToReturn };
 }
 
-// Submit new design
 export async function submitDesignAction(prevState: AddDesignFormState, formData: FormData): Promise<AddDesignFormState> {
   const validatedFields = AddDesignSchema.safeParse(Object.fromEntries(formData.entries()));
 
@@ -313,6 +308,11 @@ export async function submitDesignAction(prevState: AddDesignFormState, formData
   }
   const { passwordHash, twoFactorPinHash, ...designerInfo } = storedDesigner;
 
+  const firstCodeBlock: CodeBlockItem = {
+    id: `cb-${Date.now()}`,
+    language: language,
+    code: codeSnippet,
+  };
 
   const newDesign: Design = {
     id: `design-${Date.now()}`,
@@ -320,9 +320,8 @@ export async function submitDesignAction(prevState: AddDesignFormState, formData
     filterCategory,
     description,
     imageUrl,
-    language,
-    codeSnippet,
-    designer: designerInfo as User, // Cast as User (sanitized version)
+    codeBlocks: [firstCodeBlock], // Store the submitted code as the first block
+    designer: designerInfo as User, 
     tags: tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
     price,
     submittedByUserId,
@@ -339,7 +338,6 @@ export async function submitDesignAction(prevState: AddDesignFormState, formData
   }
 }
 
-// Update user profile
 export async function updateProfileAction(prevState: UpdateProfileFormState, formData: FormData): Promise<UpdateProfileFormState> {
   const validatedFields = UpdateProfileSchema.safeParse(Object.fromEntries(formData.entries()));
 
@@ -381,7 +379,6 @@ export async function updateProfileAction(prevState: UpdateProfileFormState, for
   }
 }
 
-// Change user password
 export async function changePasswordAction(prevState: ChangePasswordFormState, formData: FormData): Promise<ChangePasswordFormState> {
   const validatedFields = ChangePasswordSchema.safeParse(Object.fromEntries(formData.entries()));
 
@@ -424,7 +421,6 @@ export async function changePasswordAction(prevState: ChangePasswordFormState, f
   }
 }
 
-// Enable 2FA
 export async function enableTwoFactorAction(prevState: TwoFactorAuthFormState, formData: FormData): Promise<TwoFactorAuthFormState> {
   const validatedFields = EnableTwoFactorSchema.safeParse(Object.fromEntries(formData.entries()));
   if (!validatedFields.success) {
@@ -461,7 +457,6 @@ export async function enableTwoFactorAction(prevState: TwoFactorAuthFormState, f
   }
 }
 
-// Disable 2FA
 export async function disableTwoFactorAction(prevState: TwoFactorAuthFormState, formData: FormData): Promise<TwoFactorAuthFormState> {
   const validatedFields = DisableTwoFactorSchema.safeParse(Object.fromEntries(formData.entries()));
   if (!validatedFields.success) {
@@ -484,7 +479,7 @@ export async function disableTwoFactorAction(prevState: TwoFactorAuthFormState, 
   const updatedUserData: StoredUser = {
     ...userToUpdate,
     twoFactorEnabled: false,
-    twoFactorPinHash: undefined, // Clear the PIN hash
+    twoFactorPinHash: undefined, 
   };
 
   try {
@@ -498,14 +493,11 @@ export async function disableTwoFactorAction(prevState: TwoFactorAuthFormState, 
 }
 
 
-// Action to get all designs
 export async function getAllDesignsAction(): Promise<Design[]> {
   try {
     const designs = await getDesignsFromFile();
-    // Sanitize designer info in each design
     return designs.map(design => {
       if (design.designer) {
-        // Ensure designer is treated as StoredUser before destructuring
         const { passwordHash, twoFactorPinHash, ...sanitizedDesigner } = design.designer as StoredUser;
         return { ...design, designer: sanitizedDesigner as User };
       }
@@ -517,17 +509,15 @@ export async function getAllDesignsAction(): Promise<Design[]> {
   }
 }
 
-// Action to get a single design by ID
 export async function getDesignByIdAction(id: string): Promise<Design | undefined> {
   try {
     const designs = await getDesignsFromFile();
     const design = designs.find(d => d.id === id);
     if (design && design.designer) {
-      // Ensure designer is treated as StoredUser before destructuring
       const { passwordHash, twoFactorPinHash, ...sanitizedDesigner } = design.designer as StoredUser;
       return { ...design, designer: sanitizedDesigner as User };
     }
-    return design; // Return design as is if designer info is not there or already sanitized
+    return design; 
   } catch (error) {
     console.error(`Error fetching design by ID (${id}) via action:`, error);
     return undefined;

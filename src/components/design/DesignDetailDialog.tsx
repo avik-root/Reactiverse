@@ -1,13 +1,13 @@
 
 'use client';
 
-import type { Design } from '@/lib/types';
+import type { Design, CodeBlockItem } from '@/lib/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import Image from 'next/image';
 import CodeBlock from './CodeBlock';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { IndianRupee, Filter } from 'lucide-react'; // Changed DollarSign to IndianRupee
+import { IndianRupee, Filter, Code2 } from 'lucide-react'; 
 
 interface DesignDetailDialogProps {
   design: Design | null;
@@ -19,7 +19,7 @@ const DesignDetailDialog: React.FC<DesignDetailDialogProps> = ({ design, isOpen,
   if (!design) return null;
 
   const getInitials = (name?: string) => {
-    if (!name) return 'D'; // Default for Designer
+    if (!name) return 'D'; 
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   }
 
@@ -71,11 +71,26 @@ const DesignDetailDialog: React.FC<DesignDetailDialogProps> = ({ design, isOpen,
               ))}
             </div>
           </div>
-          <CodeBlock 
-            codeSnippet={design.codeSnippet} 
-            language={design.language} 
-            isLocked={isPriced} 
-          />
+          
+          {design.codeBlocks && design.codeBlocks.length > 0 ? (
+            <div className="space-y-6">
+              <h3 className="text-lg font-semibold font-headline flex items-center">
+                <Code2 className="h-5 w-5 mr-2 text-primary" />
+                Code Snippets
+              </h3>
+              {design.codeBlocks.map((block) => (
+                <CodeBlock 
+                  key={block.id || block.language} // Use block.id if available, fallback to language
+                  codeSnippet={block.code} 
+                  language={block.language} 
+                  isLocked={isPriced} 
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="text-muted-foreground">No code snippets available for this design.</p>
+          )}
+
         </div>
       </DialogContent>
     </Dialog>

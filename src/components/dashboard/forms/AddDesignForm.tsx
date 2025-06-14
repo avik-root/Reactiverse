@@ -1,3 +1,4 @@
+
 // src/components/dashboard/forms/AddDesignForm.tsx
 'use client';
 
@@ -13,7 +14,16 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { DollarSign, UploadCloud, Tag } from 'lucide-react';
+import { DollarSign, UploadCloud, Tag, Code2, Info } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
+
+const LANGUAGES = [
+  "HTML", "CSS", "Tailwind CSS", "SCSS", "JavaScript", 
+  "Bootstrap", "Material UI", "Animations", "React", 
+  "Vue.js", "Angular", "Other"
+];
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -28,11 +38,12 @@ export default function AddDesignForm() {
   const { user } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
-  
+
   const initialState: AddDesignFormState = { message: null, errors: {}, success: false };
   const [state, dispatch] = useActionState(submitDesignAction, initialState);
 
   const [imageUrlPreview, setImageUrlPreview] = useState<string | null>(null);
+  const [selectedLanguage, setSelectedLanguage] = useState<string>("");
 
   useEffect(() => {
     if (state?.message) {
@@ -42,11 +53,11 @@ export default function AddDesignForm() {
         variant: state.success ? 'default' : 'destructive',
       });
       if (state.success) {
-        // Optionally reset form or redirect
-        // e.g., router.push('/dashboard/designs');
-        // For now, just clear preview
-        setImageUrlPreview(null); 
-        // A full form reset would require managing form fields with useState
+        setImageUrlPreview(null);
+        setSelectedLanguage("");
+        const form = document.getElementById('addDesignForm') as HTMLFormElement;
+        form?.reset();
+        // router.push('/dashboard/designs'); // Optionally redirect
       }
     }
   }, [state, toast, router]);
@@ -57,7 +68,6 @@ export default function AddDesignForm() {
 
   const handleImageUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const url = e.target.value;
-    // Basic URL validation for preview, server will do more robust validation
     if (url && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:image'))) {
       setImageUrlPreview(url);
     } else {
@@ -71,7 +81,7 @@ export default function AddDesignForm() {
         <CardTitle className="text-2xl font-headline text-primary">Submit a New Design</CardTitle>
         <CardDescription>Share your creative component with the Reactiverse community.</CardDescription>
       </CardHeader>
-      <form action={dispatch}>
+      <form id="addDesignForm" action={dispatch}>
         <input type="hidden" name="submittedByUserId" value={user.id} />
         <CardContent className="space-y-6">
           <div className="space-y-2">
@@ -85,33 +95,57 @@ export default function AddDesignForm() {
             <Textarea id="description" name="description" placeholder="Describe your design, its features, and usage." required  aria-describedby="description-error"/>
             {state?.errors?.description && <p id="description-error" className="text-sm text-destructive">{state.errors.description.join(', ')}</p>}
           </div>
-          
+
           <div className="space-y-2">
-            <Label htmlFor="imageUrl">Image URL</Label>
+            <Label htmlFor="imageUrl">Image URL (for visual preview)</Label>
             <Input id="imageUrl" name="imageUrl" type="url" placeholder="https://placehold.co/600x400.png" required onChange={handleImageUrlChange} aria-describedby="imageUrl-error"/>
             {state?.errors?.imageUrl && <p id="imageUrl-error" className="text-sm text-destructive">{state.errors.imageUrl.join(', ')}</p>}
             {imageUrlPreview && (
               <div className="mt-2 relative w-full aspect-video rounded-md overflow-hidden border">
-                <Image src={imageUrlPreview} alt="Design preview" layout="fill" objectFit="contain" data-ai-hint="design preview user upload" />
+                <Image src={imageUrlPreview} alt="Design preview" layout="fill" objectFit="contain" data-ai-hint="design preview user upload"/>
               </div>
             )}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="htmlCode">HTML Code</Label>
-              <Textarea id="htmlCode" name="htmlCode" placeholder="<div>Your HTML here</div>" rows={5} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="cssCode">CSS Code</Label>
-              <Textarea id="cssCode" name="cssCode" placeholder=".your-class { color: red; }" rows={5} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="jsCode">JavaScript Code</Label>
-              <Textarea id="jsCode" name="jsCode" placeholder="console.log('Hello');" rows={5} />
-            </div>
+            <Alert variant="default" className="mt-2">
+              <Info className="h-4 w-4" />
+              <AlertTitle>Image for Preview</AlertTitle>
+              <AlertDescription>
+                This image will be used as the visual representation of your design on cards and in the detail view. A live code preview is not generated automatically.
+              </AlertDescription>
+            </Alert>
           </div>
           
+          <div className="space-y-2">
+            <Label htmlFor="language">Primary Language/Framework</Label>
+            <Select name="language" required onValueChange={setSelectedLanguage} value={selectedLanguage}>
+              <SelectTrigger id="language" aria-describedby="language-error">
+                <SelectValue placeholder="Select language/framework" />
+              </SelectTrigger>
+              <SelectContent>
+                {LANGUAGES.map(lang => (
+                  <SelectItem key={lang} value={lang}>{lang}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {state?.errors?.language && <p id="language-error" className="text-sm text-destructive">{state.errors.language.join(', ')}</p>}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="codeSnippet">Code Snippet</Label>
+            <div className="relative">
+                <Code2 className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Textarea 
+                    id="codeSnippet" 
+                    name="codeSnippet" 
+                    placeholder={`Paste your ${selectedLanguage || 'selected language'} code here...`} 
+                    required 
+                    rows={10} 
+                    className="pl-10 font-mono text-sm"
+                    aria-describedby="codeSnippet-error"
+                />
+            </div>
+            {state?.errors?.codeSnippet && <p id="codeSnippet-error" className="text-sm text-destructive">{state.errors.codeSnippet.join(', ')}</p>}
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="tags">Tags (comma-separated)</Label>
             <div className="relative">

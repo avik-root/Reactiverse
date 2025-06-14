@@ -15,16 +15,13 @@ export interface Design {
   id: string;
   title: string;
   description: string;
-  imageUrl: string;
-  code: {
-    html: string;
-    css: string;
-    js: string;
-  };
-  designer: User; 
+  imageUrl: string; // Stays for visual representation
+  language: string; // e.g., "React", "HTML/CSS/JS", "Vue.js"
+  codeSnippet: string; // The main code block
+  designer: User;
   tags: string[];
-  price?: number; 
-  submittedByUserId?: string; 
+  price?: number;
+  submittedByUserId?: string;
 }
 
 export interface AdminUser {

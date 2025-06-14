@@ -11,7 +11,7 @@ const LoginSchema = z.object({
   identifier: z.string().min(1, { message: 'Username or email is required.' }),
   password: z.string().min(1, { message: 'Password is required.' }), // Min length check done by bcrypt comparison effectively
   pin: z.string().length(6, { message: 'PIN must be 6 digits.' }).regex(/^\d{6}$/, "PIN must be 6 digits.").optional(),
-  userIdForPin: z.string().optional(), // To identify user during PIN verification step
+  userIdForPin: z.string().optional(), // To identify user during PIN verification stage
 });
 
 const SignupSchema = z.object({
@@ -20,7 +20,7 @@ const SignupSchema = z.object({
     .min(4, { message: 'Username must be at least 3 characters plus @.' })
     .regex(/^@[a-zA-Z0-9_]+$/, { message: 'Username must start with @ and contain only letters, numbers, or underscores.'}),
   email: z.string().email({ message: 'Invalid email address.' }),
-  phone: z.string().min(10, { message: 'Please enter a valid phone number with country code.' }) 
+  phone: z.string().min(10, { message: 'Please enter a valid phone number with country code.' })
     .regex(/^\+[1-9]\d{1,14}$/, { message: 'Phone number must start with + and country code (e.g., +1234567890).' }),
   password: z.string().min(8, { message: 'Password must be at least 8 characters.' }),
 });
@@ -33,13 +33,12 @@ const AdminLoginSchema = z.object({
 const AddDesignSchema = z.object({
   title: z.string().min(3, { message: 'Title must be at least 3 characters.' }),
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
-  imageUrl: z.string().url({ message: 'Please enter a valid image URL.' }),
-  htmlCode: z.string().optional(),
-  cssCode: z.string().optional(),
-  jsCode: z.string().optional(),
+  imageUrl: z.string().url({ message: 'Please enter a valid image URL for visual preview.' }),
+  language: z.string().min(1, { message: 'Please select a language/framework.' }),
+  codeSnippet: z.string().min(10, { message: 'Code snippet must be at least 10 characters.' }),
   tags: z.string().min(1, {message: 'Please add at least one tag.'}),
   price: z.coerce.number().min(0, { message: 'Price cannot be negative.' }).default(0),
-  submittedByUserId: z.string(), 
+  submittedByUserId: z.string(),
 });
 
 const UpdateProfileSchema = z.object({
@@ -117,9 +116,8 @@ export type AddDesignFormState = {
     title?: string[];
     description?: string[];
     imageUrl?: string[];
-    htmlCode?: string[];
-    cssCode?: string[];
-    jsCode?: string[];
+    language?: string[];
+    codeSnippet?: string[];
     tags?: string[];
     price?: string[];
     general?: string[];
@@ -187,11 +185,11 @@ export async function loginUser(prevState: LoginFormState, formData: FormData): 
     }
     const pinMatches = await comparePin(pin, targetUser.twoFactorPinHash);
     if (!pinMatches) {
-      return { 
-        message: 'Invalid PIN.', 
-        errors: { pin: ['Incorrect PIN.'] }, 
-        requiresPin: true, 
-        userIdForPin: targetUser.id 
+      return {
+        message: 'Invalid PIN.',
+        errors: { pin: ['Incorrect PIN.'] },
+        requiresPin: true,
+        userIdForPin: targetUser.id
       };
     }
     // PIN is correct, proceed to login
@@ -210,10 +208,10 @@ export async function loginUser(prevState: LoginFormState, formData: FormData): 
 
     // Password is correct, check for 2FA
     if (targetUser.twoFactorEnabled) {
-      return { 
-        message: 'Please enter your 2FA PIN.', 
-        requiresPin: true, 
-        userIdForPin: targetUser.id 
+      return {
+        message: 'Please enter your 2FA PIN.',
+        requiresPin: true,
+        userIdForPin: targetUser.id
       };
     } else {
       // No 2FA, login directly
@@ -253,10 +251,10 @@ export async function signupUser(prevState: SignupFormState, formData: FormData)
     phone,
     passwordHash: hashedPassword,
     avatarUrl: `https://placehold.co/100x100.png?text=${name.charAt(0).toUpperCase()}`,
-    twoFactorEnabled: false, 
+    twoFactorEnabled: false,
     // twoFactorPinHash will be set when user enables 2FA
   };
-  
+
   await saveUserToFile(newUser);
   const { passwordHash, twoFactorPinHash, ...userToReturnForState } = newUser;
 
@@ -281,12 +279,12 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
   if (!adminUser || !adminUser.passwordHash) {
     return { message: 'Invalid username or password.', errors: { general: ['Invalid username or password.'] } };
   }
-  
+
   const passwordMatches = await comparePassword(password, adminUser.passwordHash);
   if (!passwordMatches) {
     return { message: 'Invalid username or password.', errors: { general: ['Invalid username or password.'] } };
   }
-  
+
   const { passwordHash, ...adminUserToReturn } = adminUser;
   return { message: 'Admin login successful!', adminUser: adminUserToReturn };
 }
@@ -303,8 +301,8 @@ export async function submitDesignAction(prevState: AddDesignFormState, formData
     };
   }
 
-  const { title, description, imageUrl, htmlCode, cssCode, jsCode, tags, price, submittedByUserId } = validatedFields.data;
-  
+  const { title, description, imageUrl, language, codeSnippet, tags, price, submittedByUserId } = validatedFields.data;
+
   const users = await getUsersFromFile();
   const storedDesigner = users.find(u => u.id === submittedByUserId);
 
@@ -319,11 +317,8 @@ export async function submitDesignAction(prevState: AddDesignFormState, formData
     title,
     description,
     imageUrl,
-    code: {
-      html: htmlCode || '',
-      css: cssCode || '',
-      js: jsCode || '',
-    },
+    language,
+    codeSnippet,
     designer: designerInfo as User, // Cast as User (sanitized version)
     tags: tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
     price,
@@ -332,8 +327,8 @@ export async function submitDesignAction(prevState: AddDesignFormState, formData
 
   try {
     await addDesignToFile(newDesign);
-    revalidatePath('/'); 
-    revalidatePath('/dashboard/designs'); 
+    revalidatePath('/');
+    revalidatePath('/dashboard/designs');
     return { message: 'Design submitted successfully!', success: true };
   } catch (error) {
     console.error("Error submitting design:", error);
@@ -354,7 +349,7 @@ export async function updateProfileAction(prevState: UpdateProfileFormState, for
   }
 
   const { userId, name, avatarUrl } = validatedFields.data;
-  
+
   const users = await getUsersFromFile();
   const userToUpdate = users.find(u => u.id === userId);
 
@@ -365,17 +360,17 @@ export async function updateProfileAction(prevState: UpdateProfileFormState, for
   const updatedUserData: StoredUser = {
     ...userToUpdate,
     name,
-    avatarUrl: avatarUrl || userToUpdate.avatarUrl, 
+    avatarUrl: avatarUrl || userToUpdate.avatarUrl,
   };
 
   try {
     const success = await updateUserInFile(updatedUserData);
     if (!success) throw new Error("Update operation failed at server-data");
-    
+
     const { passwordHash, twoFactorPinHash, ...userToReturn } = updatedUserData;
     revalidatePath('/dashboard/profile');
-    revalidatePath('/dashboard'); 
-    revalidatePath('/'); 
+    revalidatePath('/dashboard');
+    revalidatePath('/');
     return { message: 'Profile updated successfully!', success: true, user: userToReturn };
   } catch (error) {
     console.error("Error updating profile:", error);
@@ -412,7 +407,7 @@ export async function changePasswordAction(prevState: ChangePasswordFormState, f
   const newHashedPassword = await hashPassword(newPassword);
   const updatedUserData: StoredUser = {
     ...userToUpdate,
-    passwordHash: newHashedPassword, 
+    passwordHash: newHashedPassword,
   };
 
   try {
@@ -507,6 +502,7 @@ export async function getAllDesignsAction(): Promise<Design[]> {
     // Sanitize designer info in each design
     return designs.map(design => {
       if (design.designer) {
+        // Ensure designer is treated as StoredUser before destructuring
         const { passwordHash, twoFactorPinHash, ...sanitizedDesigner } = design.designer as StoredUser;
         return { ...design, designer: sanitizedDesigner as User };
       }
@@ -514,7 +510,7 @@ export async function getAllDesignsAction(): Promise<Design[]> {
     });
   } catch (error) {
     console.error("Error fetching all designs via action:", error);
-    return []; 
+    return [];
   }
 }
 
@@ -524,10 +520,11 @@ export async function getDesignByIdAction(id: string): Promise<Design | undefine
     const designs = await getDesignsFromFile();
     const design = designs.find(d => d.id === id);
     if (design && design.designer) {
+      // Ensure designer is treated as StoredUser before destructuring
       const { passwordHash, twoFactorPinHash, ...sanitizedDesigner } = design.designer as StoredUser;
       return { ...design, designer: sanitizedDesigner as User };
     }
-    return design;
+    return design; // Return design as is if designer info is not there or already sanitized
   } catch (error) {
     console.error(`Error fetching design by ID (${id}) via action:`, error);
     return undefined;

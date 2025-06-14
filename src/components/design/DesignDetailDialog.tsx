@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Design } from '@/lib/types';
@@ -64,7 +65,11 @@ const DesignDetailDialog: React.FC<DesignDetailDialogProps> = ({ design, isOpen,
               ))}
             </div>
           </div>
-          <CodeBlock code={design.code} isLocked={isPriced} />
+          <CodeBlock 
+            codeSnippet={design.codeSnippet} 
+            language={design.language} 
+            isLocked={isPriced} 
+          />
         </div>
       </DialogContent>
     </Dialog>

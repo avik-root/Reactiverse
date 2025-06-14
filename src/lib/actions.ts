@@ -46,6 +46,7 @@ import type {
   TopDesignersPageContent,
   SiteLogoUploadState,
   AdminSetUser2FAStatusFormState,
+  AdminSetUserCanSetPriceFormState,
 } from './types';
 import { revalidatePath } from 'next/cache';
 import { hashPassword, comparePassword, hashPin, comparePin } from './auth-utils';
@@ -72,8 +73,8 @@ const SignupSchema = z.object({
 });
 
 const AdminLoginSchema = z.object({
-  username: z.string().min(1, { message: 'Username is required.' }).optional(), // Optional for PIN step
-  password: z.string().min(1, { message: 'Password is required.' }).optional(), // Optional for PIN step
+  username: z.string().min(1, { message: 'Username is required.' }).optional(),
+  password: z.string().min(1, { message: 'Password is required.' }).optional(),
   pin: z.string().length(6, { message: 'PIN must be 6 digits.' }).regex(/^\d{6}$/, "PIN must be 6 digits.").optional(),
   adminIdForPin: z.string().optional(),
 });
@@ -207,6 +208,12 @@ const AdminSetUser2FAStatusSchema = z.object({
     adminId: z.string().min(1, "Admin ID is required for authorization."),
 });
 
+const AdminSetUserCanSetPriceSchema = z.object({
+    userId: z.string().min(1, "User ID is required."),
+    canSetPrice: z.preprocess((val) => String(val).toLowerCase() === 'true', z.boolean()),
+    adminId: z.string().min(1, "Admin ID is required for authorization."),
+});
+
 
 const AboutUsContentSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -228,6 +235,8 @@ const AboutUsContentSchema = z.object({
           title: data[`offerItems[${i}].title`] || '',
           description: data[`offerItems[${i}].description`] || ''
         });
+        delete data[`offerItems[${i}].title`];
+        delete data[`offerItems[${i}].description`];
         i++;
       }
       if (items.length > 0) return items;
@@ -279,7 +288,6 @@ const GuidelinesPageContentSchema = z.object({
         data.keyAreas = parsedKeyAreas;
       }
     } catch (e) {
-      // Error or invalid JSON, keep original keyAreas (if any) or let Zod handle it.
     }
   }
   const { keyAreasJSON, ...rest } = data;
@@ -321,7 +329,7 @@ export type LoginFormState = {
   };
   requiresPin?: boolean;
   userIdForPin?: string;
-  accountLocked?: boolean; // Added for 2FA lockout
+  accountLocked?: boolean;
 };
 
 export type SignupFormState = {
@@ -422,7 +430,7 @@ export async function loginUser(prevState: LoginFormState, formData: FormData): 
   const users = await getUsersFromFile();
   let targetUser: StoredUser | undefined;
 
-  if (userIdForPin && pin) { // PIN verification stage
+  if (userIdForPin && pin) {
     targetUser = users.find(u => u.id === userIdForPin);
     if (!targetUser) {
       return { message: 'User not found for PIN verification.', errors: { general: ['An error occurred. Please try logging in again.'] } };
@@ -445,7 +453,7 @@ export async function loginUser(prevState: LoginFormState, formData: FormData): 
         return {
           message: 'Invalid PIN. Your account has been locked due to too many failed attempts. Please contact support.',
           errors: { pin: ['Incorrect PIN. Account locked.'] },
-          requiresPin: true, // Keep showing PIN stage, but it won't work
+          requiresPin: true,
           userIdForPin: targetUser.id,
           accountLocked: true,
         };
@@ -458,13 +466,12 @@ export async function loginUser(prevState: LoginFormState, formData: FormData): 
         userIdForPin: targetUser.id
       };
     }
-    // PIN is correct
-    targetUser.failedPinAttempts = 0; // Reset attempts
+    targetUser.failedPinAttempts = 0;
     await updateUserInFile(targetUser);
     const { passwordHash, twoFactorPinHash: removedPinHash, ...userToReturn } = targetUser;
-    return { message: 'Login successful!', user: {...userToReturn, isAdmin: false} };
+    return { message: 'Login successful!', user: {...userToReturn, isAdmin: false, canSetPrice: userToReturn.canSetPrice || false} };
 
-  } else { // Initial username/password stage
+  } else {
     if (!identifier || !password) {
         return { message: 'Username/email and password are required.', errors: { general: ['Username/email and password are required.'] } };
     }
@@ -490,7 +497,7 @@ export async function loginUser(prevState: LoginFormState, formData: FormData): 
       };
     } else {
       const { passwordHash, twoFactorPinHash: removedPinHash, ...userToReturn } = targetUser;
-      return { message: 'Login successful!', user: {...userToReturn, isAdmin: false} };
+      return { message: 'Login successful!', user: {...userToReturn, isAdmin: false, canSetPrice: userToReturn.canSetPrice || false} };
     }
   }
 }
@@ -535,12 +542,13 @@ export async function signupUser(prevState: SignupFormState, formData: FormData)
     twoFactorEnabled: false,
     failedPinAttempts: 0,
     isLocked: false,
+    canSetPrice: false, // New users cannot set price by default
   };
 
   await saveUserToFile(newUser);
   const { passwordHash, twoFactorPinHash, ...userToReturnForState } = newUser;
 
-  return { message: 'Signup successful! Please log in.', user: {...userToReturnForState, isAdmin: false} };
+  return { message: 'Signup successful! Please log in.', user: {...userToReturnForState, isAdmin: false, canSetPrice: newUser.canSetPrice} };
 }
 
 export async function loginAdmin(prevState: AdminLoginFormState, formData: FormData): Promise<AdminLoginFormState> {
@@ -603,7 +611,7 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     path: '/admin',
-    maxAge: 60 * 60 * 24 * 7, // 1 week
+    maxAge: 60 * 60 * 24 * 7,
     sameSite: 'lax',
   });
 
@@ -647,7 +655,6 @@ export async function submitDesignAction(prevState: AddDesignFormState, formData
                 }
             }
         } catch (e) {
-            // JSON parsing failed, keep original error
         }
     }
     return {
@@ -680,6 +687,9 @@ export async function submitDesignAction(prevState: AddDesignFormState, formData
     code: cb.code,
   }));
 
+  const finalPrice = (designerInfo.canSetPrice) ? price : 0;
+
+
   const newDesign: Design = {
     id: `design-${Date.now()}`,
     title,
@@ -688,7 +698,7 @@ export async function submitDesignAction(prevState: AddDesignFormState, formData
     codeBlocks,
     designer: designerInfo as User,
     tags: tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
-    price,
+    price: finalPrice,
     submittedByUserId,
   };
 
@@ -729,7 +739,6 @@ export async function updateDesignAction(prevState: UpdateDesignFormState, formD
                 }
             }
         } catch (e) {
-            // JSON parsing failed, keep original error
         }
     }
     return {
@@ -774,6 +783,8 @@ export async function updateDesignAction(prevState: UpdateDesignFormState, formD
     code: cb.code,
   }));
 
+  const finalPrice = (designerInfo.canSetPrice) ? price : 0;
+
   const updatedDesign: Design = {
     ...existingDesign,
     title,
@@ -782,7 +793,7 @@ export async function updateDesignAction(prevState: UpdateDesignFormState, formD
     codeBlocks,
     designer: designerInfo as User,
     tags: tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
-    price,
+    price: finalPrice,
   };
 
   try {
@@ -831,7 +842,7 @@ export async function updateProfileAction(prevState: UpdateProfileFormState, for
     revalidatePath('/dashboard/profile');
     revalidatePath('/dashboard');
     revalidatePath('/');
-    return { message: 'Profile updated successfully!', success: true, user: {...userToReturn, isAdmin: false} };
+    return { message: 'Profile updated successfully!', success: true, user: {...userToReturn, isAdmin: false, canSetPrice: userToReturn.canSetPrice || false} };
   } catch (error) {
     console.error("Error updating profile:", error);
     return { message: 'Failed to update profile. Please try again.', success: false, errors: { general: ['Server error.'] } };
@@ -939,6 +950,8 @@ export async function disableTwoFactorAction(prevState: TwoFactorAuthFormState, 
     ...userToUpdate,
     twoFactorEnabled: false,
     twoFactorPinHash: undefined,
+    failedPinAttempts: 0, // Also reset attempts and lock status
+    isLocked: false,
   };
 
   try {
@@ -958,7 +971,7 @@ export async function getAllDesignsAction(): Promise<Design[]> {
     return designs.map(design => {
       const sanitizedDesigner = design.designer
         ? (({ passwordHash, twoFactorPinHash, ...rest }: StoredUser) => rest)(design.designer as StoredUser) as User
-        : { id: 'unknown', name: 'Unknown Designer', username: '@unknown', avatarUrl: '', email: 'unknown@example.com', phone: '', twoFactorEnabled: false, failedPinAttempts: 0, isLocked: false };
+        : { id: 'unknown', name: 'Unknown Designer', username: '@unknown', avatarUrl: '', email: 'unknown@example.com', phone: '', twoFactorEnabled: false, failedPinAttempts: 0, isLocked: false, canSetPrice: false };
 
       return {
         ...design,
@@ -979,7 +992,7 @@ export async function getDesignByIdAction(id: string): Promise<Design | undefine
     if (design) {
       const sanitizedDesigner = design.designer
         ? (({ passwordHash, twoFactorPinHash, ...rest }: StoredUser) => rest)(design.designer as StoredUser) as User
-        : { id: 'unknown', name: 'Unknown Designer', username: '@unknown', avatarUrl: '', email: 'unknown@example.com', phone: '', twoFactorEnabled: false, failedPinAttempts: 0, isLocked: false };
+        : { id: 'unknown', name: 'Unknown Designer', username: '@unknown', avatarUrl: '', email: 'unknown@example.com', phone: '', twoFactorEnabled: false, failedPinAttempts: 0, isLocked: false, canSetPrice: false };
       return {
         ...design,
         designer: sanitizedDesigner,
@@ -1081,6 +1094,7 @@ export async function getAllUsersAdminAction(): Promise<User[]> {
         failedPinAttempts: user.failedPinAttempts || 0,
         isLocked: user.isLocked || false,
         twoFactorEnabled: user.twoFactorEnabled || false,
+        canSetPrice: user.canSetPrice || false,
       };
     });
   } catch (error) {
@@ -1441,7 +1455,6 @@ export async function adminSetUser2FAStatusAction(
   if (!adminToken) {
     return { message: "Admin authorization failed.", success: false, errors: { general: ["Not authorized."] } };
   }
-  // Potentially verify adminToken maps to a valid admin user if more robust auth is needed here.
 
   const validatedFields = AdminSetUser2FAStatusSchema.safeParse(Object.fromEntries(formData.entries()));
   if (!validatedFields.success) {
@@ -1468,9 +1481,45 @@ export async function adminSetUser2FAStatusAction(
     await updateUserInFile(userToUpdate);
     revalidatePath('/admin/users');
     const { passwordHash, twoFactorPinHash, ...userToReturn } = userToUpdate;
-    return { message: `User 2FA status ${enable ? 'enabled' : 'disabled'} successfully.`, success: true, updatedUser: userToReturn };
+    return { message: `User 2FA status ${enable ? 'enabled' : 'disabled'} successfully.`, success: true, updatedUser: {...userToReturn, canSetPrice: userToReturn.canSetPrice || false} };
   } catch (error) {
     console.error("Error setting user 2FA status by admin:", error);
     return { message: 'Failed to update user 2FA status.', success: false, errors: { general: ['Server error.'] } };
+  }
+}
+
+export async function adminSetUserCanSetPriceAction(
+  prevState: AdminSetUserCanSetPriceFormState,
+  formData: FormData
+): Promise<AdminSetUserCanSetPriceFormState> {
+  const adminToken = cookies().get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
+  if (!adminToken) {
+    return { message: "Admin authorization failed.", success: false, errors: { general: ["Not authorized."] } };
+  }
+
+  const validatedFields = AdminSetUserCanSetPriceSchema.safeParse(Object.fromEntries(formData.entries()));
+  if (!validatedFields.success) {
+    return { errors: validatedFields.error.flatten().fieldErrors, message: 'Invalid input.', success: false };
+  }
+
+  const { userId, canSetPrice } = validatedFields.data;
+  const users = await getUsersFromFile();
+  const userIndex = users.findIndex(u => u.id === userId);
+
+  if (userIndex === -1) {
+    return { message: 'User not found.', success: false, errors: { userId: ['User not found.'] } };
+  }
+
+  const userToUpdate = users[userIndex];
+  userToUpdate.canSetPrice = canSetPrice;
+
+  try {
+    await updateUserInFile(userToUpdate);
+    revalidatePath('/admin/users');
+    const { passwordHash, twoFactorPinHash, ...userToReturn } = userToUpdate;
+    return { message: `User's ability to set prices ${canSetPrice ? 'enabled' : 'disabled'} successfully.`, success: true, updatedUser: {...userToReturn, canSetPrice: userToReturn.canSetPrice || false} };
+  } catch (error) {
+    console.error("Error setting user's price setting ability by admin:", error);
+    return { message: 'Failed to update user price setting ability.', success: false, errors: { general: ['Server error.'] } };
   }
 }

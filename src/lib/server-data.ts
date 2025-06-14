@@ -19,7 +19,7 @@ const DEFAULT_SITE_SETTINGS: SiteSettings = {
     primaryHSL: "271 100% 75.3%",
     accentHSL: "300 100% 70%",
   },
-  logoPath: "/default-logo.png" // Example default, actual logo might be Layers3 icon
+  logoPath: "/default-logo.png"
 };
 
 const DEFAULT_PAGE_CONTENT: PageContentData = {
@@ -144,12 +144,12 @@ export async function getUsersFromFile(): Promise<StoredUser[]> {
     }
     const jsonData = await fs.readFile(USERS_FILE_PATH, 'utf-8');
     const users = JSON.parse(jsonData) as StoredUser[];
-    // Initialize new fields if they are missing
     return users.map(user => ({
       ...user,
       failedPinAttempts: user.failedPinAttempts === undefined ? 0 : user.failedPinAttempts,
       isLocked: user.isLocked === undefined ? false : user.isLocked,
       twoFactorEnabled: user.twoFactorEnabled === undefined ? false : user.twoFactorEnabled,
+      canSetPrice: user.canSetPrice === undefined ? false : user.canSetPrice, // Initialize canSetPrice
     }));
   } catch (error) {
     console.error('Failed to read users.json:', error);
@@ -165,6 +165,7 @@ export async function saveUserToFile(newUser: StoredUser): Promise<void> {
         failedPinAttempts: newUser.failedPinAttempts || 0,
         isLocked: newUser.isLocked || false,
         twoFactorEnabled: newUser.twoFactorEnabled || false,
+        canSetPrice: newUser.canSetPrice || false, // Ensure new users get canSetPrice: false
     });
     await fs.writeFile(USERS_FILE_PATH, JSON.stringify(users, null, 2), 'utf-8');
   } catch (error) {
@@ -186,6 +187,7 @@ export async function updateUserInFile(updatedUser: StoredUser): Promise<boolean
         ...updatedUser,
         failedPinAttempts: updatedUser.failedPinAttempts === undefined ? users[userIndex].failedPinAttempts : updatedUser.failedPinAttempts,
         isLocked: updatedUser.isLocked === undefined ? users[userIndex].isLocked : updatedUser.isLocked,
+        canSetPrice: updatedUser.canSetPrice === undefined ? users[userIndex].canSetPrice : updatedUser.canSetPrice, // Handle canSetPrice update
     };
     await fs.writeFile(USERS_FILE_PATH, JSON.stringify(users, null, 2), 'utf-8');
     return true;
@@ -297,7 +299,6 @@ export async function getSiteSettings(): Promise<SiteSettings> {
       return DEFAULT_SITE_SETTINGS;
     }
     const jsonData = await fs.readFile(SETTINGS_FILE_PATH, 'utf-8');
-    // Merge with defaults to ensure all keys are present if file is manually edited
     const parsedSettings = JSON.parse(jsonData);
     return { ...DEFAULT_SITE_SETTINGS, ...parsedSettings, themeColors: { ...DEFAULT_SITE_SETTINGS.themeColors, ...parsedSettings.themeColors }};
   } catch (error) {
@@ -323,7 +324,6 @@ export async function getPageContent(): Promise<PageContentData> {
     }
     const jsonData = await fs.readFile(PAGE_CONTENT_FILE_PATH, 'utf-8');
     const parsedContent = JSON.parse(jsonData);
-    // Merge with defaults to ensure all keys are present
     return {
       aboutUs: { ...DEFAULT_PAGE_CONTENT.aboutUs, ...parsedContent.aboutUs },
       support: { ...DEFAULT_PAGE_CONTENT.support, ...parsedContent.support },
@@ -350,7 +350,6 @@ export async function savePageContent(pageKey: PageContentKeys, content: any): P
 export async function saveSiteLogo(fileBuffer: Buffer, fileName: string): Promise<string> {
   try {
     const publicDir = path.join(process.cwd(), 'public');
-    // Ensure public directory exists
     try {
       await fs.access(publicDir);
     } catch {
@@ -359,7 +358,7 @@ export async function saveSiteLogo(fileBuffer: Buffer, fileName: string): Promis
 
     const filePath = path.join(publicDir, fileName);
     await fs.writeFile(filePath, fileBuffer);
-    return `/${fileName}`; // Return the public path
+    return `/${fileName}`;
   } catch (error) {
     console.error('Failed to save site logo:', error);
     throw error;

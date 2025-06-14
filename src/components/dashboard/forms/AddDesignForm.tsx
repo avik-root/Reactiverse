@@ -24,7 +24,7 @@ const LANGUAGES = [
 ];
 
 interface CodeBlockEntry {
-  id: string; // Unique ID for React key
+  id: string;
   language: string;
   code: string;
 }
@@ -53,6 +53,8 @@ export default function AddDesignForm() {
     { id: `cb-${Date.now()}`, language: '', code: '' }
   ]);
 
+  const canSetPrice = user && 'canSetPrice' in user ? user.canSetPrice : false;
+
   useEffect(() => {
     if (state?.message) {
       toast({
@@ -66,7 +68,6 @@ export default function AddDesignForm() {
         setCodeBlocks([{ id: `cb-${Date.now()}`, language: '', code: '' }]);
         const form = document.getElementById('addDesignForm') as HTMLFormElement;
         form?.reset();
-        // router.push('/dashboard/designs'); // Optionally redirect
       }
     }
   }, [state, toast, router]);
@@ -84,7 +85,7 @@ export default function AddDesignForm() {
     }
   };
   
-  const effectivePrice = isPaid ? (price === "" ? "0" : price) : "0";
+  const effectivePrice = canSetPrice && isPaid ? (price === "" ? "0" : price) : "0";
 
   const addCodeBlock = () => {
     setCodeBlocks([...codeBlocks, { id: `cb-${Date.now()}`, language: '', code: '' }]);
@@ -203,36 +204,42 @@ export default function AddDesignForm() {
             {state?.errors?.tags && <p id="tags-error" className="text-sm text-destructive">{state.errors.tags.join(', ')}</p>}
           </div>
 
-          <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <Switch id="isPaidSwitch" checked={isPaid} onCheckedChange={setIsPaid} />
-              <Label htmlFor="isPaidSwitch" className="text-base">
-                {isPaid ? "Paid Design (Set Price)" : "Free Design"}
-              </Label>
-            </div>
-
-            {isPaid && (
-              <div className="space-y-2">
-                <Label htmlFor="priceInput">Price (₹)</Label>
-                <div className="relative">
-                  <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    id="priceInput" 
-                    type="number" 
-                    placeholder="0.00" 
-                    step="0.01" 
-                    min="0" 
-                    value={price}
-                    onChange={handlePriceChange}
-                    required={isPaid}
-                    className="pl-10" 
-                    aria-describedby="price-error"
-                  />
-                </div>
-                {state?.errors?.price && <p id="price-error" className="text-sm text-destructive">{state.errors.price.join(', ')}</p>}
+          {canSetPrice && (
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Switch id="isPaidSwitch" checked={isPaid} onCheckedChange={setIsPaid} />
+                <Label htmlFor="isPaidSwitch" className="text-base">
+                  {isPaid ? "Paid Design (Set Price)" : "Free Design"}
+                </Label>
               </div>
-            )}
-          </div>
+
+              {isPaid && (
+                <div className="space-y-2">
+                  <Label htmlFor="priceInput">Price (₹)</Label>
+                  <div className="relative">
+                    <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                      id="priceInput" 
+                      type="number" 
+                      placeholder="0.00" 
+                      step="0.01" 
+                      min="0" 
+                      value={price}
+                      onChange={handlePriceChange}
+                      required={isPaid}
+                      className="pl-10" 
+                      aria-describedby="price-error"
+                    />
+                  </div>
+                  {state?.errors?.price && <p id="price-error" className="text-sm text-destructive">{state.errors.price.join(', ')}</p>}
+                </div>
+              )}
+            </div>
+          )}
+          {!canSetPrice && (
+            <input type="hidden" name="price" value="0" />
+          )}
+
 
           {state?.errors?.general && <p className="text-sm text-destructive">{state.errors.general.join(', ')}</p>}
         </CardContent>

@@ -23,12 +23,14 @@
       "email": "test@gmail.com",
       "phone": "+911234567890",
       "avatarUrl": "https://placehold.co/100x100.png?text=T",
-      "twoFactorEnabled": true
+      "twoFactorEnabled": false,
+      "failedPinAttempts": 0,
+      "isLocked": false
     },
     "tags": [
       "loading animation"
     ],
-    "price": 10,
+    "price": 0,
     "submittedByUserId": "user-1749918806145"
   }
 ]

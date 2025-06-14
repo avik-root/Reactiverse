@@ -4,7 +4,7 @@
 import type { AuthUser, User as StoredUserType, AdminUser as StoredAdminUserType } from '@/lib/types';
 import type React from 'react';
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { logoutAdminAction } from '@/lib/actions'; // Static import
+import { logoutAdminAction } from '@/lib/actions';
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -55,7 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = useCallback(async () => {
     setIsLoading(true);
-    const currentIsAdminStatus = isAdmin; // Capture before clearing
+    const currentIsAdminStatus = isAdmin;
 
     setUser(null);
     setIsAdmin(false);
@@ -70,9 +70,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error("Error during logout process:", error);
     }
-    // Set loading to false after all operations. Navigation is handled by the caller.
     setIsLoading(false);
-  }, [isAdmin]); // Depend on isAdmin to correctly capture its status before clearing
+  }, [isAdmin]);
 
   const updateAuthUser = useCallback((updatedUserDataOrFn: Partial<AuthUser> | ((currentUser: AuthUser | null) => AuthUser | null) ) => {
     setUser(prevUser => {

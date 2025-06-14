@@ -48,7 +48,11 @@ export default function EditDesignForm({ design }: EditDesignFormProps) {
   const [filterCategory, setFilterCategory] = useState(design.filterCategory);
   const [description, setDescription] = useState(design.description);
   const [tags, setTags] = useState(design.tags.join(', '));
-  const [isPaid, setIsPaid] = useState<boolean>(!!design.price && design.price > 0);
+  
+  const canSetPrice = user && 'canSetPrice' in user ? user.canSetPrice : false;
+  const initialIsPaid = canSetPrice && !!design.price && design.price > 0;
+
+  const [isPaid, setIsPaid] = useState<boolean>(initialIsPaid);
   const [price, setPrice] = useState<string>(design.price ? design.price.toString() : "0");
   const [codeBlocks, setCodeBlocks] = useState<FormCodeBlockItem[]>(
     design.codeBlocks.map(cb => ({ ...cb, id: cb.id || `cb-${Date.now()}-${Math.random()}` })) || [{ id: `cb-${Date.now()}`, language: '', code: '' }]
@@ -69,7 +73,6 @@ export default function EditDesignForm({ design }: EditDesignFormProps) {
   }, [state, toast, router]);
 
   if (!user || !('id' in user) || user.id !== design.submittedByUserId) {
-    // This check is more of a safeguard, main auth check is on the page level
     return <p>You are not authorized to edit this design or user data is unavailable.</p>;
   }
 
@@ -82,7 +85,7 @@ export default function EditDesignForm({ design }: EditDesignFormProps) {
     }
   };
   
-  const effectivePrice = isPaid ? (price === "" ? "0" : price) : "0";
+  const effectivePrice = canSetPrice && isPaid ? (price === "" ? "0" : price) : "0";
 
   const addCodeBlock = () => {
     setCodeBlocks([...codeBlocks, { id: `cb-${Date.now()}-${Math.random()}`, language: '', code: '' }]);
@@ -104,7 +107,6 @@ export default function EditDesignForm({ design }: EditDesignFormProps) {
     );
   };
   
-  // Prepare codeBlocks for submission, ensuring `id` is part of the JSON for potential re-use or tracking if needed
   const codeBlocksJSON = JSON.stringify(codeBlocks.map(cb => ({ id: cb.id, language: cb.language, code: cb.code })));
 
   return (
@@ -205,36 +207,42 @@ export default function EditDesignForm({ design }: EditDesignFormProps) {
             {state?.errors?.tags && <p id="tags-error" className="text-sm text-destructive">{state.errors.tags.join(', ')}</p>}
           </div>
 
-          <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <Switch id="isPaidSwitch" checked={isPaid} onCheckedChange={setIsPaid} />
-              <Label htmlFor="isPaidSwitch" className="text-base">
-                {isPaid ? "Paid Design (Set Price)" : "Free Design"}
-              </Label>
-            </div>
-
-            {isPaid && (
-              <div className="space-y-2">
-                <Label htmlFor="priceInput">Price (₹)</Label>
-                <div className="relative">
-                  <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    id="priceInput" 
-                    type="number" 
-                    placeholder="0.00" 
-                    step="0.01" 
-                    min="0" 
-                    value={price}
-                    onChange={handlePriceChange}
-                    required={isPaid}
-                    className="pl-10" 
-                    aria-describedby="price-error"
-                  />
-                </div>
-                {state?.errors?.price && <p id="price-error" className="text-sm text-destructive">{state.errors.price.join(', ')}</p>}
+          {canSetPrice && (
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Switch id="isPaidSwitch" checked={isPaid} onCheckedChange={setIsPaid} />
+                <Label htmlFor="isPaidSwitch" className="text-base">
+                  {isPaid ? "Paid Design (Set Price)" : "Free Design"}
+                </Label>
               </div>
-            )}
-          </div>
+
+              {isPaid && (
+                <div className="space-y-2">
+                  <Label htmlFor="priceInput">Price (₹)</Label>
+                  <div className="relative">
+                    <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                      id="priceInput" 
+                      type="number" 
+                      placeholder="0.00" 
+                      step="0.01" 
+                      min="0" 
+                      value={price}
+                      onChange={handlePriceChange}
+                      required={isPaid}
+                      className="pl-10" 
+                      aria-describedby="price-error"
+                    />
+                  </div>
+                  {state?.errors?.price && <p id="price-error" className="text-sm text-destructive">{state.errors.price.join(', ')}</p>}
+                </div>
+              )}
+            </div>
+          )}
+          {!canSetPrice && (
+            <input type="hidden" name="price" value="0" />
+          )}
+
 
           {state?.errors?.general && <p className="text-sm text-destructive">{state.errors.general.join(', ')}</p>}
         </CardContent>
@@ -248,4 +256,3 @@ export default function EditDesignForm({ design }: EditDesignFormProps) {
     </Card>
   );
 }
-

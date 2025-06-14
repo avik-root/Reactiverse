@@ -2,20 +2,21 @@
 'use client';
 
 import { useEffect, useState, useActionState, useCallback, startTransition } from 'react';
-import type { User, StoredUser, AdminSetUser2FAStatusFormState } from '@/lib/types';
-import { getAllUsersAdminAction, deleteUserAdminAction, adminSetUser2FAStatusAction } from '@/lib/actions';
+import type { User, StoredUser, AdminSetUser2FAStatusFormState, AdminSetUserCanSetPriceFormState } from '@/lib/types';
+import { getAllUsersAdminAction, deleteUserAdminAction, adminSetUser2FAStatusAction, adminSetUserCanSetPriceAction } from '@/lib/actions';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { Users, Trash2, Eye, ShieldCheck, ShieldOff, Phone, Mail, UserSquare2, User as UserIcon, AlertTriangle, LockIcon, UnlockIcon } from 'lucide-react';
+import { Users, Trash2, Eye, ShieldCheck, ShieldOff, Phone, Mail, UserSquare2, User as UserIcon, AlertTriangle, LockIcon, UnlockIcon, IndianRupee, XCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Label } from '@/components/ui/label'; // Added for 2FA management dialog
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch'; // Added for toggles
 
 const sanitizeUser = (user: StoredUser): User => {
   const { passwordHash, twoFactorPinHash, ...sanitized } = user;
@@ -24,6 +25,7 @@ const sanitizeUser = (user: StoredUser): User => {
     failedPinAttempts: user.failedPinAttempts || 0,
     isLocked: user.isLocked || false,
     twoFactorEnabled: user.twoFactorEnabled || false,
+    canSetPrice: user.canSetPrice || false,
   };
 };
 
@@ -40,8 +42,17 @@ export default function ManageUsersPage() {
   const [is2FADialogOpen, setIs2FADialogOpen] = useState(false);
   const [current2FAAction, setCurrent2FAAction] = useState<'enable' | 'disable' | null>(null);
 
+  const [userForPriceSetting, setUserForPriceSetting] = useState<User | null>(null);
+  const [isPriceSettingDialogOpen, setIsPriceSettingDialogOpen] = useState(false);
+  const [currentPriceSettingAction, setCurrentPriceSettingAction] = useState<'enable' | 'disable' | null>(null);
+
+
   const initial2FAState: AdminSetUser2FAStatusFormState = { message: null, success: false, errors: {} };
   const [set2FAFormState, set2FAFormAction] = useActionState(adminSetUser2FAStatusAction, initial2FAState);
+
+  const initialPriceSettingState: AdminSetUserCanSetPriceFormState = { message: null, success: false, errors: {} };
+  const [setPriceSettingFormState, setPriceSettingFormAction] = useActionState(adminSetUserCanSetPriceAction, initialPriceSettingState);
+
 
   const fetchUsers = useCallback(async () => {
     if (!isAdmin) return;
@@ -60,23 +71,36 @@ export default function ManageUsersPage() {
     fetchUsers();
   }, [fetchUsers]);
 
-  useEffect(() => {
-    if (set2FAFormState?.message) {
+  const processFormStateUpdate = (formState: AdminSetUser2FAStatusFormState | AdminSetUserCanSetPriceFormState, closeDialogFn: () => void) => {
+    if (formState?.message) {
       toast({
-        title: set2FAFormState.success ? "Success" : "Error",
-        description: set2FAFormState.message,
-        variant: set2FAFormState.success ? "default" : "destructive",
+        title: formState.success ? "Success" : "Error",
+        description: formState.message,
+        variant: formState.success ? "default" : "destructive",
       });
-      if (set2FAFormState.success) {
-        setIs2FADialogOpen(false);
-        setUserFor2FAManagement(null);
-        fetchUsers(); // Re-fetch users to update the list
-        if (selectedUserForView && set2FAFormState.updatedUser && selectedUserForView.id === set2FAFormState.updatedUser.id) {
-          setSelectedUserForView(sanitizeUser(set2FAFormState.updatedUser as StoredUser));
+      if (formState.success) {
+        closeDialogFn();
+        fetchUsers();
+        if (selectedUserForView && formState.updatedUser && selectedUserForView.id === formState.updatedUser.id) {
+          setSelectedUserForView(sanitizeUser(formState.updatedUser as StoredUser));
         }
       }
     }
+  };
+  
+  useEffect(() => {
+    processFormStateUpdate(set2FAFormState, () => {
+        setIs2FADialogOpen(false);
+        setUserFor2FAManagement(null);
+    });
   }, [set2FAFormState, toast, fetchUsers, selectedUserForView]);
+
+  useEffect(() => {
+    processFormStateUpdate(setPriceSettingFormState, () => {
+        setIsPriceSettingDialogOpen(false);
+        setUserForPriceSetting(null);
+    });
+  }, [setPriceSettingFormState, toast, fetchUsers, selectedUserForView]);
 
 
   const getInitials = (name?: string) => {
@@ -125,9 +149,27 @@ export default function ManageUsersPage() {
       const formData = new FormData();
       formData.append('userId', userFor2FAManagement.id);
       formData.append('enable', current2FAAction === 'enable' ? 'true' : 'false');
-      formData.append('adminId', adminUser.id); // Pass adminId for verification
+      formData.append('adminId', adminUser.id);
       startTransition(() => {
         set2FAFormAction(formData);
+      });
+    }
+  };
+
+  const handleManagePriceSettingClick = (user: User, action: 'enable' | 'disable') => {
+    setUserForPriceSetting(user);
+    setCurrentPriceSettingAction(action);
+    setIsPriceSettingDialogOpen(true);
+  };
+
+  const handleConfirmPriceSettingAction = () => {
+    if (userForPriceSetting && currentPriceSettingAction && adminUser && 'id' in adminUser) {
+      const formData = new FormData();
+      formData.append('userId', userForPriceSetting.id);
+      formData.append('canSetPrice', currentPriceSettingAction === 'enable' ? 'true' : 'false');
+      formData.append('adminId', adminUser.id);
+      startTransition(() => {
+        setPriceSettingFormAction(formData);
       });
     }
   };
@@ -163,7 +205,7 @@ export default function ManageUsersPage() {
           <Users className="h-8 w-8 text-primary" />
           <CardTitle className="text-3xl font-headline text-primary">Manage Users</CardTitle>
         </div>
-        <CardDescription>View, manage user accounts, and their 2FA status.</CardDescription>
+        <CardDescription>View, manage user accounts, their 2FA status, and pricing permissions.</CardDescription>
       </CardHeader>
       <CardContent>
         {users.length > 0 ? (
@@ -175,8 +217,8 @@ export default function ManageUsersPage() {
                   <TableHead>Name</TableHead>
                   <TableHead>Username</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Phone</TableHead>
                   <TableHead className="text-center">2FA</TableHead>
+                  <TableHead className="text-center">Pricing</TableHead>
                   <TableHead className="text-center">Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -193,7 +235,6 @@ export default function ManageUsersPage() {
                     <TableCell className="font-medium">{user.name}</TableCell>
                     <TableCell>{user.username}</TableCell>
                     <TableCell>{user.email}</TableCell>
-                    <TableCell>{user.phone}</TableCell>
                     <TableCell className="text-center">
                       {user.twoFactorEnabled ? (
                         <Badge variant="default" className="bg-green-600 hover:bg-green-700">
@@ -202,6 +243,17 @@ export default function ManageUsersPage() {
                       ) : (
                         <Badge variant="secondary">
                           <ShieldOff className="mr-1 h-3.5 w-3.5" /> Disabled
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {user.canSetPrice ? (
+                        <Badge variant="default" className="bg-sky-600 hover:bg-sky-700">
+                          <IndianRupee className="mr-1 h-3.5 w-3.5" /> Allowed
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary">
+                          <XCircle className="mr-1 h-3.5 w-3.5" /> Restricted
                         </Badge>
                       )}
                     </TableCell>
@@ -258,28 +310,39 @@ export default function ManageUsersPage() {
                     value={selectedUserForView.twoFactorEnabled ? "Enabled" : "Disabled"}
                 />
                 <InfoItem
+                    icon={selectedUserForView.canSetPrice ? <IndianRupee className="text-green-500"/> : <XCircle className="text-muted-foreground"/>}
+                    label="Can Set Prices"
+                    value={selectedUserForView.canSetPrice ? "Allowed" : "Restricted"}
+                />
+                <InfoItem
                     icon={selectedUserForView.isLocked ? <LockIcon className="text-destructive"/> : <UnlockIcon className="text-green-500"/>}
                     label="Account Status"
                     value={selectedUserForView.isLocked ? `Locked (Attempts: ${selectedUserForView.failedPinAttempts || 0})` : "Active"}
                 />
                 <p className="text-xs text-muted-foreground pt-2">User ID: {selectedUserForView.id}</p>
 
-                <div className="border-t pt-4 mt-4 space-y-2">
-                    <Label className="font-semibold">Manage 2FA for User:</Label>
-                    {selectedUserForView.twoFactorEnabled ? (
-                        <Button variant="outline" className="w-full" onClick={() => handleManage2FAClick(selectedUserForView, 'disable')}>
-                            <ShieldOff className="mr-2 h-4 w-4" /> Disable User's 2FA
-                        </Button>
-                    ) : (
-                        <Button variant="outline" className="w-full" onClick={() => handleManage2FAClick(selectedUserForView, 'enable')}>
-                            <ShieldCheck className="mr-2 h-4 w-4" /> Enable User's 2FA
-                        </Button>
-                    )}
-                    {selectedUserForView.isLocked && (
+                <div className="border-t pt-4 mt-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                        <Label className="font-semibold">Manage User 2FA:</Label>
+                        <Switch
+                            checked={selectedUserForView.twoFactorEnabled}
+                            onCheckedChange={(checked) => handleManage2FAClick(selectedUserForView, checked ? 'enable' : 'disable')}
+                            aria-label="Toggle user 2FA"
+                        />
+                    </div>
+                     {selectedUserForView.isLocked && (
                          <Button variant="outline" className="w-full" onClick={() => handleManage2FAClick(selectedUserForView, 'disable')}>
                             <UnlockIcon className="mr-2 h-4 w-4" /> Unlock Account & Disable 2FA
                         </Button>
                     )}
+                    <div className="flex items-center justify-between">
+                        <Label className="font-semibold">Manage Price Setting:</Label>
+                        <Switch
+                            checked={selectedUserForView.canSetPrice}
+                            onCheckedChange={(checked) => handleManagePriceSettingClick(selectedUserForView, checked ? 'enable' : 'disable')}
+                            aria-label="Toggle user ability to set prices"
+                        />
+                    </div>
                 </div>
             </div>
              <DialogFooter>
@@ -334,6 +397,28 @@ export default function ManageUsersPage() {
           </AlertDialogContent>
         </AlertDialog>
       )}
+
+       {isPriceSettingDialogOpen && userForPriceSetting && (
+        <AlertDialog open={isPriceSettingDialogOpen} onOpenChange={setIsPriceSettingDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirm Price Setting Change for {userForPriceSetting.name}</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to <strong className={currentPriceSettingAction === 'enable' ? 'text-green-600' : 'text-destructive'}>{currentPriceSettingAction}</strong> this user&apos;s ability to set prices for their designs?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => {setIsPriceSettingDialogOpen(false); setUserForPriceSetting(null);}}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleConfirmPriceSettingAction}
+                className={currentPriceSettingAction === 'enable' ? "bg-primary hover:bg-primary/90" : "bg-destructive hover:bg-destructive/90"}
+              >
+                Yes, {currentPriceSettingAction} permission
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </Card>
   );
 }
@@ -348,4 +433,3 @@ const InfoItem: React.FC<InfoItemProps> = ({ icon, label, value}) => (
         </div>
     </div>
 );
-

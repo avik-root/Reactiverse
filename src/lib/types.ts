@@ -9,8 +9,9 @@ export interface User {
   passwordHash?: string;
   twoFactorEnabled: boolean;
   twoFactorPinHash?: string;
-  failedPinAttempts?: number; // Added for 2FA lockout
-  isLocked?: boolean;         // Added for 2FA lockout
+  failedPinAttempts?: number;
+  isLocked?: boolean;
+  canSetPrice?: boolean; // New field
 }
 
 export interface CodeBlockItem {
@@ -25,7 +26,7 @@ export interface Design {
   filterCategory: string;
   description: string;
   codeBlocks: CodeBlockItem[];
-  designer: User; // This will hold the sanitized User object
+  designer: User;
   tags: string[];
   price?: number;
   submittedByUserId?: string;
@@ -43,17 +44,14 @@ export interface AdminUser {
   twoFactorPinHash?: string;
 }
 
-// AuthUser is what's typically exposed to the client context or returned from non-sensitive actions
 export type AuthUser =
-  | (Omit<User, 'passwordHash' | 'twoFactorPinHash'> & { isAdmin?: false })
+  | (Omit<User, 'passwordHash' | 'twoFactorPinHash'> & { isAdmin?: false; canSetPrice?: boolean; }) // Added canSetPrice
   | (Omit<AdminUser, 'passwordHash' | 'twoFactorPinHash'> & { isAdmin: true });
 
-// StoredUser and StoredAdminUser represent the full objects as stored in JSON files, including hashes
 export type StoredUser = User;
 export type StoredAdminUser = AdminUser;
 
 
-// State type for delete action result
 export interface DeleteDesignResult {
   success: boolean;
   message: string;
@@ -77,13 +75,12 @@ export interface SiteSettings {
   siteTitle: string;
   allowNewUserRegistrations: boolean;
   themeColors: {
-    primaryHSL: string; // e.g., "271 100% 75.3%"
-    accentHSL: string;  // e.g., "300 100% 70%"
+    primaryHSL: string;
+    accentHSL: string;
   };
-  logoPath?: string; // Optional: path to custom logo
+  logoPath?: string;
 }
 
-// Form state for Site Settings
 export type SiteSettingsFormState = {
   message?: string | null;
   success?: boolean;
@@ -97,7 +94,6 @@ export type SiteSettingsFormState = {
   };
 };
 
-// Form state for Admin Profile Update
 export type UpdateAdminProfileFormState = {
   message?: string | null;
   success?: boolean;
@@ -109,7 +105,6 @@ export type UpdateAdminProfileFormState = {
   };
 };
 
-// Form state for Admin Password Change
 export type ChangeAdminPasswordFormState = {
   message?: string | null;
   success?: boolean;
@@ -121,7 +116,6 @@ export type ChangeAdminPasswordFormState = {
   };
 };
 
-// Form state for Admin 2FA
 export type AdminTwoFactorAuthFormState = {
   message?: string | null;
   success?: boolean;
@@ -134,7 +128,6 @@ export type AdminTwoFactorAuthFormState = {
   };
 };
 
-// Page Content Types
 export interface AboutUsOfferItem {
   title: string;
   description: string;
@@ -220,5 +213,15 @@ export type AdminSetUser2FAStatusFormState = {
     userId?: string[];
     general?: string[];
   };
-  updatedUser?: User | null; // To potentially update the user list in UI
+  updatedUser?: User | null;
+};
+
+export type AdminSetUserCanSetPriceFormState = {
+  message?: string | null;
+  success?: boolean;
+  errors?: {
+    userId?: string[];
+    general?: string[];
+  };
+  updatedUser?: User | null;
 };

@@ -37,6 +37,12 @@
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Footer specific colors - consistently dark */
+    --footer-background: 220 15% 12%; /* Dark cool gray, almost black */
+    --footer-foreground: 210 20% 95%; /* Off-white */
+    --footer-muted-foreground: 210 15% 75%; /* Lighter gray for less prominent text */
+    --footer-border: 220 10% 30%; /* Border color within footer */
   }
 
   .dark {
@@ -73,6 +79,12 @@
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Footer specific colors - consistently dark (same as :root for consistency) */
+    --footer-background: 220 15% 12%;
+    --footer-foreground: 210 20% 95%;
+    --footer-muted-foreground: 210 15% 75%;
+    --footer-border: 220 10% 30%;
   }
 }
 

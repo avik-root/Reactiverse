@@ -21,7 +21,12 @@ const DEFAULT_SITE_SETTINGS: SiteSettings = {
 export async function getAdminUsers(): Promise<StoredAdminUser[]> {
   try {
     const jsonData = await fs.readFile(ADMIN_USERS_FILE_PATH, 'utf-8');
-    const admins = JSON.parse(jsonData) as StoredAdminUser[];
+    let admins = JSON.parse(jsonData) as StoredAdminUser[];
+    // Ensure all admin users have the twoFactorEnabled field
+    admins = admins.map(admin => ({
+      ...admin,
+      twoFactorEnabled: admin.twoFactorEnabled === undefined ? false : admin.twoFactorEnabled,
+    }));
     return admins;
   } catch (error) {
     console.error('Failed to read admin.json:', error);
@@ -37,9 +42,26 @@ export async function saveFirstAdminUser(newAdmin: StoredAdminUser): Promise<voi
   try {
     // This function assumes it's saving the *only* admin account.
     // The calling action should ensure admin.json is empty or handle errors.
-    await fs.writeFile(ADMIN_USERS_FILE_PATH, JSON.stringify([newAdmin], null, 2), 'utf-8');
+    await fs.writeFile(ADMIN_USERS_FILE_PATH, JSON.stringify([{ ...newAdmin, twoFactorEnabled: false }], null, 2), 'utf-8');
   } catch (error) {
     console.error('Failed to save first admin user to admin.json:', error);
+    throw error;
+  }
+}
+
+export async function updateAdminInFile(updatedAdmin: StoredAdminUser): Promise<boolean> {
+  try {
+    let admins = await getAdminUsers();
+    const adminIndex = admins.findIndex(a => a.id === updatedAdmin.id);
+    if (adminIndex === -1) {
+      console.error('Admin user not found for update:', updatedAdmin.id);
+      return false;
+    }
+    admins[adminIndex] = { ...admins[adminIndex], ...updatedAdmin };
+    await fs.writeFile(ADMIN_USERS_FILE_PATH, JSON.stringify(admins, null, 2), 'utf-8');
+    return true;
+  } catch (error) {
+    console.error('Failed to update admin in admin.json:', error);
     throw error;
   }
 }
@@ -208,3 +230,4 @@ export async function saveSiteSettings(settings: SiteSettings): Promise<void> {
     throw error;
   }
 }
+

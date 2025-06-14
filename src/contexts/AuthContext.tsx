@@ -1,16 +1,16 @@
 
 'use client';
 
-import type { AuthUser, User as StoredUserType } from '@/lib/types'; // Use StoredUserType for full user from storage
+import type { AuthUser, User as StoredUserType, AdminUser as StoredAdminUserType } from '@/lib/types'; 
 import type React from 'react';
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 interface AuthContextType {
-  user: AuthUser | null; // This will hold the sanitized user object for the UI
+  user: AuthUser | null; 
   isAdmin: boolean;
   login: (userData: AuthUser, isAdmin?: boolean) => void;
   logout: () => void;
-  updateAuthUser: (updatedUserData: Partial<AuthUser>) => void; // Partial of sanitized AuthUser
+  updateAuthUser: (updatedUserDataOrFn: Partial<AuthUser> | ((currentUser: AuthUser | null) => AuthUser | null) ) => void;
   isLoading: boolean;
 }
 
@@ -26,7 +26,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const storedUserJSON = localStorage.getItem('reactiverseUser');
       const storedIsAdmin = localStorage.getItem('reactiverseIsAdmin') === 'true';
       if (storedUserJSON) {
-        const storedUser = JSON.parse(storedUserJSON) as AuthUser; // Assume stored user is already sanitized
+        const storedUser = JSON.parse(storedUserJSON) as AuthUser;
         setUser(storedUser);
         setIsAdmin(storedIsAdmin);
       }
@@ -39,7 +39,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = useCallback((userData: AuthUser, adminStatus: boolean = false) => {
-    // userData here should already be sanitized (no passwordHash or twoFactorPinHash)
     setUser(userData);
     setIsAdmin(adminStatus);
     try {
@@ -61,36 +60,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  const updateAuthUser = useCallback((updatedUserData: Partial<AuthUser>) => {
-    // updatedUserData should be partial of the sanitized AuthUser
+  const updateAuthUser = useCallback((updatedUserDataOrFn: Partial<AuthUser> | ((currentUser: AuthUser | null) => AuthUser | null) ) => {
     setUser(prevUser => {
-      if (!prevUser) return null;
-      // Ensure that if it's a regular user, the twoFactorEnabled field might be updated
-      let newUser: AuthUser;
-      if ('id' in prevUser && 'id' in updatedUserData && prevUser.id === updatedUserData.id) { // Regular user update
-        newUser = { 
-          ...prevUser, 
-          ...updatedUserData,
-          // Explicitly carry over twoFactorEnabled if present in updatedUserData
-          twoFactorEnabled: 'twoFactorEnabled' in updatedUserData 
-                              ? updatedUserData.twoFactorEnabled 
-                              : ('twoFactorEnabled' in prevUser ? prevUser.twoFactorEnabled : false)
-        } as AuthUser; 
-      } else if (!('id' in prevUser) && !('id' in updatedUserData) && prevUser.username === updatedUserData.username ) { // Admin update
-         newUser = { ...prevUser, ...updatedUserData } as AuthUser;
-      }
-      else { // Mismatch or unexpected update, fallback to previous user to be safe
-        newUser = prevUser;
+      let newUser: AuthUser | null;
+      if (typeof updatedUserDataOrFn === 'function') {
+        newUser = updatedUserDataOrFn(prevUser);
+      } else {
+        if (!prevUser) return null;
+        newUser = { ...prevUser, ...updatedUserDataOrFn } as AuthUser;
       }
       
-      try {
-        localStorage.setItem('reactiverseUser', JSON.stringify(newUser));
-      } catch (error) {
-        console.error("Failed to update user in localStorage", error);
+      if (newUser) {
+        try {
+          localStorage.setItem('reactiverseUser', JSON.stringify(newUser));
+        } catch (error) {
+          console.error("Failed to update user in localStorage", error);
+        }
+      } else { // If newUser becomes null (e.g. from function), clear storage
+         localStorage.removeItem('reactiverseUser');
+         // Potentially also clear isAdmin if user becomes null
+         // localStorage.removeItem('reactiverseIsAdmin');
       }
       return newUser;
     });
   }, []);
+
 
   return (
     <AuthContext.Provider value={{ user, isAdmin, login, logout, updateAuthUser, isLoading }}>

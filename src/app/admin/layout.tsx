@@ -5,7 +5,7 @@ import { useEffect, type ReactNode } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { LayoutDashboard, Users, Palette, Settings, LogOut, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Users, Palette, Settings, LogOut, ShieldCheck, UserCog } from 'lucide-react'; // Added UserCog
 import { cn } from '@/lib/utils';
 import { usePathname } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
@@ -22,6 +22,7 @@ const navItems = [
   { href: '/admin/users', label: 'Manage Users', icon: Users },
   { href: '/admin/designs', label: 'Manage Designs', icon: Palette },
   { href: '/admin/settings', label: 'Site Settings', icon: Settings },
+  { href: '/admin/account-settings', label: 'My Account', icon: UserCog }, // Added My Account
 ];
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
@@ -48,7 +49,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     if (!name) return 'A';
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   };
-  const displayName = user && 'name' in user ? user.name : 'Admin';
+  
+  // Ensure user is an admin and has expected properties
+  const displayName = user && user.isAdmin && user.name ? user.name : 'Admin';
+  const avatarUrl = user && user.isAdmin && user.avatarUrl ? user.avatarUrl : undefined;
 
 
   return (
@@ -77,7 +81,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         <div className="mt-auto border-t pt-4">
             <div className="flex items-center gap-3 px-3 py-2">
                 <Avatar className="h-9 w-9">
-                    <AvatarImage src={(user && 'avatarUrl' in user ? user.avatarUrl : undefined) || `https://placehold.co/100x100.png?text=${getInitials(displayName)}`} alt={displayName} data-ai-hint="admin avatar"/>
+                    <AvatarImage src={avatarUrl || `https://placehold.co/100x100.png?text=${getInitials(displayName)}`} alt={displayName} data-ai-hint="admin avatar"/>
                     <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
                 </Avatar>
                 <div>

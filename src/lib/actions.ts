@@ -13,7 +13,8 @@ import {
   deleteDesignFromFile,
   saveDesignsToFile,
   saveFirstAdminUser,
-  deleteUserFromFile as deleteUserFromServerData, // Renamed to avoid conflict
+  updateAdminInFile, // Added
+  deleteUserFromFile as deleteUserFromServerData, 
   getSiteSettings as getSiteSettingsFromFile,
   saveSiteSettings as saveSiteSettingsToFile,
 } from './server-data';
@@ -28,7 +29,10 @@ import type {
   DeleteDesignResult, 
   AdminCreateAccountFormState,
   SiteSettings,
-  SiteSettingsFormState
+  SiteSettingsFormState,
+  UpdateAdminProfileFormState, // Added
+  ChangeAdminPasswordFormState, // Added
+  AdminTwoFactorAuthFormState // Added
 } from './types';
 import { revalidatePath } from 'next/cache';
 import { hashPassword, comparePassword, hashPin, comparePin } from './auth-utils';
@@ -146,6 +150,38 @@ const SiteSettingsSchema = z.object({
   allowNewUserRegistrations: z.preprocess((val) => val === 'on' || val === true, z.boolean()),
   primaryHSL: HSLColorSchema,
   accentHSL: HSLColorSchema,
+});
+
+// Schemas for Admin Account Settings
+const UpdateAdminProfileSchema = z.object({
+  adminId: z.string(),
+  name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
+  avatarUrl: z.string().optional(),
+});
+
+const ChangeAdminPasswordSchema = z.object({
+  adminId: z.string(),
+  currentPassword: z.string().min(1, { message: "Current password is required." }),
+  newPassword: z.string().min(8, { message: 'New password must be at least 8 characters.' }),
+  confirmPassword: z.string(),
+}).refine(data => data.newPassword === data.confirmPassword, {
+  message: "New passwords don't match.",
+  path: ['confirmPassword'],
+});
+
+const EnableAdminTwoFactorSchema = z.object({
+  adminId: z.string(),
+  pin: z.string().length(6, { message: 'PIN must be 6 digits.' }).regex(/^\d{6}$/, "PIN must be 6 digits."),
+  confirmPin: z.string(),
+  currentPasswordFor2FA: z.string().min(1, { message: "Current password is required to enable 2FA." }),
+}).refine(data => data.pin === data.confirmPin, {
+  message: "PINs don't match.",
+  path: ['confirmPin'],
+});
+
+const DisableAdminTwoFactorSchema = z.object({
+  adminId: z.string(),
+  currentPasswordFor2FA: z.string().min(1, { message: "Current password is required to disable 2FA." }),
 });
 
 
@@ -372,8 +408,10 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
     return { message: 'Invalid username or password.', errors: { general: ['Invalid username or password.'] } };
   }
 
-  const { passwordHash, ...adminUserToReturn } = adminUser;
-  return { message: 'Admin login successful!', adminUser: {...adminUserToReturn, isAdmin: true} };
+  // Admin users currently don't have 2FA in the provided structure for login
+  // If 2FA were added for admins, similar logic to user login would be needed here.
+  const { passwordHash, twoFactorPinHash, ...adminUserToReturn } = adminUser;
+  return { message: 'Admin login successful!', adminUser: {...adminUserToReturn, isAdmin: true } };
 }
 
 export async function submitDesignAction(prevState: AddDesignFormState, formData: FormData): Promise<AddDesignFormState> {
@@ -812,6 +850,7 @@ export async function createAdminAccountAction(prevState: AdminCreateAccountForm
     phone,
     passwordHash: hashedPassword,
     avatarUrl: `https://placehold.co/100x100.png?text=${name.charAt(0).toUpperCase()}`,
+    twoFactorEnabled: false, // Default for new admin
   };
 
   try {
@@ -845,19 +884,12 @@ export async function deleteUserAdminAction(userId: string): Promise<{ success: 
     return { success: false, message: 'User ID is required for deletion.' };
   }
 
-  // Optional: Add a check to prevent admin from deleting their own account via this specific user list
-  // This would require knowing the current admin's ID, which is tricky in a generic server action
-  // without passing it, or relying on auth context (which server actions don't have directly).
-  // For now, client-side check is implemented in the ManageUsersPage.
-
   try {
-    const deleted = await deleteUserFromServerData(userId); // Use renamed import
+    const deleted = await deleteUserFromServerData(userId); 
     if (!deleted) {
       return { success: false, message: 'User not found or already deleted.' };
     }
     revalidatePath('/admin/users');
-    // Also consider revalidating other paths if users affect them (e.g., designs by that user)
-    // For now, just revalidating the user list.
     return { success: true, message: 'User deleted successfully.' };
   } catch (error) {
     console.error('Error deleting user via admin action:', error);
@@ -885,26 +917,185 @@ export async function updateSiteSettingsAction(
   
   const { siteTitle, allowNewUserRegistrations, primaryHSL, accentHSL } = validatedFields.data;
 
-  // Fetch current settings to preserve any fields not in the form or for default values
   const currentSettings = await getSiteSettingsFromFile();
 
   const newSettings: SiteSettings = {
-    ...currentSettings, // Start with current settings
+    ...currentSettings, 
     siteTitle,
     allowNewUserRegistrations,
     themeColors: {
-      primaryHSL: primaryHSL || currentSettings.themeColors.primaryHSL, // Use new if provided, else current
-      accentHSL: accentHSL || currentSettings.themeColors.accentHSL,     // Use new if provided, else current
+      primaryHSL: primaryHSL || currentSettings.themeColors.primaryHSL, 
+      accentHSL: accentHSL || currentSettings.themeColors.accentHSL,     
     },
   };
 
   try {
     await saveSiteSettingsToFile(newSettings);
     revalidatePath('/admin/settings');
-    // Potentially revalidatePath('/') if siteTitle is used in global layout/metadata
     return { message: 'Site settings updated successfully!', success: true, settings: newSettings };
   } catch (error) {
     console.error('Error updating site settings:', error);
     return { message: 'Failed to update settings. Please try again.', success: false, errors: { general: ['Server error.'] } };
+  }
+}
+
+// Admin Account Settings Actions
+
+export async function updateAdminProfileAction(
+  prevState: UpdateAdminProfileFormState,
+  formData: FormData
+): Promise<UpdateAdminProfileFormState> {
+  const validatedFields = UpdateAdminProfileSchema.safeParse(Object.fromEntries(formData.entries()));
+
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: 'Invalid fields. Please check your input.',
+      success: false,
+    };
+  }
+
+  const { adminId, name, avatarUrl } = validatedFields.data;
+  const admins = await getAdminUsers();
+  const adminToUpdate = admins.find(a => a.id === adminId);
+
+  if (!adminToUpdate) {
+    return { message: 'Admin user not found.', success: false, errors: { general: ['Admin user not found.'] } };
+  }
+
+  const updatedAdminData: StoredAdminUser = {
+    ...adminToUpdate,
+    name,
+    avatarUrl: avatarUrl || adminToUpdate.avatarUrl,
+  };
+
+  try {
+    await updateAdminInFile(updatedAdminData);
+    const { passwordHash, twoFactorPinHash, ...adminToReturn } = updatedAdminData;
+    revalidatePath('/admin/account-settings');
+    return { message: 'Admin profile updated successfully!', success: true, adminUser: adminToReturn };
+  } catch (error) {
+    console.error("Error updating admin profile:", error);
+    return { message: 'Failed to update admin profile.', success: false, errors: { general: ['Server error.'] } };
+  }
+}
+
+export async function changeAdminPasswordAction(
+  prevState: ChangeAdminPasswordFormState,
+  formData: FormData
+): Promise<ChangeAdminPasswordFormState> {
+  const validatedFields = ChangeAdminPasswordSchema.safeParse(Object.fromEntries(formData.entries()));
+
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: 'Invalid fields. Please check your input.',
+      success: false,
+    };
+  }
+
+  const { adminId, currentPassword, newPassword } = validatedFields.data;
+  const admins = await getAdminUsers();
+  const adminToUpdate = admins.find(a => a.id === adminId);
+
+  if (!adminToUpdate || !adminToUpdate.passwordHash) {
+    return { message: 'Admin user not found or password not set.', success: false, errors: { general: ['Admin user not found.'] } };
+  }
+
+  const passwordMatches = await comparePassword(currentPassword, adminToUpdate.passwordHash);
+  if (!passwordMatches) {
+    return { message: 'Incorrect current password.', success: false, errors: { currentPassword: ['Incorrect current password.'] } };
+  }
+
+  const newHashedPassword = await hashPassword(newPassword);
+  const updatedAdminData: StoredAdminUser = {
+    ...adminToUpdate,
+    passwordHash: newHashedPassword,
+  };
+
+  try {
+    await updateAdminInFile(updatedAdminData);
+    revalidatePath('/admin/account-settings');
+    return { message: 'Admin password changed successfully!', success: true };
+  } catch (error) {
+    console.error("Error changing admin password:", error);
+    return { message: 'Failed to change admin password.', success: false, errors: { general: ['Server error.'] } };
+  }
+}
+
+export async function enableAdminTwoFactorAction(
+  prevState: AdminTwoFactorAuthFormState,
+  formData: FormData
+): Promise<AdminTwoFactorAuthFormState> {
+  const validatedFields = EnableAdminTwoFactorSchema.safeParse(Object.fromEntries(formData.entries()));
+  if (!validatedFields.success) {
+    return { errors: validatedFields.error.flatten().fieldErrors, message: 'Invalid fields.', success: false, actionType: 'enable' };
+  }
+
+  const { adminId, pin, currentPasswordFor2FA } = validatedFields.data;
+  const admins = await getAdminUsers();
+  const adminToUpdate = admins.find(a => a.id === adminId);
+
+  if (!adminToUpdate || !adminToUpdate.passwordHash) {
+    return { message: 'Admin user not found.', success: false, errors: { general: ['Admin user not found.'] }, actionType: 'enable' };
+  }
+
+  const passwordMatches = await comparePassword(currentPasswordFor2FA, adminToUpdate.passwordHash);
+  if (!passwordMatches) {
+    return { message: 'Incorrect current password.', success: false, errors: { currentPasswordFor2FA: ['Incorrect current password.'] }, actionType: 'enable' };
+  }
+
+  const hashedPin = await hashPin(pin);
+  const updatedAdminData: StoredAdminUser = {
+    ...adminToUpdate,
+    twoFactorEnabled: true,
+    twoFactorPinHash: hashedPin,
+  };
+
+  try {
+    await updateAdminInFile(updatedAdminData);
+    revalidatePath('/admin/account-settings');
+    return { message: 'Admin 2FA enabled successfully!', success: true, actionType: 'enable' };
+  } catch (error) {
+    console.error("Error enabling admin 2FA:", error);
+    return { message: 'Failed to enable admin 2FA.', success: false, errors: { general: ['Server error.'] }, actionType: 'enable' };
+  }
+}
+
+export async function disableAdminTwoFactorAction(
+  prevState: AdminTwoFactorAuthFormState,
+  formData: FormData
+): Promise<AdminTwoFactorAuthFormState> {
+  const validatedFields = DisableAdminTwoFactorSchema.safeParse(Object.fromEntries(formData.entries()));
+  if (!validatedFields.success) {
+    return { errors: validatedFields.error.flatten().fieldErrors, message: 'Invalid fields.', success: false, actionType: 'disable' };
+  }
+
+  const { adminId, currentPasswordFor2FA } = validatedFields.data;
+  const admins = await getAdminUsers();
+  const adminToUpdate = admins.find(a => a.id === adminId);
+
+  if (!adminToUpdate || !adminToUpdate.passwordHash) {
+    return { message: 'Admin user not found.', success: false, errors: { general: ['Admin user not found.'] }, actionType: 'disable' };
+  }
+
+  const passwordMatches = await comparePassword(currentPasswordFor2FA, adminToUpdate.passwordHash);
+  if (!passwordMatches) {
+    return { message: 'Incorrect current password.', success: false, errors: { currentPasswordFor2FA: ['Incorrect current password.'] }, actionType: 'disable' };
+  }
+
+  const updatedAdminData: StoredAdminUser = {
+    ...adminToUpdate,
+    twoFactorEnabled: false,
+    twoFactorPinHash: undefined,
+  };
+
+  try {
+    await updateAdminInFile(updatedAdminData);
+    revalidatePath('/admin/account-settings');
+    return { message: 'Admin 2FA disabled successfully!', success: true, actionType: 'disable' };
+  } catch (error) {
+    console.error("Error disabling admin 2FA:", error);
+    return { message: 'Failed to disable admin 2FA.', success: false, errors: { general: ['Server error.'] }, actionType: 'disable' };
   }
 }

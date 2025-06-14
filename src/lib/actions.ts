@@ -42,8 +42,7 @@ const AddDesignSchema = z.object({
 const UpdateProfileSchema = z.object({
   userId: z.string(),
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
-  avatarUrl: z.string().url({ message: 'Please enter a valid URL for your avatar.' }).or(z.literal('')),
-  // username and phone are not updated here, could be a separate "Account Settings" form if needed
+  avatarUrl: z.string().optional(), // Accepts any string (Data URL, existing URL, or empty)
 });
 
 const ChangePasswordSchema = z.object({
@@ -112,7 +111,7 @@ export type UpdateProfileFormState = {
   user?: User | null;
   errors?: {
     name?: string[];
-    avatarUrl?: string[];
+    avatarUrl?: string[]; // Error key remains avatarUrl for consistency
     general?: string[];
   };
 };
@@ -294,6 +293,7 @@ export async function updateProfileAction(prevState: UpdateProfileFormState, for
   const updatedUserData: User = {
     ...userToUpdate,
     name,
+    // avatarUrl will be the Data URL string from the client, or the existing URL if not changed, or empty
     avatarUrl: avatarUrl || userToUpdate.avatarUrl, 
   };
 
@@ -302,7 +302,9 @@ export async function updateProfileAction(prevState: UpdateProfileFormState, for
     if (!success) throw new Error("Update operation failed at server-data");
     
     const { password, ...userToReturn } = updatedUserData;
-    revalidatePath('/dashboard/profile');
+    revalidatePath('/dashboard/profile'); // Revalidate profile page
+    revalidatePath('/dashboard'); // Revalidate dashboard overview (if it shows avatar in header)
+    revalidatePath('/'); // Revalidate home page (if avatar appears in header globally)
     return { message: 'Profile updated successfully!', success: true, user: userToReturn };
   } catch (error) {
     console.error("Error updating profile:", error);

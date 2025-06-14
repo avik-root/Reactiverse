@@ -18,6 +18,8 @@ export interface Design {
   };
   designer: User; // User type now includes optional password, but it won't be typically populated here
   tags: string[];
+  price?: number; // Optional: 0 or undefined for free, >0 for priced
+  submittedByUserId?: string; // To link design to the user who submitted it
 }
 
 export interface AdminUser {

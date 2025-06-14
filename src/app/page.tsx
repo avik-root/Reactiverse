@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import type { Design } from '@/lib/types';
 import DesignCard from '@/components/design/DesignCard';
 import DesignDetailDialog from '@/components/design/DesignDetailDialog';
-import { getDesigns } from '@/lib/data'; 
+import { getAllDesignsAction } from '@/lib/actions'; 
 import { Skeleton } from '@/components/ui/skeleton';
 import ScrambledText from '@/components/effects/ScrambledText'; // Import the new component
 
@@ -18,7 +18,7 @@ export default function HomePage() {
     async function fetchDesigns() {
       setIsLoading(true);
       try {
-        const fetchedDesigns = await getDesigns();
+        const fetchedDesigns = await getAllDesignsAction();
         setDesigns(fetchedDesigns);
       } catch (error) {
         console.error("Failed to fetch designs:", error);

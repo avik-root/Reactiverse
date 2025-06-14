@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { DollarSign, Lock } from 'lucide-react';
 
 interface DesignCardProps {
   design: Design;
@@ -18,6 +19,8 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   }
 
+  const isPriced = design.price && design.price > 0;
+
   return (
     <Card 
       className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 ease-in-out cursor-pointer h-full flex flex-col rounded-lg"
@@ -27,7 +30,7 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onOpenDetail(design)}}
       aria-label={`View details for ${design.title}`}
     >
-      <CardHeader className="p-0">
+      <CardHeader className="p-0 relative">
         <div className="relative aspect-video w-full overflow-hidden">
           <Image
             src={design.imageUrl}
@@ -38,6 +41,11 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
             data-ai-hint="design abstract"
           />
         </div>
+        {isPriced && (
+          <Badge variant="destructive" className="absolute top-2 right-2 text-xs">
+            <DollarSign className="h-3 w-3 mr-1" /> Priced
+          </Badge>
+        )}
       </CardHeader>
       <CardContent className="p-4 flex-grow">
         <CardTitle className="font-headline text-xl mb-1 text-primary">{design.title}</CardTitle>

@@ -1,6 +1,6 @@
 'use client';
 
-import type { AuthUser } from '@/lib/types';
+import type { AuthUser, User } from '@/lib/types';
 import type React from 'react';
 import { createContext, useContext, useState, useEffect } from 'react';
 
@@ -9,6 +9,7 @@ interface AuthContextType {
   isAdmin: boolean;
   login: (userData: AuthUser, isAdmin?: boolean) => void;
   logout: () => void;
+  updateAuthUser: (updatedUserData: Partial<AuthUser>) => void;
   isLoading: boolean;
 }
 
@@ -20,7 +21,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    // Attempt to load user from localStorage on initial load
     try {
       const storedUser = localStorage.getItem('reactiverseUser');
       const storedIsAdmin = localStorage.getItem('reactiverseIsAdmin') === 'true';
@@ -30,7 +30,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error) {
       console.error("Failed to load user from localStorage", error);
-      // Clear potentially corrupted data
       localStorage.removeItem('reactiverseUser');
       localStorage.removeItem('reactiverseIsAdmin');
     }
@@ -59,8 +58,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const updateAuthUser = (updatedUserData: Partial<AuthUser>) => {
+    setUser(prevUser => {
+      if (!prevUser) return null;
+      const newUser = { ...prevUser, ...updatedUserData };
+      try {
+        localStorage.setItem('reactiverseUser', JSON.stringify(newUser));
+      } catch (error) {
+        console.error("Failed to update user in localStorage", error);
+      }
+      return newUser;
+    });
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isAdmin, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, isAdmin, login, logout, updateAuthUser, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

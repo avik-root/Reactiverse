@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import Logo from './Logo';
 import { useAuth } from '@/contexts/AuthContext';
-import { UserCircle, LogOut, ShieldCheck, UserPlus, LogIn } from 'lucide-react';
+import { UserCircle, LogOut, ShieldCheck, UserPlus, LogIn, LayoutDashboard } from 'lucide-react'; // Added LayoutDashboard
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -20,8 +20,13 @@ const Header = () => {
 
   const getInitials = (name?: string) => {
     if (!name) return 'U';
-    return name.split(' ').map(n => n[0]).join('').toUpperCase();
+    // Handle cases where name might be just username for admin
+    const nameToProcess = typeof name === 'string' ? name : (user && 'username' in user ? user.username : 'U');
+    return nameToProcess.split(' ').map(n => n[0]).join('').toUpperCase();
   }
+  
+  const displayName = user ? ('name' in user && user.name ? user.name : ('username' in user ? user.username : 'User')) : 'User';
+
 
   return (
     <header className="bg-card border-b border-border shadow-sm sticky top-0 z-50">
@@ -35,8 +40,8 @@ const Header = () => {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                   <Avatar className="h-9 w-9">
-                    <AvatarImage src={user.avatarUrl || `https://placehold.co/100x100.png?text=${getInitials(user.name || user.username)}`} alt={user.name || user.username || 'User'} data-ai-hint="profile avatar" />
-                    <AvatarFallback>{getInitials(user.name || user.username)}</AvatarFallback>
+                    <AvatarImage src={(user as any).avatarUrl || `https://placehold.co/100x100.png?text=${getInitials(displayName)}`} alt={displayName} data-ai-hint="profile avatar" />
+                    <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
@@ -44,7 +49,7 @@ const Header = () => {
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none font-headline">
-                      {user.name || user.username}
+                      {displayName}
                     </p>
                     { 'email' in user && user.email && (
                        <p className="text-xs leading-none text-muted-foreground">
@@ -54,11 +59,18 @@ const Header = () => {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {isAdmin && (
+                {isAdmin ? (
                   <DropdownMenuItem asChild>
                     <Link href="/admin/dashboard" className="flex items-center">
                       <ShieldCheck className="mr-2 h-4 w-4" />
                       Admin Dashboard
+                    </Link>
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem asChild>
+                    <Link href="/dashboard" className="flex items-center">
+                      <LayoutDashboard className="mr-2 h-4 w-4" />
+                      User Dashboard
                     </Link>
                   </DropdownMenuItem>
                 )}

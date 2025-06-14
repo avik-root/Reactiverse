@@ -1,20 +1,18 @@
 
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useEffect } from 'react';
 import { useFormStatus } from 'react-dom';
 import { loginUser, type LoginFormState } from '@/lib/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { useEffect }
-from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { LogIn } from 'lucide-react';
+import { LogIn, KeyRound, User } from 'lucide-react';
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -46,7 +44,6 @@ export default function LoginForm() {
         title: 'Login Successful',
         description: 'Welcome back!',
       });
-      // Redirect after successful login
       router.push('/'); 
     }
   }, [state, toast, authLogin, router]);
@@ -67,19 +64,25 @@ export default function LoginForm() {
         <form action={dispatch}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" name="email" type="email" placeholder="you@example.com" required 
-                aria-invalid={!!state?.errors?.email}
-                aria-describedby="email-error"
-              />
-              {state?.errors?.email && <p id="email-error" className="text-sm text-destructive">{state.errors.email.join(', ')}</p>}
+              <Label htmlFor="identifier">Username or Email</Label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input id="identifier" name="identifier" type="text" placeholder="@username or you@example.com" required className="pl-10"
+                  aria-invalid={!!state?.errors?.identifier}
+                  aria-describedby="identifier-error"
+                />
+              </div>
+              {state?.errors?.identifier && <p id="identifier-error" className="text-sm text-destructive">{state.errors.identifier.join(', ')}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" name="password" type="password" required 
-                aria-invalid={!!state?.errors?.password}
-                aria-describedby="password-error"
-              />
+              <div className="relative">
+                <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input id="password" name="password" type="password" required className="pl-10"
+                  aria-invalid={!!state?.errors?.password}
+                  aria-describedby="password-error"
+                />
+              </div>
               {state?.errors?.password && <p id="password-error" className="text-sm text-destructive">{state.errors.password.join(', ')}</p>}
             </div>
             {state?.errors?.general && <p className="text-sm text-destructive">{state.errors.general.join(', ')}</p>}

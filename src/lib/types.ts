@@ -1,9 +1,11 @@
 export interface User {
   id: string;
-  name: string;
+  name: string; // Full Name
+  username: string; // Format: @username, unique
   email?: string;
+  phone?: string; // With country code
   avatarUrl?: string;
-  password?: string; // Added for storing user password in users.json
+  password?: string; 
 }
 
 export interface Design {
@@ -16,16 +18,16 @@ export interface Design {
     css: string;
     js: string;
   };
-  designer: User; // User type now includes optional password, but it won't be typically populated here
+  designer: User; 
   tags: string[];
-  price?: number; // Optional: 0 or undefined for free, >0 for priced
-  submittedByUserId?: string; // To link design to the user who submitted it
+  price?: number; 
+  submittedByUserId?: string; 
 }
 
 export interface AdminUser {
   id: string;
   username: string;
-  password?: string; // Password should not be sent to client
+  password?: string; 
 }
 
 export type AuthUser = User | AdminUser;

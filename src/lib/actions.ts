@@ -1,3 +1,4 @@
+
 'use server';
 
 import { z } from 'zod';
@@ -6,14 +7,19 @@ import type { AdminUser, User, Design } from './types';
 import { revalidatePath } from 'next/cache';
 
 const LoginSchema = z.object({
-  email: z.string().email({ message: 'Invalid email address.' }),
+  identifier: z.string().min(1, { message: 'Username or email is required.' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
 });
 
 const SignupSchema = z.object({
-  name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
+  name: z.string().min(2, { message: 'Full name must be at least 2 characters.' }),
+  username: z.string()
+    .min(4, { message: 'Username must be at least 3 characters plus @.' })
+    .regex(/^@[a-zA-Z0-9_]+$/, { message: 'Username must start with @ and contain only letters, numbers, or underscores.'}),
   email: z.string().email({ message: 'Invalid email address.' }),
-  password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
+  phone: z.string().min(10, { message: 'Please enter a valid phone number with country code.' }) 
+    .regex(/^\+[1-9]\d{1,14}$/, { message: 'Phone number must start with + and country code (e.g., +1234567890).' }),
+  password: z.string().min(8, { message: 'Password must be at least 8 characters.' }),
 });
 
 const AdminLoginSchema = z.object({
@@ -30,19 +36,20 @@ const AddDesignSchema = z.object({
   jsCode: z.string().optional(),
   tags: z.string().min(1, {message: 'Please add at least one tag.'}),
   price: z.coerce.number().min(0, { message: 'Price cannot be negative.' }).default(0),
-  submittedByUserId: z.string(), // Hidden field, populated with current user's ID
+  submittedByUserId: z.string(), 
 });
 
 const UpdateProfileSchema = z.object({
   userId: z.string(),
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
   avatarUrl: z.string().url({ message: 'Please enter a valid URL for your avatar.' }).or(z.literal('')),
+  // username and phone are not updated here, could be a separate "Account Settings" form if needed
 });
 
 const ChangePasswordSchema = z.object({
   userId: z.string(),
   currentPassword: z.string().min(1, {message: "Current password is required."}),
-  newPassword: z.string().min(6, { message: 'New password must be at least 6 characters.' }),
+  newPassword: z.string().min(8, { message: 'New password must be at least 8 characters.' }),
   confirmPassword: z.string(),
 }).refine(data => data.newPassword === data.confirmPassword, {
   message: "New passwords don't match.",
@@ -54,7 +61,7 @@ export type LoginFormState = {
   message?: string | null;
   user?: User | null;
   errors?: {
-    email?: string[];
+    identifier?: string[];
     password?: string[];
     general?: string[];
   };
@@ -65,7 +72,9 @@ export type SignupFormState = {
   user?: User | null;
   errors?: {
     name?: string[];
+    username?: string[];
     email?: string[];
+    phone?: string[];
     password?: string[];
     general?: string[];
   };
@@ -131,20 +140,23 @@ export async function loginUser(prevState: LoginFormState, formData: FormData): 
     };
   }
 
-  const { email, password } = validatedFields.data;
+  const { identifier, password } = validatedFields.data;
   const users = await getUsersFromFile();
-  const foundUser = users.find(u => u.email === email);
+  
+  const foundUser = users.find(u => 
+    (u.email === identifier || u.username === identifier)
+  );
 
   if (!foundUser) {
-    return { message: 'Invalid email or password.', errors: { general: ['Invalid email or password.'] } };
+    return { message: 'Invalid credentials.', errors: { general: ['Invalid username/email or password.'] } };
   }
 
-  if (foundUser.password === password) {
+  if (foundUser.password === password) { // In a real app, use password hashing (e.g., bcrypt.compare)
     const { password: _, ...userToReturn } = foundUser;
     return { message: 'Login successful!', user: userToReturn };
   }
 
-  return { message: 'Invalid email or password.', errors: { general: ['Invalid email or password.'] } };
+  return { message: 'Invalid credentials.', errors: { general: ['Invalid username/email or password.'] } };
 }
 
 // User signup
@@ -158,18 +170,24 @@ export async function signupUser(prevState: SignupFormState, formData: FormData)
     };
   }
 
-  const { name, email, password } = validatedFields.data;
+  const { name, username, email, phone, password } = validatedFields.data;
   const users = await getUsersFromFile();
 
   if (users.some(u => u.email === email)) {
     return { message: 'User with this email already exists.', errors: { email: ['Email already in use.'] } };
   }
+  if (users.some(u => u.username === username)) {
+    return { message: 'This username is already taken.', errors: { username: ['Username already taken.'] } };
+  }
+
 
   const newUser: User = {
     id: `user-${Date.now()}`,
     name,
+    username,
     email,
-    password,
+    phone,
+    password, // In a real app, hash the password before saving (e.g., bcrypt.hash)
     avatarUrl: `https://placehold.co/100x100.png?text=${name.charAt(0).toUpperCase()}`
   };
   
@@ -235,7 +253,7 @@ export async function submitDesignAction(prevState: AddDesignFormState, formData
       css: cssCode || '',
       js: jsCode || '',
     },
-    designer: designerInfo, // Embed designer info (excluding password)
+    designer: designerInfo, 
     tags: tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
     price,
     submittedByUserId,
@@ -243,8 +261,8 @@ export async function submitDesignAction(prevState: AddDesignFormState, formData
 
   try {
     await addDesignToFile(newDesign);
-    revalidatePath('/'); // Revalidate homepage to show new design
-    revalidatePath('/dashboard/designs'); // Revalidate user's designs page
+    revalidatePath('/'); 
+    revalidatePath('/dashboard/designs'); 
     return { message: 'Design submitted successfully!', success: true };
   } catch (error) {
     console.error("Error submitting design:", error);
@@ -276,7 +294,7 @@ export async function updateProfileAction(prevState: UpdateProfileFormState, for
   const updatedUserData: User = {
     ...userToUpdate,
     name,
-    avatarUrl: avatarUrl || userToUpdate.avatarUrl, // Keep old avatar if new one is empty
+    avatarUrl: avatarUrl || userToUpdate.avatarUrl, 
   };
 
   try {
@@ -313,13 +331,13 @@ export async function changePasswordAction(prevState: ChangePasswordFormState, f
     return { message: 'User not found.', success: false, errors: { general: ['User not found.'] } };
   }
 
-  if (userToUpdate.password !== currentPassword) {
+  if (userToUpdate.password !== currentPassword) { // In a real app, use password hashing
     return { message: 'Incorrect current password.', success: false, errors: { currentPassword: ['Incorrect current password.'] } };
   }
 
   const updatedUserData: User = {
     ...userToUpdate,
-    password: newPassword, // Update the password
+    password: newPassword, 
   };
 
   try {
@@ -340,11 +358,6 @@ export async function getAllDesignsAction(): Promise<Design[]> {
     return designs;
   } catch (error) {
     console.error("Error fetching all designs via action:", error);
-    // Depending on how you want to handle errors on the client,
-    // you might throw an error here or return an empty array.
-    // Throwing an error will be caught by an error boundary or a try/catch in the client component.
-    // Returning [] might be simpler if you just want to show "no designs".
-    // For now, returning empty array to match previous behavior of getDesigns if it failed.
     return []; 
   }
 }

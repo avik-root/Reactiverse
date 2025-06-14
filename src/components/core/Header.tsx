@@ -7,7 +7,7 @@ import Logo from './Logo';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserCircle, LogOut, ShieldCheck, UserPlus, LogIn, LayoutDashboard, Home, Users, LifeBuoy, Info } from 'lucide-react'; 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useRouter } from 'next/navigation'; // Import useRouter
+import { useRouter } from 'next/navigation'; 
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,7 +26,7 @@ const navLinks = [
 
 const Header = () => {
   const { user, isAdmin, logout, isLoading } = useAuth();
-  const router = useRouter(); // Initialize router
+  const router = useRouter(); 
 
   const getInitials = (name?: string) => {
     if (!name) return 'U';
@@ -38,8 +38,8 @@ const Header = () => {
   const displayEmail = user && 'email' in user ? user.email : undefined;
 
   const handleLogoutAndRedirect = async () => {
-    await logout(); // from AuthContext, clears state and cookies
-    router.push('/'); // Redirect to homepage after logout completes
+    await logout(); 
+    window.location.href = '/'; // Force a full page reload to the homepage
   };
 
   return (
@@ -164,7 +164,7 @@ const Header = () => {
                 <Link href="/auth/signup"><UserPlus className="h-5 w-5" /></Link>
               </Button>
               <Button variant="outline" size="sm" asChild className="hidden xsm:inline-flex">
-                <Link href="/admin/login">Admin</Link>
+                <Link href="/admin">Admin</Link>
               </Button>
             </>
           )}

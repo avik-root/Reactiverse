@@ -49,7 +49,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   const handleLogout = async () => {
     await logout(); 
-    router.push('/'); 
+    window.location.href = '/'; // Force a full page reload to the homepage
   };
 
   if (isPublicAdminPage) {
@@ -57,7 +57,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   }
   
   // For protected admin pages:
-  if (isLoading) { // AuthContext is genuinely loading its state
+  if (isLoading) { 
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background">
         <ShieldCheck className="h-16 w-16 animate-spin text-primary mb-6" />
@@ -68,9 +68,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   // AuthContext has loaded (isLoading is false)
   if (!user || !isAdmin) {
-    // User is not an admin according to client-side AuthContext.
-    // The useEffect above should trigger a redirect to /admin/login.
-    // Show a "Redirecting..." message to avoid flashing dashboard content.
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-background">
             <Loader2 className="h-16 w-16 animate-spin text-primary mb-6" />
@@ -79,8 +76,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     );
   }
   
-  // If we reach here, AuthContext is loaded (isLoading is false) AND user is an admin.
-  // Render the full admin UI.
   const getInitials = (name?: string) => {
     if (!name) return 'A';
     const nameToProcess = user && isAdmin && 'name' in user && user.name ? user.name : 'Admin';

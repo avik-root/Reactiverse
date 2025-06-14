@@ -1,5 +1,4 @@
 
-
 export interface User {
   id: string;
   name: string; 
@@ -38,8 +37,8 @@ export interface AdminUser {
   phone: string;
   avatarUrl?: string; 
   passwordHash?: string; 
-  twoFactorEnabled: boolean; // Added for admin
-  twoFactorPinHash?: string; // Added for admin
+  twoFactorEnabled: boolean;
+  twoFactorPinHash?: string;
 }
 
 // AuthUser is what's typically exposed to the client context or returned from non-sensitive actions
@@ -79,6 +78,7 @@ export interface SiteSettings {
     primaryHSL: string; // e.g., "271 100% 75.3%"
     accentHSL: string;  // e.g., "300 100% 70%"
   };
+  logoPath?: string; // Optional: path to custom logo
 }
 
 // Form state for Site Settings
@@ -130,4 +130,83 @@ export type AdminTwoFactorAuthFormState = {
     currentPasswordFor2FA?: string[];
     general?: string[];
   };
+};
+
+// Page Content Types
+export interface AboutUsOfferItem {
+  title: string;
+  description: string;
+}
+export interface AboutUsContent {
+  title: string;
+  description: string;
+  missionTitle: string;
+  missionContentP1: string;
+  missionContentP2: string;
+  image1Url?: string;
+  image1Alt?: string;
+  image1DataAiHint?: string;
+  offerTitle: string;
+  offerItems: AboutUsOfferItem[];
+  joinTitle: string;
+  joinContent: string;
+  image2Url?: string;
+  image2Alt?: string;
+  image2DataAiHint?: string;
+}
+
+export interface SupportPageContent {
+  title: string;
+  description: string;
+  emailSupportTitle: string;
+  emailSupportDescription: string;
+  emailAddress: string;
+  forumTitle: string;
+  forumDescription: string;
+  forumLinkText: string;
+  forumLinkUrl: string;
+  faqTitle: string;
+  faqPlaceholder: string;
+}
+
+export interface GuidelinesPageContent {
+  title: string;
+  description: string;
+  mainPlaceholderTitle: string;
+  mainPlaceholderContent: string;
+  keyAreasTitle: string;
+  keyAreas: string[];
+}
+
+export interface TopDesignersPageContent {
+  title: string;
+  description: string;
+  mainPlaceholderTitle: string;
+  mainPlaceholderContent: string;
+}
+
+export type PageContentData = {
+  aboutUs: AboutUsContent;
+  support: SupportPageContent;
+  guidelines: GuidelinesPageContent;
+  topDesigners: TopDesignersPageContent;
+};
+
+export type PageContentKeys = keyof PageContentData;
+
+export type UpdatePageContentFormState<T> = {
+  message?: string | null;
+  success?: boolean;
+  errors?: Partial<Record<keyof T, string[]>> & { general?: string[] };
+  content?: T | null;
+};
+
+export type SiteLogoUploadState = {
+    message?: string | null;
+    success?: boolean;
+    errors?: {
+        logoFile?: string[];
+        general?: string[];
+    };
+    filePath?: string | null;
 };

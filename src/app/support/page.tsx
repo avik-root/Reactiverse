@@ -3,17 +3,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { LifeBuoy, Mail, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
+import { getPageContentAction } from '@/lib/actions';
+import type { SupportPageContent } from '@/lib/types';
 
-export default function SupportPage() {
+export default async function SupportPage() {
+  const content = await getPageContentAction('support') as SupportPageContent;
+
+  if (!content) {
+    return <div className="container mx-auto py-12">Error loading content. Please try again later.</div>;
+  }
+
   return (
     <div className="container mx-auto py-12">
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center text-3xl font-headline text-primary">
             <LifeBuoy className="mr-3 h-8 w-8" />
-            Support Center
+            {content.title}
           </CardTitle>
-          <CardDescription>Need help? We&apos;re here for you. Find answers or get in touch with our support team.</CardDescription>
+          <CardDescription>{content.description}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-8">
           <section>
@@ -22,26 +30,26 @@ export default function SupportPage() {
               <Card className="hover:shadow-md transition-shadow">
                 <CardHeader>
                   <CardTitle className="flex items-center text-xl font-headline text-primary">
-                    <Mail className="mr-2 h-6 w-6" /> Email Support
+                    <Mail className="mr-2 h-6 w-6" /> {content.emailSupportTitle}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground mb-3">Get in touch via email for any inquiries.</p>
+                  <p className="text-muted-foreground mb-3">{content.emailSupportDescription}</p>
                   <Button asChild variant="outline">
-                    <Link href="mailto:support@reactiverse.com">support@reactiverse.com</Link>
+                    <Link href={`mailto:${content.emailAddress}`}>{content.emailAddress}</Link>
                   </Button>
                 </CardContent>
               </Card>
               <Card className="hover:shadow-md transition-shadow">
                 <CardHeader>
                   <CardTitle className="flex items-center text-xl font-headline text-primary">
-                    <MessageSquare className="mr-2 h-6 w-6" /> Community Forum
+                    <MessageSquare className="mr-2 h-6 w-6" /> {content.forumTitle}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground mb-3">Ask questions and find answers in our community.</p>
-                  <Button asChild variant="outline" disabled>
-                    <Link href="#">Visit Forum (Coming Soon)</Link>
+                  <p className="text-muted-foreground mb-3">{content.forumDescription}</p>
+                  <Button asChild variant="outline" disabled={content.forumLinkUrl === '#'}>
+                    <Link href={content.forumLinkUrl || '#'}>{content.forumLinkText}</Link>
                   </Button>
                 </CardContent>
               </Card>
@@ -49,10 +57,9 @@ export default function SupportPage() {
           </section>
 
           <section>
-            <h2 className="text-2xl font-semibold font-headline mb-4">Frequently Asked Questions</h2>
+            <h2 className="text-2xl font-semibold font-headline mb-4">{content.faqTitle}</h2>
             <div className="space-y-4 text-center py-6 bg-muted/30 rounded-lg">
-                <p className="text-muted-foreground">Our FAQ section is under construction.</p>
-                <p className="text-sm text-muted-foreground">Please check back later for common questions and answers!</p>
+                <p className="text-muted-foreground">{content.faqPlaceholder}</p>
             </div>
           </section>
         </CardContent>

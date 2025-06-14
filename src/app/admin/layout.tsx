@@ -41,6 +41,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const pathname = usePathname();
 
   useEffect(() => {
+    // This client-side check remains important for UX after initial load,
+    // even with middleware. Middleware handles server-side protection.
     if (!isLoading && (!user || !isAdmin)) {
       router.push('/admin/login');
     }
@@ -62,6 +64,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   
   const displayName = user && user.isAdmin && user.name ? user.name : 'Admin';
   const avatarUrl = user && user.isAdmin && user.avatarUrl ? user.avatarUrl : undefined;
+
+  const handleLogout = async () => {
+    await logout(); // AuthContext logout is now async
+    router.push('/'); // Redirect to home after logout
+  };
 
 
   return (
@@ -125,7 +132,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                     <p className="text-xs text-muted-foreground">Administrator</p>
                 </div>
             </div>
-            <Button variant="ghost" onClick={logout} className="w-full justify-start mt-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+            <Button variant="ghost" onClick={handleLogout} className="w-full justify-start mt-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
                 <LogOut className="mr-2 h-4 w-4" /> Log Out
             </Button>
         </div>
@@ -143,4 +150,3 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     </div>
   );
 }
-

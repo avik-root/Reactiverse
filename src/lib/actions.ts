@@ -2,6 +2,7 @@
 'use server';
 
 import { z } from 'zod';
+import { cookies } from 'next/headers';
 import {
   getUsersFromFile,
   saveUserToFile,
@@ -47,6 +48,8 @@ import type {
 } from './types';
 import { revalidatePath } from 'next/cache';
 import { hashPassword, comparePassword, hashPin, comparePin } from './auth-utils';
+
+const ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS = 'admin-auth-token';
 
 const LoginSchema = z.object({
   identifier: z.string().min(1, { message: 'Username or email is required.' }),
@@ -526,9 +529,28 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
   if (!passwordMatches) {
     return { message: 'Invalid username or password.', errors: { general: ['Invalid username or password.'] } };
   }
+
+  cookies().set(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS, adminUser.id, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    path: '/admin',
+    maxAge: 60 * 60 * 24 * 7, // 1 week
+    sameSite: 'lax',
+  });
+
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { passwordHash, twoFactorPinHash, ...adminUserToReturn } = adminUser;
   return { message: 'Admin login successful!', adminUser: {...adminUserToReturn, isAdmin: true } };
+}
+
+export async function logoutAdminAction(): Promise<{ success: boolean }> {
+  try {
+    cookies().delete(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS, { path: '/admin' });
+    return { success: true };
+  } catch (error) {
+    console.error('Error during admin logout action:', error);
+    return { success: false };
+  }
 }
 
 export async function submitDesignAction(prevState: AddDesignFormState, formData: FormData): Promise<AddDesignFormState> {

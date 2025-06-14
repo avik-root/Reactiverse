@@ -9,7 +9,7 @@ interface AuthContextType {
   user: AuthUser | null; 
   isAdmin: boolean;
   login: (userData: AuthUser, isAdmin?: boolean) => void;
-  logout: () => void;
+  logout: () => Promise<void>; // Changed to Promise<void>
   updateAuthUser: (updatedUserDataOrFn: Partial<AuthUser> | ((currentUser: AuthUser | null) => AuthUser | null) ) => void;
   isLoading: boolean;
 }
@@ -49,16 +49,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    const currentIsAdminStatus = isAdmin; // Capture before clearing state
+
     setUser(null);
     setIsAdmin(false);
     try {
       localStorage.removeItem('reactiverseUser');
       localStorage.removeItem('reactiverseIsAdmin');
+
+      if (currentIsAdminStatus) {
+        // Dynamically import and call the server action only if the user was an admin
+        const { logoutAdminAction } = await import('@/lib/actions');
+        await logoutAdminAction();
+      }
     } catch (error) {
-      console.error("Failed to remove user from localStorage", error);
+      console.error("Failed to logout or clear admin session", error);
+      // Potentially show a toast message to the user here if logout fails critically
     }
-  }, []);
+  }, [isAdmin]); // isAdmin is a dependency now
 
   const updateAuthUser = useCallback((updatedUserDataOrFn: Partial<AuthUser> | ((currentUser: AuthUser | null) => AuthUser | null) ) => {
     setUser(prevUser => {

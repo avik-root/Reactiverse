@@ -29,8 +29,8 @@ export default function RootLayout({
         <DotGrid
           dotSize={2} // Size of each dot
           gap={30} // Spacing between dots
-          baseColor="#4B0082" // Your primary color (Deep Indigo)
-          activeColor="#FF00FF" // Your accent color (Vibrant Magenta)
+          baseColor="#B085FF" // Dark theme primary: hsl(271, 100%, 75.3%)
+          activeColor="#FF66FF" // Dark theme accent: hsl(300, 100%, 70%)
           proximity={120} // How close mouse needs to be to affect dots
           speedTrigger={80} // Mouse speed to trigger inertia effect
           shockRadius={180} // Radius of click shockwave

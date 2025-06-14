@@ -14,9 +14,10 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { DollarSign, UploadCloud, Tag, Code2, Info } from 'lucide-react';
+import { UploadCloud, Tag, Code2, Info, Filter, IndianRupee } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Switch } from "@/components/ui/switch";
 
 
 const LANGUAGES = [
@@ -44,6 +45,8 @@ export default function AddDesignForm() {
 
   const [imageUrlPreview, setImageUrlPreview] = useState<string | null>(null);
   const [selectedLanguage, setSelectedLanguage] = useState<string>("");
+  const [isPaid, setIsPaid] = useState<boolean>(false);
+  const [price, setPrice] = useState<string>("0"); // Store price as string for input field
 
   useEffect(() => {
     if (state?.message) {
@@ -55,6 +58,8 @@ export default function AddDesignForm() {
       if (state.success) {
         setImageUrlPreview(null);
         setSelectedLanguage("");
+        setIsPaid(false);
+        setPrice("0");
         const form = document.getElementById('addDesignForm') as HTMLFormElement;
         form?.reset();
         // router.push('/dashboard/designs'); // Optionally redirect
@@ -75,6 +80,19 @@ export default function AddDesignForm() {
     }
   };
 
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Allow empty string for temporary input state, or valid numbers
+    if (value === "" || (!isNaN(parseFloat(value)) && parseFloat(value) >= 0)) {
+        setPrice(value);
+    } else if (value === "" && !isPaid) {
+        setPrice("0");
+    }
+  };
+  
+  const effectivePrice = isPaid ? (price === "" ? "0" : price) : "0";
+
+
   return (
     <Card className="w-full shadow-xl">
       <CardHeader>
@@ -83,11 +101,21 @@ export default function AddDesignForm() {
       </CardHeader>
       <form id="addDesignForm" action={dispatch}>
         <input type="hidden" name="submittedByUserId" value={user.id} />
+        <input type="hidden" name="price" value={effectivePrice} /> {/* Send effective price */}
         <CardContent className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="title">Design Title</Label>
             <Input id="title" name="title" type="text" placeholder="e.g., Animated Gradient Button" required aria-describedby="title-error"/>
             {state?.errors?.title && <p id="title-error" className="text-sm text-destructive">{state.errors.title.join(', ')}</p>}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="filterCategory">Filter Category</Label>
+            <div className="relative">
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input id="filterCategory" name="filterCategory" type="text" placeholder="e.g., Hover Effect, Loading UI, Animated Background" required className="pl-10" aria-describedby="filterCategory-error"/>
+            </div>
+            {state?.errors?.filterCategory && <p id="filterCategory-error" className="text-sm text-destructive">{state.errors.filterCategory.join(', ')}</p>}
           </div>
 
           <div className="space-y-2">
@@ -155,14 +183,37 @@ export default function AddDesignForm() {
             {state?.errors?.tags && <p id="tags-error" className="text-sm text-destructive">{state.errors.tags.join(', ')}</p>}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="price">Price ($) - Enter 0 for free</Label>
-            <div className="relative">
-              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input id="price" name="price" type="number" placeholder="0.00" step="0.01" min="0" defaultValue="0" required className="pl-10" aria-describedby="price-error"/>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Switch id="isPaidSwitch" checked={isPaid} onCheckedChange={setIsPaid} />
+              <Label htmlFor="isPaidSwitch" className="text-base">
+                {isPaid ? "Paid Design (Set Price)" : "Free Design"}
+              </Label>
             </div>
-            {state?.errors?.price && <p id="price-error" className="text-sm text-destructive">{state.errors.price.join(', ')}</p>}
+
+            {isPaid && (
+              <div className="space-y-2">
+                <Label htmlFor="priceInput">Price (₹)</Label>
+                <div className="relative">
+                  <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input 
+                    id="priceInput" 
+                    type="number" 
+                    placeholder="0.00" 
+                    step="0.01" 
+                    min="0" 
+                    value={price}
+                    onChange={handlePriceChange}
+                    required={isPaid} // Required only if switch is on
+                    className="pl-10" 
+                    aria-describedby="price-error"
+                  />
+                </div>
+                {state?.errors?.price && <p id="price-error" className="text-sm text-destructive">{state.errors.price.join(', ')}</p>}
+              </div>
+            )}
           </div>
+
 
           {state?.errors?.general && <p className="text-sm text-destructive">{state.errors.general.join(', ')}</p>}
         </CardContent>

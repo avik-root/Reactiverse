@@ -7,7 +7,7 @@ import Image from 'next/image';
 import CodeBlock from './CodeBlock';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { DollarSign } from 'lucide-react';
+import { IndianRupee, Filter } from 'lucide-react'; // Changed DollarSign to IndianRupee
 
 interface DesignDetailDialogProps {
   design: Design | null;
@@ -30,6 +30,12 @@ const DesignDetailDialog: React.FC<DesignDetailDialogProps> = ({ design, isOpen,
       <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="font-headline text-2xl text-primary">{design.title}</DialogTitle>
+          {design.filterCategory && (
+            <div className="flex items-center text-sm text-muted-foreground pt-1">
+                <Filter className="h-4 w-4 mr-1.5 text-accent"/>
+                <span className="font-medium">{design.filterCategory}</span>
+            </div>
+          )}
           <div className="flex items-center gap-2 pt-2">
             <Avatar className="h-8 w-8">
               <AvatarImage src={design.designer.avatarUrl || `https://placehold.co/40x40.png?text=${getInitials(design.designer.name)}`} alt={design.designer.name} data-ai-hint="designer avatar" />
@@ -38,8 +44,8 @@ const DesignDetailDialog: React.FC<DesignDetailDialogProps> = ({ design, isOpen,
             <span className="text-sm text-muted-foreground">By {design.designer.name}</span>
             {isPriced && (
               <Badge variant="secondary" className="ml-auto">
-                <DollarSign className="h-4 w-4 mr-1 text-primary" />
-                Price: ${design.price.toFixed(2)}
+                <IndianRupee className="h-4 w-4 mr-1 text-primary" />
+                Price: ₹{design.price.toFixed(2)}
               </Badge>
             )}
           </div>

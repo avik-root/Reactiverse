@@ -14,13 +14,14 @@ export interface User {
 export interface Design {
   id: string;
   title: string;
+  filterCategory: string; // New field for filter like "Hover effect"
   description: string;
   imageUrl: string; // Stays for visual representation
   language: string; // e.g., "React", "HTML/CSS/JS", "Vue.js"
   codeSnippet: string; // The main code block
   designer: User;
   tags: string[];
-  price?: number;
+  price?: number; // Price in INR
   submittedByUserId?: string;
 }
 

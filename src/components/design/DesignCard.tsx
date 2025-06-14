@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Design } from '@/lib/types';
@@ -5,7 +6,7 @@ import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { DollarSign, Lock } from 'lucide-react';
+import { IndianRupee, Lock, Filter } from 'lucide-react'; // Changed DollarSign to IndianRupee
 
 interface DesignCardProps {
   design: Design;
@@ -43,12 +44,18 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
         </div>
         {isPriced && (
           <Badge variant="destructive" className="absolute top-2 right-2 text-xs">
-            <DollarSign className="h-3 w-3 mr-1" /> Priced
+            <IndianRupee className="h-3 w-3 mr-1" /> Priced
           </Badge>
         )}
       </CardHeader>
       <CardContent className="p-4 flex-grow">
         <CardTitle className="font-headline text-xl mb-1 text-primary">{design.title}</CardTitle>
+        {design.filterCategory && (
+            <div className="flex items-center text-xs text-muted-foreground mb-1">
+                <Filter className="h-3 w-3 mr-1 text-accent"/>
+                <span>{design.filterCategory}</span>
+            </div>
+        )}
         <CardDescription className="text-sm text-muted-foreground line-clamp-2">{design.description}</CardDescription>
         <div className="mt-3 flex flex-wrap gap-1">
           {design.tags.slice(0, 3).map(tag => (

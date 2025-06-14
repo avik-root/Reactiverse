@@ -32,6 +32,7 @@ const AdminLoginSchema = z.object({
 
 const AddDesignSchema = z.object({
   title: z.string().min(3, { message: 'Title must be at least 3 characters.' }),
+  filterCategory: z.string().min(3, {message: 'Filter category must be at least 3 characters.'}),
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
   imageUrl: z.string().url({ message: 'Please enter a valid image URL for visual preview.' }),
   language: z.string().min(1, { message: 'Please select a language/framework.' }),
@@ -114,6 +115,7 @@ export type AddDesignFormState = {
   success?: boolean;
   errors?: {
     title?: string[];
+    filterCategory?: string[];
     description?: string[];
     imageUrl?: string[];
     language?: string[];
@@ -301,7 +303,7 @@ export async function submitDesignAction(prevState: AddDesignFormState, formData
     };
   }
 
-  const { title, description, imageUrl, language, codeSnippet, tags, price, submittedByUserId } = validatedFields.data;
+  const { title, filterCategory, description, imageUrl, language, codeSnippet, tags, price, submittedByUserId } = validatedFields.data;
 
   const users = await getUsersFromFile();
   const storedDesigner = users.find(u => u.id === submittedByUserId);
@@ -315,6 +317,7 @@ export async function submitDesignAction(prevState: AddDesignFormState, formData
   const newDesign: Design = {
     id: `design-${Date.now()}`,
     title,
+    filterCategory,
     description,
     imageUrl,
     language,

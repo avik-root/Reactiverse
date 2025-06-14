@@ -30,19 +30,37 @@ const AdminLoginSchema = z.object({
   password: z.string().min(1, { message: 'Password is required.' }),
 });
 
-// AddDesignSchema will temporarily keep single language/codeSnippet
-// for the current form. The action will convert it to codeBlocks array.
+const CodeBlockSchema = z.object({
+  language: z.string().min(1, { message: 'Please select a language for each code block.' }),
+  code: z.string().min(10, { message: 'Code snippet must be at least 10 characters for each block.' }),
+  // id is client-side only, not expected in submission for schema validation here
+});
+
 const AddDesignSchema = z.object({
   title: z.string().min(3, { message: 'Title must be at least 3 characters.' }),
   filterCategory: z.string().min(3, {message: 'Filter category must be at least 3 characters.'}),
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
   imageUrl: z.string().url({ message: 'Please enter a valid image URL for visual preview.' }),
-  language: z.string().min(1, { message: 'Please select a language/framework.' }), // For the first code block
-  codeSnippet: z.string().min(10, { message: 'Code snippet must be at least 10 characters.' }), // For the first code block
+  codeBlocksJSON: z.string().refine(
+    (val) => {
+      try {
+        const arr = JSON.parse(val);
+        if (!Array.isArray(arr) || arr.length === 0) return false;
+        return arr.every(
+          (item) => typeof item.language === 'string' && item.language.trim() !== '' &&
+                     typeof item.code === 'string' && item.code.trim().length >= 10
+        );
+      } catch {
+        return false;
+      }
+    },
+    { message: 'At least one valid code block (language and snippet with min 10 chars) is required.' }
+  ),
   tags: z.string().min(1, {message: 'Please add at least one tag.'}),
   price: z.coerce.number().min(0, { message: 'Price cannot be negative.' }).default(0),
   submittedByUserId: z.string(),
 });
+
 
 const UpdateProfileSchema = z.object({
   userId: z.string(),
@@ -112,6 +130,9 @@ export type AdminLoginFormState = {
   };
 };
 
+// Error structure for codeBlocks might need to be an array of objects
+type CodeBlockError = { language?: string[]; code?: string[] };
+
 export type AddDesignFormState = {
   message?: string | null;
   success?: boolean;
@@ -120,8 +141,8 @@ export type AddDesignFormState = {
     filterCategory?: string[];
     description?: string[];
     imageUrl?: string[];
-    language?: string[];    // For the first block
-    codeSnippet?: string[]; // For the first block
+    codeBlocksJSON?: string[]; // General error for the JSON string itself
+    codeBlocks?: CodeBlockError[]; // Array of errors for individual blocks
     tags?: string[];
     price?: string[];
     general?: string[];
@@ -291,14 +312,40 @@ export async function submitDesignAction(prevState: AddDesignFormState, formData
   const validatedFields = AddDesignSchema.safeParse(Object.fromEntries(formData.entries()));
 
   if (!validatedFields.success) {
+    // Check if the error is specifically for codeBlocksJSON and try to parse for more specific errors
+    const fieldErrors = validatedFields.error.flatten().fieldErrors;
+    if (fieldErrors.codeBlocksJSON) {
+        try {
+            const rawCodeBlocks = JSON.parse(formData.get('codeBlocksJSON') as string);
+            if(Array.isArray(rawCodeBlocks)) {
+                const codeBlockErrors : CodeBlockError[] = rawCodeBlocks.map(block => {
+                    const errors: CodeBlockError = {};
+                    if(!block.language || block.language.trim() === '') errors.language = ["Language is required."];
+                    if(!block.code || block.code.trim().length < 10) errors.code = ["Code must be at least 10 characters."];
+                    return errors;
+                }).filter(e => Object.keys(e).length > 0);
+
+                if(codeBlockErrors.length > 0 && fieldErrors.codeBlocksJSON ) {
+                     // Prioritize specific block errors if available
+                    return {
+                        errors: { ...fieldErrors, codeBlocks: codeBlockErrors, codeBlocksJSON: undefined }, // Clear general JSON error
+                        message: 'Invalid fields in code snippets. Please check your input.',
+                        success: false,
+                    };
+                }
+            }
+        } catch (e) {
+            // JSON parsing failed, keep original error
+        }
+    }
     return {
-      errors: validatedFields.error.flatten().fieldErrors,
+      errors: fieldErrors,
       message: 'Invalid fields. Please check your input.',
       success: false,
     };
   }
-
-  const { title, filterCategory, description, imageUrl, language, codeSnippet, tags, price, submittedByUserId } = validatedFields.data;
+  
+  const { title, filterCategory, description, imageUrl, codeBlocksJSON, tags, price, submittedByUserId } = validatedFields.data;
 
   const users = await getUsersFromFile();
   const storedDesigner = users.find(u => u.id === submittedByUserId);
@@ -308,11 +355,18 @@ export async function submitDesignAction(prevState: AddDesignFormState, formData
   }
   const { passwordHash, twoFactorPinHash, ...designerInfo } = storedDesigner;
 
-  const firstCodeBlock: CodeBlockItem = {
-    id: `cb-${Date.now()}`,
-    language: language,
-    code: codeSnippet,
-  };
+  let parsedCodeBlocksRaw: Array<{ language: string; code: string }>;
+  try {
+    parsedCodeBlocksRaw = JSON.parse(codeBlocksJSON);
+  } catch (error) {
+    return { message: 'Error parsing code blocks data.', success: false, errors: { codeBlocksJSON: ['Invalid format for code blocks.'] } };
+  }
+
+  const codeBlocks: CodeBlockItem[] = parsedCodeBlocksRaw.map((cb, index) => ({
+    id: `cb-${Date.now()}-${index}`, // Server-generated ID
+    language: cb.language,
+    code: cb.code,
+  }));
 
   const newDesign: Design = {
     id: `design-${Date.now()}`,
@@ -320,7 +374,7 @@ export async function submitDesignAction(prevState: AddDesignFormState, formData
     filterCategory,
     description,
     imageUrl,
-    codeBlocks: [firstCodeBlock], // Store the submitted code as the first block
+    codeBlocks,
     designer: designerInfo as User, 
     tags: tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
     price,
@@ -497,11 +551,17 @@ export async function getAllDesignsAction(): Promise<Design[]> {
   try {
     const designs = await getDesignsFromFile();
     return designs.map(design => {
-      if (design.designer) {
-        const { passwordHash, twoFactorPinHash, ...sanitizedDesigner } = design.designer as StoredUser;
-        return { ...design, designer: sanitizedDesigner as User };
-      }
-      return design;
+      // Ensure designer objects in designs are sanitized if they contain sensitive info
+      // And also ensure that codeBlocks are present
+      const sanitizedDesigner = design.designer 
+        ? (({ passwordHash, twoFactorPinHash, ...rest }: StoredUser) => rest)(design.designer as StoredUser) as User
+        : { id: 'unknown', name: 'Unknown Designer', username: '@unknown', avatarUrl: '', twoFactorEnabled: false }; // Fallback for missing designer
+
+      return { 
+        ...design, 
+        designer: sanitizedDesigner,
+        codeBlocks: design.codeBlocks || [] // Ensure codeBlocks is always an array
+      };
     });
   } catch (error) {
     console.error("Error fetching all designs via action:", error);
@@ -513,11 +573,17 @@ export async function getDesignByIdAction(id: string): Promise<Design | undefine
   try {
     const designs = await getDesignsFromFile();
     const design = designs.find(d => d.id === id);
-    if (design && design.designer) {
-      const { passwordHash, twoFactorPinHash, ...sanitizedDesigner } = design.designer as StoredUser;
-      return { ...design, designer: sanitizedDesigner as User };
+    if (design) {
+      const sanitizedDesigner = design.designer
+        ? (({ passwordHash, twoFactorPinHash, ...rest }: StoredUser) => rest)(design.designer as StoredUser) as User
+        : { id: 'unknown', name: 'Unknown Designer', username: '@unknown', avatarUrl: '', twoFactorEnabled: false };
+      return { 
+        ...design, 
+        designer: sanitizedDesigner,
+        codeBlocks: design.codeBlocks || [] 
+      };
     }
-    return design; 
+    return undefined; 
   } catch (error) {
     console.error(`Error fetching design by ID (${id}) via action:`, error);
     return undefined;

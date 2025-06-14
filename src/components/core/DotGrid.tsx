@@ -1,12 +1,11 @@
 // Ensure this component is treated as a client component
 'use client';
 
-import React, { useRef, useEffect, useCallback, useMemo } from "react";
+import React, { useRef, useEffect, useCallback, useState, useMemo } from "react";
 import { gsap } from "gsap";
 import { InertiaPlugin } from "gsap/InertiaPlugin";
 
-// It's good practice to import component-specific CSS here
-// import './DotGrid.css'; // This will be imported in layout.tsx to ensure global availability if needed
+// Note: DotGrid.css is imported globally in layout.tsx
 
 gsap.registerPlugin(InertiaPlugin);
 
@@ -84,14 +83,19 @@ const DotGrid: React.FC<DotGridProps> = ({
     lastY: 0,
   });
 
+  const [circlePath, setCirclePath] = useState<Path2D | null>(null);
+
+  useEffect(() => {
+    // Create Path2D object only on the client side after mount
+    if (typeof Path2D !== 'undefined' && dotSize > 0) {
+      const p = new Path2D();
+      p.arc(0, 0, dotSize / 2, 0, Math.PI * 2);
+      setCirclePath(p);
+    }
+  }, [dotSize]);
+
   const baseRgb = useMemo(() => hexToRgb(baseColor!), [baseColor]);
   const activeRgb = useMemo(() => hexToRgb(activeColor!), [activeColor]);
-
-  const circlePath = useMemo(() => {
-    const p = new Path2D();
-    p.arc(0, 0, dotSize! / 2, 0, Math.PI * 2);
-    return p;
-  }, [dotSize]);
 
   const buildGrid = useCallback(() => {
     const wrap = wrapperRef.current;
@@ -134,7 +138,7 @@ const DotGrid: React.FC<DotGridProps> = ({
 
   useEffect(() => {
     // Ensure this effect runs only on the client
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || !circlePath) return;
 
     let rafId: number;
     const proxSq = proximity! * proximity!;
@@ -168,7 +172,7 @@ const DotGrid: React.FC<DotGridProps> = ({
         ctx.save();
         ctx.translate(ox, oy);
         ctx.fillStyle = styleToApply;
-        ctx.fill(circlePath);
+        ctx.fill(circlePath); // Use the stateful circlePath
         ctx.restore();
       }
 
@@ -177,7 +181,7 @@ const DotGrid: React.FC<DotGridProps> = ({
 
     draw();
     return () => cancelAnimationFrame(rafId);
-  }, [proximity, baseColor, activeRgb, baseRgb, circlePath]);
+  }, [proximity, baseColor, activeRgb, baseRgb, circlePath]); // circlePath is now a dependency
 
   useEffect(() => {
     // Ensure this effect runs only on the client
@@ -194,8 +198,8 @@ const DotGrid: React.FC<DotGridProps> = ({
       (window as Window).addEventListener("resize", buildGrid);
     }
     return () => {
-      if (ro && wrapperRef.current) ro.unobserve(wrapperRef.current); // Use unobserve for safety
-      else window.removeEventListener("resize", buildGrid);
+      if (ro && wrapperRef.current) ro.unobserve(wrapperRef.current);
+      else if ("ResizeObserver" in window === false) window.removeEventListener("resize", buildGrid);
     };
   }, [buildGrid]);
 
@@ -206,11 +210,11 @@ const DotGrid: React.FC<DotGridProps> = ({
     const onMove = (e: MouseEvent) => {
       const now = performance.now();
       const pr = pointerRef.current;
-      const dt = pr.lastTime ? now - pr.lastTime : 16; // Avoid division by zero on first frame
+      const dt = pr.lastTime ? now - pr.lastTime : 16; 
       const dx = e.clientX - pr.lastX;
       const dy = e.clientY - pr.lastY;
-      let vx = dt > 0 ? (dx / dt) * 1000 : 0; // Avoid division by zero
-      let vy = dt > 0 ? (dy / dt) * 1000 : 0; // Avoid division by zero
+      let vx = dt > 0 ? (dx / dt) * 1000 : 0; 
+      let vy = dt > 0 ? (dy / dt) * 1000 : 0; 
       let speed = Math.hypot(vx, vy);
       if (speed > maxSpeed!) {
         const scale = maxSpeed! / speed;
@@ -284,11 +288,10 @@ const DotGrid: React.FC<DotGridProps> = ({
       }
     };
 
-    const throttledMove = throttle(onMove, 16); // Adjusted throttle limit for smoother feel
+    const throttledMove = throttle(onMove, 16); 
     window.addEventListener("mousemove", throttledMove, { passive: true });
     window.addEventListener("click", onClick);
 
-    // Initialize pointer lastX/lastY to avoid large jump on first move
     pointerRef.current.lastX = pointerRef.current.x;
     pointerRef.current.lastY = pointerRef.current.y;
     pointerRef.current.lastTime = performance.now();
@@ -297,7 +300,6 @@ const DotGrid: React.FC<DotGridProps> = ({
     return () => {
       window.removeEventListener("mousemove", throttledMove);
       window.removeEventListener("click", onClick);
-      // Clean up any remaining GSAP tweens on dots
       dotsRef.current.forEach(dot => gsap.killTweensOf(dot));
     };
   }, [

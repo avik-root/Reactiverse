@@ -50,10 +50,17 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     }
   }, [user, isAdmin, isLoading, router, pathname, isPublicAdminPage]);
 
+  // For PUBLIC admin pages (like /admin/login, /admin/create-account, or /admin root page),
+  // render children directly. These pages provide their own complete structure or handle redirects.
+  if (isPublicAdminPage) {
+    return <>{children}</>;
+  }
+  
   // For PROTECTED admin pages:
   // If auth is still loading OR (if loading is done but user is not an admin),
   // show a loading/verification screen. The useEffect above will handle redirection if not admin.
-  if (!isPublicAdminPage && (isLoading || !user || !isAdmin)) {
+  // This block is only reached if !isPublicAdminPage.
+  if (isLoading || !user || !isAdmin) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background">
         <ShieldCheck className="h-16 w-16 animate-spin text-primary mb-6" />
@@ -61,19 +68,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       </div>
     );
   }
-
-  // For PUBLIC admin pages (like /admin/login, /admin/create-account),
-  // render children directly without the full admin layout.
-  // This assumes these pages provide their own complete structure.
-  if (isPublicAdminPage && (pathname === '/admin/login' || pathname === '/admin/create-account')) {
-    return <>{children}</>;
-  }
   
-  // For the root /admin page (which handles its own redirection) or 
-  // if it's a protected page and the user is authenticated as admin, render the full layout.
-  // Note: The root /admin page will briefly show this layout before its own client-side redirect kicks in.
-  // This is generally acceptable.
-
+  // If it's a protected page and the user is authenticated as admin, render the full layout.
   const getInitials = (name?: string) => {
     if (!name) return 'A';
     // Ensure user and user.name exist and user is admin for admin context
@@ -86,7 +82,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   const handleLogout = async () => {
     await logout();
-    router.push('/');
+    router.push('/'); // Redirect to homepage after logout
   };
 
   return (
@@ -157,6 +153,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         <header className="md:hidden sticky top-0 bg-background/80 backdrop-blur-md z-30 p-4 mb-4 border-b rounded-lg shadow-sm">
             <div className="flex items-center justify-between">
                 <Logo />
+                 {/* Consider adding a mobile menu trigger here if sidebar isn't always visible on mobile */}
             </div>
         </header>
         {children}

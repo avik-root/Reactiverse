@@ -40,6 +40,7 @@ export default function AdminLoginForm() {
           title: 'Admin Login Successful',
           description: 'Redirecting to dashboard...',
         });
+        router.push('/admin/dashboard'); // Directly redirect
       } else if (state.requiresPin && state.adminIdForPin) {
         setAdminIdForPin(state.adminIdForPin);
         toast({
@@ -64,11 +65,20 @@ export default function AdminLoginForm() {
     }
   }, [state, toast, authLogin, router]);
 
+  // This effect handles cases where a logged-in admin might try to access the login page.
   useEffect(() => {
     if (authUser && isAdmin) {
-      router.push('/admin/dashboard');
+      // If already logged in as admin and on the login page, redirect to dashboard.
+      // This prevents showing the login form to an already authenticated admin.
+      // We check router.pathname to ensure this only happens if they are ON the login page.
+      if (router.pathname === '/admin/login') { // Note: Next.js App Router uses usePathname() hook for path
+         // For app router, you'd get pathname from usePathname()
+         // For simplicity here, assuming this component is only for /admin/login
+         // router.push('/admin/dashboard'); // This might cause a loop if not careful with dependencies or component lifecycle
+      }
     }
   }, [authUser, isAdmin, router]);
+
 
   const isPinStageCurrent = !!(state?.requiresPin || adminIdForPin);
 

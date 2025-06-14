@@ -2,11 +2,10 @@
 'use client';
 
 import type { Design } from '@/lib/types';
-import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { IndianRupee, Lock, Filter } from 'lucide-react'; // Changed DollarSign to IndianRupee
+import { IndianRupee, Lock, Filter, Code2 } from 'lucide-react'; 
 
 interface DesignCardProps {
   design: Design;
@@ -16,7 +15,7 @@ interface DesignCardProps {
 const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
 
   const getInitials = (name?: string) => {
-    if (!name) return 'D'; // Default for Designer
+    if (!name) return 'D'; 
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   }
 
@@ -31,17 +30,8 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onOpenDetail(design)}}
       aria-label={`View details for ${design.title}`}
     >
-      <CardHeader className="p-0 relative">
-        <div className="relative aspect-video w-full overflow-hidden">
-          <Image
-            src={design.imageUrl}
-            alt={design.title}
-            layout="fill"
-            objectFit="cover"
-            className="transition-transform duration-300 group-hover:scale-105"
-            data-ai-hint="design abstract"
-          />
-        </div>
+      <CardHeader className="p-4 relative bg-muted/30 flex items-center justify-center aspect-[16/9] min-h-[150px]">
+        <Code2 className="h-16 w-16 text-primary/70" />
         {isPriced && (
           <Badge variant="destructive" className="absolute top-2 right-2 text-xs">
             <IndianRupee className="h-3 w-3 mr-1" /> Priced

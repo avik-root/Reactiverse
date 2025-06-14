@@ -3,7 +3,6 @@
 
 import type { Design, CodeBlockItem } from '@/lib/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import Image from 'next/image';
 import CodeBlock from './CodeBlock';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -54,15 +53,7 @@ const DesignDetailDialog: React.FC<DesignDetailDialogProps> = ({ design, isOpen,
           </DialogDescription>
         </DialogHeader>
         <div className="flex-grow overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
-          <div className="my-4 relative aspect-video w-full overflow-hidden rounded-lg shadow-lg">
-            <Image
-              src={design.imageUrl}
-              alt={design.title}
-              layout="fill"
-              objectFit="cover"
-              data-ai-hint="design preview"
-            />
-          </div>
+          {/* Image preview removed */}
           <div className="my-4">
             <h3 className="text-lg font-semibold font-headline mb-2">Tags</h3>
             <div className="flex flex-wrap gap-2">
@@ -80,7 +71,7 @@ const DesignDetailDialog: React.FC<DesignDetailDialogProps> = ({ design, isOpen,
               </h3>
               {design.codeBlocks.map((block) => (
                 <CodeBlock 
-                  key={block.id || block.language} // Use block.id if available, fallback to language
+                  key={block.id || block.language} 
                   codeSnippet={block.code} 
                   language={block.language} 
                   isLocked={isPriced} 

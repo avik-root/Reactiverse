@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -23,14 +24,13 @@ export default function MyDesignsPage() {
 
   useEffect(() => {
     async function fetchUserDesigns() {
-      if (!user || !('id' in user)) { // Ensure user object has id, typical for regular User
+      if (!user || !('id' in user)) { 
         setIsLoading(false);
         return;
       }
       setIsLoading(true);
       try {
         const allDesigns = await getAllDesignsAction();
-        // Filter designs submitted by the current user
         const filteredDesigns = allDesigns.filter(design => design.submittedByUserId === user.id);
         setUserDesigns(filteredDesigns);
       } catch (error) {
@@ -64,10 +64,11 @@ export default function MyDesignsPage() {
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="space-y-2">
-                <Skeleton className="h-[200px] w-full rounded-lg" />
+              <div key={i} className="space-y-2 p-4 border rounded-lg bg-card">
+                <Skeleton className="h-[100px] w-full rounded-lg bg-muted/50" />
                 <Skeleton className="h-6 w-3/4 rounded-md" />
                 <Skeleton className="h-4 w-1/2 rounded-md" />
+                 <Skeleton className="h-8 w-1/3 rounded-md mt-2" />
               </div>
             ))}
           </div>

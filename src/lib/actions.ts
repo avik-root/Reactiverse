@@ -30,17 +30,10 @@ const AdminLoginSchema = z.object({
   password: z.string().min(1, { message: 'Password is required.' }),
 });
 
-const CodeBlockSchema = z.object({
-  language: z.string().min(1, { message: 'Please select a language for each code block.' }),
-  code: z.string().min(10, { message: 'Code snippet must be at least 10 characters for each block.' }),
-  // id is client-side only, not expected in submission for schema validation here
-});
-
 const AddDesignSchema = z.object({
   title: z.string().min(3, { message: 'Title must be at least 3 characters.' }),
   filterCategory: z.string().min(3, {message: 'Filter category must be at least 3 characters.'}),
   description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
-  imageUrl: z.string().url({ message: 'Please enter a valid image URL for visual preview.' }),
   codeBlocksJSON: z.string().refine(
     (val) => {
       try {
@@ -130,7 +123,6 @@ export type AdminLoginFormState = {
   };
 };
 
-// Error structure for codeBlocks might need to be an array of objects
 type CodeBlockError = { language?: string[]; code?: string[] };
 
 export type AddDesignFormState = {
@@ -140,9 +132,8 @@ export type AddDesignFormState = {
     title?: string[];
     filterCategory?: string[];
     description?: string[];
-    imageUrl?: string[];
-    codeBlocksJSON?: string[]; // General error for the JSON string itself
-    codeBlocks?: CodeBlockError[]; // Array of errors for individual blocks
+    codeBlocksJSON?: string[]; 
+    codeBlocks?: CodeBlockError[]; 
     tags?: string[];
     price?: string[];
     general?: string[];
@@ -312,7 +303,6 @@ export async function submitDesignAction(prevState: AddDesignFormState, formData
   const validatedFields = AddDesignSchema.safeParse(Object.fromEntries(formData.entries()));
 
   if (!validatedFields.success) {
-    // Check if the error is specifically for codeBlocksJSON and try to parse for more specific errors
     const fieldErrors = validatedFields.error.flatten().fieldErrors;
     if (fieldErrors.codeBlocksJSON) {
         try {
@@ -326,9 +316,8 @@ export async function submitDesignAction(prevState: AddDesignFormState, formData
                 }).filter(e => Object.keys(e).length > 0);
 
                 if(codeBlockErrors.length > 0 && fieldErrors.codeBlocksJSON ) {
-                     // Prioritize specific block errors if available
                     return {
-                        errors: { ...fieldErrors, codeBlocks: codeBlockErrors, codeBlocksJSON: undefined }, // Clear general JSON error
+                        errors: { ...fieldErrors, codeBlocks: codeBlockErrors, codeBlocksJSON: undefined },
                         message: 'Invalid fields in code snippets. Please check your input.',
                         success: false,
                     };
@@ -345,7 +334,7 @@ export async function submitDesignAction(prevState: AddDesignFormState, formData
     };
   }
   
-  const { title, filterCategory, description, imageUrl, codeBlocksJSON, tags, price, submittedByUserId } = validatedFields.data;
+  const { title, filterCategory, description, codeBlocksJSON, tags, price, submittedByUserId } = validatedFields.data;
 
   const users = await getUsersFromFile();
   const storedDesigner = users.find(u => u.id === submittedByUserId);
@@ -363,7 +352,7 @@ export async function submitDesignAction(prevState: AddDesignFormState, formData
   }
 
   const codeBlocks: CodeBlockItem[] = parsedCodeBlocksRaw.map((cb, index) => ({
-    id: `cb-${Date.now()}-${index}`, // Server-generated ID
+    id: `cb-${Date.now()}-${index}`,
     language: cb.language,
     code: cb.code,
   }));
@@ -373,7 +362,6 @@ export async function submitDesignAction(prevState: AddDesignFormState, formData
     title,
     filterCategory,
     description,
-    imageUrl,
     codeBlocks,
     designer: designerInfo as User, 
     tags: tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
@@ -551,16 +539,14 @@ export async function getAllDesignsAction(): Promise<Design[]> {
   try {
     const designs = await getDesignsFromFile();
     return designs.map(design => {
-      // Ensure designer objects in designs are sanitized if they contain sensitive info
-      // And also ensure that codeBlocks are present
       const sanitizedDesigner = design.designer 
         ? (({ passwordHash, twoFactorPinHash, ...rest }: StoredUser) => rest)(design.designer as StoredUser) as User
-        : { id: 'unknown', name: 'Unknown Designer', username: '@unknown', avatarUrl: '', twoFactorEnabled: false }; // Fallback for missing designer
+        : { id: 'unknown', name: 'Unknown Designer', username: '@unknown', avatarUrl: '', twoFactorEnabled: false }; 
 
       return { 
         ...design, 
         designer: sanitizedDesigner,
-        codeBlocks: design.codeBlocks || [] // Ensure codeBlocks is always an array
+        codeBlocks: design.codeBlocks || [] 
       };
     });
   } catch (error) {

@@ -1,18 +1,18 @@
 
 export interface User {
   id: string;
-  name: string; // Full Name
-  username: string; // Format: @username, unique
+  name: string; 
+  username: string; 
   email?: string;
-  phone?: string; // With country code
+  phone?: string; 
   avatarUrl?: string;
-  passwordHash?: string; // Store hashed password
+  passwordHash?: string; 
   twoFactorEnabled: boolean;
   twoFactorPinHash?: string;
 }
 
 export interface CodeBlockItem {
-  id: string; // For React keys and potential future editing
+  id: string; 
   language: string;
   code: string;
 }
@@ -22,18 +22,17 @@ export interface Design {
   title: string;
   filterCategory: string; 
   description: string;
-  imageUrl: string; 
-  codeBlocks: CodeBlockItem[]; // Changed from single language/codeSnippet
+  codeBlocks: CodeBlockItem[]; 
   designer: User;
   tags: string[];
-  price?: number; // Price in INR
+  price?: number; 
   submittedByUserId?: string;
 }
 
 export interface AdminUser {
   id: string;
   username: string;
-  passwordHash?: string; // Store hashed password for admin
+  passwordHash?: string; 
 }
 
 export type AuthUser = Omit<User, 'passwordHash' | 'twoFactorPinHash'> | Omit<AdminUser, 'passwordHash'>;

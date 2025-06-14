@@ -13,10 +13,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import { UploadCloud, Tag, Code2, Info, Filter, IndianRupee, PlusCircle, Trash2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Switch } from "@/components/ui/switch";
 
 const LANGUAGES = [
@@ -48,11 +46,9 @@ export default function AddDesignForm() {
   const initialState: AddDesignFormState = { message: null, errors: {}, success: false };
   const [state, dispatch] = useActionState(submitDesignAction, initialState);
 
-  const [imageUrlPreview, setImageUrlPreview] = useState<string | null>(null);
   const [isPaid, setIsPaid] = useState<boolean>(false);
   const [price, setPrice] = useState<string>("0");
 
-  // State for dynamic code blocks
   const [codeBlocks, setCodeBlocks] = useState<CodeBlockEntry[]>([
     { id: `cb-${Date.now()}`, language: '', code: '' }
   ]);
@@ -65,7 +61,6 @@ export default function AddDesignForm() {
         variant: state.success ? 'default' : 'destructive',
       });
       if (state.success) {
-        setImageUrlPreview(null);
         setIsPaid(false);
         setPrice("0");
         setCodeBlocks([{ id: `cb-${Date.now()}`, language: '', code: '' }]);
@@ -80,15 +75,6 @@ export default function AddDesignForm() {
     return <p>You must be logged in to submit a design.</p>;
   }
 
-  const handleImageUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const url = e.target.value;
-    if (url && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:image'))) {
-      setImageUrlPreview(url);
-    } else {
-      setImageUrlPreview(null);
-    }
-  };
-
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     if (value === "" || (!isNaN(parseFloat(value)) && parseFloat(value) >= 0)) {
@@ -100,7 +86,6 @@ export default function AddDesignForm() {
   
   const effectivePrice = isPaid ? (price === "" ? "0" : price) : "0";
 
-  // Code Block Management Functions
   const addCodeBlock = () => {
     setCodeBlocks([...codeBlocks, { id: `cb-${Date.now()}`, language: '', code: '' }]);
   };
@@ -121,7 +106,7 @@ export default function AddDesignForm() {
     );
   };
 
-  const codeBlocksJSON = JSON.stringify(codeBlocks.map(({id, ...rest}) => rest)); // Exclude client-side ID for submission
+  const codeBlocksJSON = JSON.stringify(codeBlocks.map(({id, ...rest}) => rest));
 
   return (
     <Card className="w-full shadow-xl">
@@ -155,26 +140,7 @@ export default function AddDesignForm() {
             <Textarea id="description" name="description" placeholder="Describe your design, its features, and usage." required  aria-describedby="description-error"/>
             {state?.errors?.description && <p id="description-error" className="text-sm text-destructive">{state.errors.description.join(', ')}</p>}
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="imageUrl">Image URL (for visual preview)</Label>
-            <Input id="imageUrl" name="imageUrl" type="url" placeholder="https://placehold.co/600x400.png" required onChange={handleImageUrlChange} aria-describedby="imageUrl-error"/>
-            {state?.errors?.imageUrl && <p id="imageUrl-error" className="text-sm text-destructive">{state.errors.imageUrl.join(', ')}</p>}
-            {imageUrlPreview && (
-              <div className="mt-2 relative w-full aspect-video rounded-md overflow-hidden border">
-                <Image src={imageUrlPreview} alt="Design preview" layout="fill" objectFit="contain" data-ai-hint="design preview user upload"/>
-              </div>
-            )}
-            <Alert variant="default" className="mt-2">
-              <Info className="h-4 w-4" />
-              <AlertTitle>Image for Preview</AlertTitle>
-              <AlertDescription>
-                This image will be used as the visual representation of your design on cards and in the detail view. A live code preview is not generated automatically.
-              </AlertDescription>
-            </Alert>
-          </div>
           
-          {/* Dynamic Code Blocks Section */}
           <div className="space-y-4">
             <Label className="text-base font-medium">Code Snippets</Label>
             {codeBlocks.map((block, index) => (
@@ -188,7 +154,7 @@ export default function AddDesignForm() {
                   )}
                 </div>
                 <Select
-                  name={`language-${block.id}`} // Name not directly used by server action parsing codeBlocksJSON
+                  name={`language-${block.id}`} 
                   required
                   onValueChange={(value) => handleCodeBlockChange(block.id, 'language', value)}
                   value={block.language}
@@ -209,7 +175,7 @@ export default function AddDesignForm() {
                   <Code2 className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Textarea 
                     id={`codeSnippet-${block.id}`}
-                    name={`codeSnippet-${block.id}`} // Name not directly used by server action
+                    name={`codeSnippet-${block.id}`} 
                     placeholder={`Paste your ${block.language || 'selected language'} code here...`} 
                     required 
                     rows={8} 

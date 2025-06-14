@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -6,7 +7,7 @@ import DesignCard from '@/components/design/DesignCard';
 import DesignDetailDialog from '@/components/design/DesignDetailDialog';
 import { getAllDesignsAction } from '@/lib/actions'; 
 import { Skeleton } from '@/components/ui/skeleton';
-import ScrambledText from '@/components/effects/ScrambledText'; // Import the new component
+import ScrambledText from '@/components/effects/ScrambledText'; 
 
 export default function HomePage() {
   const [designs, setDesigns] = useState<Design[]>([]);
@@ -22,7 +23,6 @@ export default function HomePage() {
         setDesigns(fetchedDesigns);
       } catch (error) {
         console.error("Failed to fetch designs:", error);
-        // Handle error state if needed
       }
       setIsLoading(false);
     }
@@ -50,10 +50,11 @@ export default function HomePage() {
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="space-y-2">
-                <Skeleton className="h-[200px] w-full rounded-lg" />
+              <div key={i} className="space-y-2 p-4 border rounded-lg bg-card">
+                <Skeleton className="h-[100px] w-full rounded-lg bg-muted/50" /> 
                 <Skeleton className="h-6 w-3/4 rounded-md" />
                 <Skeleton className="h-4 w-1/2 rounded-md" />
+                <Skeleton className="h-8 w-1/3 rounded-md mt-2" />
               </div>
             ))}
           </div>

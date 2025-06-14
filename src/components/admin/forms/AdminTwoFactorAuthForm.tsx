@@ -46,42 +46,56 @@ export default function AdminTwoFactorAuthForm() {
 
   useEffect(() => {
     const activeState = enableState?.actionType === 'enable' ? enableState : disableState;
-    if (activeState?.message) {
+    if (activeState?.message) { // Process only if an action has occurred (message is present)
       toast({
         title: activeState.success ? 'Success!' : 'Error',
         description: activeState.message,
         variant: activeState.success ? 'default' : 'destructive',
       });
-      if (activeState.success && adminUser && adminUser.isAdmin) {
-        const new2FAStatus = activeState.actionType === 'enable';
-        setIsTwoFactorEnabledLocally(new2FAStatus);
+
+      if (activeState.success) {
+        const new2FAStatusByAction = activeState.actionType === 'enable';
+        
         updateAuthUser(currentUser => {
             if (!currentUser || !currentUser.isAdmin) return currentUser;
-            return { ...currentUser, twoFactorEnabled: new2FAStatus };
+            // Only create a new user object if the 2FA status actually changed
+            if (('twoFactorEnabled' in currentUser) && currentUser.twoFactorEnabled !== new2FAStatusByAction) {
+                return { ...currentUser, twoFactorEnabled: new2FAStatusByAction };
+            }
+            return currentUser; // Return the same object if no change needed
         });
+
+        // Reset form visibility and other local states
         setShowEnableForm(false);
         setShowDisableForm(false);
-        setShowCurrentPasswordFor2FA(false); 
-        (document.getElementById('enableAdmin2FAForm') as HTMLFormElement)?.reset();
-        (document.getElementById('disableAdmin2FAForm') as HTMLFormElement)?.reset();
+        setShowCurrentPasswordFor2FA(false);
+        // It's good practice to reset the actual HTML form elements if possible,
+        // though with useActionState, the form might re-render cleanly.
+        // If direct reset is needed:
+        const enableForm = document.getElementById('enableAdmin2FAForm') as HTMLFormElement;
+        const disableForm = document.getElementById('disableAdmin2FAForm') as HTMLFormElement;
+        enableForm?.reset();
+        disableForm?.reset();
       }
     }
-  }, [enableState, disableState, toast, updateAuthUser, adminUser]);
+  }, [enableState, disableState, toast, updateAuthUser]); // Removed adminUser from deps here
 
   if (!adminUser || !adminUser.isAdmin) { 
     return <p>Loading admin data or not authorized...</p>;
   }
 
   const handleToggleChange = useCallback((checked: boolean) => {
+    // `checked` here is the new desired state of the switch *if it were uncontrolled*
+    // For a controlled switch, this indicates the user's intent.
     setShowCurrentPasswordFor2FA(false); 
-    if (checked) { 
+    if (checked) { // User wants to enable 2FA (current state is off, they clicked to turn on)
         setShowEnableForm(true);
         setShowDisableForm(false);
-    } else { 
+    } else { // User wants to disable 2FA (current state is on, they clicked to turn off)
         setShowDisableForm(true);
         setShowEnableForm(false);
     }
-  }, [setShowEnableForm, setShowDisableForm]);
+  }, [setShowEnableForm, setShowDisableForm]); // Dependencies are stable setters
 
   return (
     <Card className="w-full shadow-xl mt-8">
@@ -97,8 +111,8 @@ export default function AdminTwoFactorAuthForm() {
         <div className="flex items-center space-x-2">
           <Switch
             id="adminTwoFactorToggle"
-            checked={isTwoFactorEnabledLocally}
-            onCheckedChange={handleToggleChange}
+            checked={isTwoFactorEnabledLocally} // Controlled by the actual 2FA status
+            onCheckedChange={handleToggleChange} // Shows the relevant form
             aria-label="Toggle Admin Two-Factor Authentication"
           />
           <Label htmlFor="adminTwoFactorToggle" className="text-lg">
@@ -201,3 +215,5 @@ export default function AdminTwoFactorAuthForm() {
     </Card>
   );
 }
+
+    

@@ -1,15 +1,16 @@
 
 'use client';
 
-import type { AuthUser, User as StoredUserType, AdminUser as StoredAdminUserType } from '@/lib/types'; 
+import type { AuthUser, User as StoredUserType, AdminUser as StoredAdminUserType } from '@/lib/types';
 import type React from 'react';
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { logoutAdminAction } from '@/lib/actions'; // Static import
 
 interface AuthContextType {
-  user: AuthUser | null; 
+  user: AuthUser | null;
   isAdmin: boolean;
   login: (userData: AuthUser, isAdmin?: boolean) => void;
-  logout: () => Promise<void>; 
+  logout: () => Promise<void>;
   updateAuthUser: (updatedUserDataOrFn: Partial<AuthUser> | ((currentUser: AuthUser | null) => AuthUser | null) ) => void;
   isLoading: boolean;
 }
@@ -55,7 +56,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = useCallback(async () => {
     setIsLoading(true); // Set loading to true at the start of logout
-    const currentIsAdminStatus = isAdmin; 
+    const currentIsAdminStatus = isAdmin;
 
     setUser(null);
     setIsAdmin(false);
@@ -64,13 +65,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.removeItem('reactiverseIsAdmin');
 
       if (currentIsAdminStatus) {
-        const { logoutAdminAction } = await import('@/lib/actions');
-        await logoutAdminAction();
+        await logoutAdminAction(); // Call statically imported action
       }
     } catch (error) {
       console.error("Failed to logout or clear admin session", error);
     }
-    // isLoading will be reset to false by the useEffect in AuthContext 
+    // isLoading will be reset to false by the useEffect in AuthContext
     // when the app re-initializes on the new page (e.g., homepage)
     // or if the component remains mounted and the initial useEffect re-runs.
     // For a full page navigation, the context re-initializes naturally.
@@ -85,14 +85,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!prevUser) return null;
         newUser = { ...prevUser, ...updatedUserDataOrFn } as AuthUser;
       }
-      
+
       if (newUser) {
         try {
           localStorage.setItem('reactiverseUser', JSON.stringify(newUser));
         } catch (error) {
           console.error("Failed to update user in localStorage", error);
         }
-      } else { 
+      } else {
          localStorage.removeItem('reactiverseUser');
       }
       return newUser;

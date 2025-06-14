@@ -87,12 +87,17 @@ const DesignDetailDialog: React.FC<DesignDetailDialogProps> = ({ design, isOpen,
               <AvatarFallback>{getInitials(design.designer.name)}</AvatarFallback>
             </Avatar>
             <span className="text-sm text-muted-foreground">By {design.designer.name}</span>
-            {isPriced && (
-              <Badge variant="secondary" className="ml-auto">
-                <IndianRupee className="h-4 w-4 mr-1 text-primary" />
-                Price: ₹{design.price.toFixed(2)}
-              </Badge>
-            )}
+            {isPriced ? (
+                <Badge variant="secondary" className="ml-auto">
+                  <IndianRupee className="h-4 w-4 mr-1 text-primary" />
+                  Price: ₹{design.price.toFixed(2)}
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="ml-auto text-primary border-primary">
+                  Free
+                </Badge>
+              )
+            }
           </div>
           <DialogDescription className="pt-1 text-left">
             {design.description}
@@ -186,5 +191,7 @@ const Lock: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
 
 
 export default DesignDetailDialog;
+
+    
 
     

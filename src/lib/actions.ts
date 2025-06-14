@@ -542,7 +542,7 @@ export async function signupUser(prevState: SignupFormState, formData: FormData)
     twoFactorEnabled: false,
     failedPinAttempts: 0,
     isLocked: false,
-    canSetPrice: false, // New users cannot set price by default
+    canSetPrice: false,
   };
 
   await saveUserToFile(newUser);
@@ -622,7 +622,15 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
 
 export async function logoutAdminAction(): Promise<{ success: boolean }> {
   try {
-    cookies().delete(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS, { path: '/admin' });
+    // More robust cookie deletion by setting maxAge to 0
+    cookies().set(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS, '', { 
+      path: '/admin', 
+      maxAge: 0,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+    });
+    // cookies().delete(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS, { path: '/admin' }); // Original attempt
     return { success: true };
   } catch (error) {
     console.error('Error during admin logout action:', error);
@@ -1523,3 +1531,4 @@ export async function adminSetUserCanSetPriceAction(
     return { message: 'Failed to update user price setting ability.', success: false, errors: { general: ['Server error.'] } };
   }
 }
+

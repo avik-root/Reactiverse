@@ -128,13 +128,8 @@ const DesignDetailDialog: React.FC<DesignDetailDialogProps> = ({ design, isOpen,
               </TabsList>
 
               <TabsContent value="preview" className="h-[400px] rounded-md border bg-muted/20 relative">
-                {isPriced ? (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm z-10 rounded-md">
-                    <Lock className="h-16 w-16 text-primary mb-4" />
-                    <p className="text-xl font-semibold text-foreground">Content Locked</p>
-                    <p className="text-muted-foreground">This is a premium design. Preview is not available for free.</p>
-                  </div>
-                ) : previewDoc === null ? (
+                {/* Removed isPriced condition for locking the entire preview */}
+                {previewDoc === null ? (
                      <Alert variant="default" className="m-4">
                         <Info className="h-4 w-4" />
                         <AlertTitle>Preview Note</AlertTitle>
@@ -157,7 +152,6 @@ const DesignDetailDialog: React.FC<DesignDetailDialogProps> = ({ design, isOpen,
                     title={`${design.title} Preview`}
                     sandbox="allow-scripts allow-same-origin" // Basic sandboxing
                     className="w-full h-full border-0 rounded-md"
-                    // Consider adding loading state or error handling for iframe
                   />
                 )}
               </TabsContent>
@@ -167,7 +161,7 @@ const DesignDetailDialog: React.FC<DesignDetailDialogProps> = ({ design, isOpen,
                   <CodeBlock
                     codeSnippet={block.code}
                     language={block.language}
-                    isLocked={isPriced}
+                    isLocked={isPriced} // CodeBlocks still respect the lock for priced items
                   />
                 </TabsContent>
               ))}
@@ -181,17 +175,13 @@ const DesignDetailDialog: React.FC<DesignDetailDialogProps> = ({ design, isOpen,
   );
 };
 
-// Simple Lock component for locked preview (can be enhanced)
-const Lock: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-  </svg>
-);
+// Simple Lock component for locked preview (can be enhanced) - Not used in preview tab anymore directly
+// const Lock: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+//   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+//     <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+//     <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+//   </svg>
+// );
 
 
 export default DesignDetailDialog;
-
-    
-
-    

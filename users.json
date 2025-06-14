@@ -1,1 +1,12 @@
-[]
+[
+  {
+    "id": "user-1749918806145",
+    "name": "Test",
+    "username": "@test",
+    "email": "test@gmail.com",
+    "phone": "+911234567890",
+    "passwordHash": "$2a$10$77HlwQT9FL7jKLrwGTmGEev/CW5Xew58ddN/ns2h1vOj3AvWQmTam",
+    "avatarUrl": "https://placehold.co/100x100.png?text=T",
+    "twoFactorEnabled": false
+  }
+]

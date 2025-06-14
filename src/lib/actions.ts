@@ -676,7 +676,7 @@ export async function getAllDesignsAction(): Promise<Design[]> {
     return designs.map(design => {
       const sanitizedDesigner = design.designer 
         ? (({ passwordHash, twoFactorPinHash, ...rest }: StoredUser) => rest)(design.designer as StoredUser) as User
-        : { id: 'unknown', name: 'Unknown Designer', username: '@unknown', avatarUrl: '', twoFactorEnabled: false }; 
+        : { id: 'unknown', name: 'Unknown Designer', username: '@unknown', avatarUrl: '', email: 'unknown@example.com', phone: '', twoFactorEnabled: false }; 
 
       return { 
         ...design, 
@@ -697,7 +697,7 @@ export async function getDesignByIdAction(id: string): Promise<Design | undefine
     if (design) {
       const sanitizedDesigner = design.designer
         ? (({ passwordHash, twoFactorPinHash, ...rest }: StoredUser) => rest)(design.designer as StoredUser) as User
-        : { id: 'unknown', name: 'Unknown Designer', username: '@unknown', avatarUrl: '', twoFactorEnabled: false };
+        : { id: 'unknown', name: 'Unknown Designer', username: '@unknown', avatarUrl: '', email: 'unknown@example.com', phone: '', twoFactorEnabled: false };
       return { 
         ...design, 
         designer: sanitizedDesigner,
@@ -786,4 +786,5 @@ export async function createAdminAccountAction(prevState: AdminCreateAccountForm
     return { message: 'Failed to create admin account. Please try again.', success: false, errors: { general: ['Server error during account creation.'] } };
   }
 }
+
 

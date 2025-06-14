@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import bcrypt from 'bcryptjs';
@@ -22,3 +23,4 @@ export async function comparePin(pin: string, hash: string): Promise<boolean> {
   if (!hash) return false; // Handle case where hash might be undefined for a pin
   return bcrypt.compare(pin, hash);
 }
+

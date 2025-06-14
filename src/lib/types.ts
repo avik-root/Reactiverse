@@ -24,7 +24,7 @@ export interface Design {
   filterCategory: string; 
   description: string;
   codeBlocks: CodeBlockItem[]; 
-  designer: User;
+  designer: User; // This will hold the sanitized User object
   tags: string[];
   price?: number; 
   submittedByUserId?: string;
@@ -36,7 +36,7 @@ export interface AdminUser {
   username: string;
   email: string;
   phone: string;
-  avatarUrl?: string; // Added for consistency, can be auto-generated
+  avatarUrl?: string; 
   passwordHash?: string; 
 }
 
@@ -69,4 +69,5 @@ export type AdminCreateAccountFormState = {
     general?: string[];
   };
 };
+
 

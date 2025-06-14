@@ -23,8 +23,9 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
   const isPriced = design.price && design.price > 0;
 
   const previewSrcDoc = useMemo(() => {
+    // No card preview for priced items, focus on the detail dialog for that.
     if (isPriced || !design.codeBlocks || design.codeBlocks.length === 0) {
-      return null; // No preview for priced items on card, or if no code blocks
+      return null;
     }
 
     const htmlBlock = design.codeBlocks.find(block => block.language.toLowerCase() === 'html');
@@ -35,14 +36,12 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
     const cssBlocks = design.codeBlocks.filter(block => 
       block.language.toLowerCase() === 'css' || 
       block.language.toLowerCase() === 'scss' ||
-      block.language.toLowerCase() === 'tailwind css' // Basic include, might not fully work for Tailwind without build
+      block.language.toLowerCase() === 'tailwind css'
     );
     
     const htmlContent = htmlBlock.code;
     const cssContent = cssBlocks.map(block => block.code).join('\n');
 
-    // Basic styling to ensure content is centered and visible against the card background
-    // and to attempt to make text visible if original CSS doesn't set a good contrasting color.
     return `
       <html>
         <head>
@@ -80,23 +79,29 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
       aria-label={`View details for ${design.title}`}
     >
       <CardHeader className="p-0 relative bg-muted/30 flex items-center justify-center aspect-[16/9] min-h-[150px] overflow-hidden">
-        {previewSrcDoc && !isPriced ? (
+        {previewSrcDoc && !isPriced ? ( // Show iframe preview only if it exists and item is FREE
           <div className="w-full h-full transform scale-[0.35] origin-center flex items-center justify-center pointer-events-none">
             <iframe
               srcDoc={previewSrcDoc}
               title={`${design.title} card preview`}
-              sandbox="allow-same-origin" // Minimal sandbox for static HTML/CSS
+              sandbox="allow-same-origin"
               className="w-[calc(100%/0.35)] h-[calc(100%/0.35)] border-0 overflow-hidden bg-transparent"
               scrolling="no"
             />
           </div>
-        ) : (
+        ) : ( // Fallback to Code2 icon if priced or no preview for free item
           <Code2 className="h-16 w-16 text-primary/70" />
         )}
-        {isPriced && (
+
+        {/* Badge for Price or "Free" */}
+        {isPriced ? (
           <Badge variant="secondary" className="absolute top-2 right-2 text-xs px-2 py-1 flex items-center z-10">
             <IndianRupee className="h-3 w-3 mr-1" />
             {design.price?.toFixed(2)}
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="absolute top-2 right-2 text-xs px-2 py-1 z-10 border-primary text-primary bg-background/70">
+            Free
           </Badge>
         )}
       </CardHeader>

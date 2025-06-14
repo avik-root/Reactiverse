@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState, useActionState, useCallback, startTransition } from 'react';
+import { useEffect, useState, useActionState, useCallback, startTransition, useRef } from 'react';
 import type { User, StoredUser, AdminSetUser2FAStatusFormState, AdminSetUserCanSetPriceFormState } from '@/lib/types';
 import { getAllUsersAdminAction, deleteUserAdminAction, adminSetUser2FAStatusAction, adminSetUserCanSetPriceAction } from '@/lib/actions';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,7 +16,7 @@ import { Users, Trash2, Eye, ShieldCheck, ShieldOff, Phone, Mail, UserSquare2, U
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch'; // Added for toggles
+import { Switch } from '@/components/ui/switch';
 
 const sanitizeUser = (user: StoredUser): User => {
   const { passwordHash, twoFactorPinHash, ...sanitized } = user;
@@ -46,6 +46,9 @@ export default function ManageUsersPage() {
   const [isPriceSettingDialogOpen, setIsPriceSettingDialogOpen] = useState(false);
   const [currentPriceSettingAction, setCurrentPriceSettingAction] = useState<'enable' | 'disable' | null>(null);
 
+  const lastProcessed2FAMessageRef = useRef<string | null | undefined>(null);
+  const lastProcessedPriceSettingMessageRef = useRef<string | null | undefined>(null);
+
 
   const initial2FAState: AdminSetUser2FAStatusFormState = { message: null, success: false, errors: {} };
   const [set2FAFormState, set2FAFormAction] = useActionState(adminSetUser2FAStatusAction, initial2FAState);
@@ -71,8 +74,13 @@ export default function ManageUsersPage() {
     fetchUsers();
   }, [fetchUsers]);
 
-  const processFormStateUpdate = (formState: AdminSetUser2FAStatusFormState | AdminSetUserCanSetPriceFormState, closeDialogFn: () => void) => {
-    if (formState?.message) {
+  const processFormStateUpdate = (
+    formState: AdminSetUser2FAStatusFormState | AdminSetUserCanSetPriceFormState,
+    closeDialogFn: () => void,
+    lastProcessedMessageRef: React.MutableRefObject<string | null | undefined>
+  ) => {
+    if (formState?.message && formState.message !== lastProcessedMessageRef.current) {
+      lastProcessedMessageRef.current = formState.message;
       toast({
         title: formState.success ? "Success" : "Error",
         description: formState.message,
@@ -92,14 +100,14 @@ export default function ManageUsersPage() {
     processFormStateUpdate(set2FAFormState, () => {
         setIs2FADialogOpen(false);
         setUserFor2FAManagement(null);
-    });
+    }, lastProcessed2FAMessageRef);
   }, [set2FAFormState, toast, fetchUsers, selectedUserForView]);
 
   useEffect(() => {
     processFormStateUpdate(setPriceSettingFormState, () => {
         setIsPriceSettingDialogOpen(false);
         setUserForPriceSetting(null);
-    });
+    }, lastProcessedPriceSettingMessageRef);
   }, [setPriceSettingFormState, toast, fetchUsers, selectedUserForView]);
 
 
@@ -433,3 +441,4 @@ const InfoItem: React.FC<InfoItemProps> = ({ icon, label, value}) => (
         </div>
     </div>
 );
+

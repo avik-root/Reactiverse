@@ -23,14 +23,13 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
   const isPriced = design.price && design.price > 0;
 
   const previewSrcDoc = useMemo(() => {
-    // No card preview for priced items, focus on the detail dialog for that.
     if (isPriced || !design.codeBlocks || design.codeBlocks.length === 0) {
       return null;
     }
 
     const htmlBlock = design.codeBlocks.find(block => block.language.toLowerCase() === 'html');
     if (!htmlBlock) {
-      return null; // No HTML block to preview
+      return null; 
     }
 
     const cssBlocks = design.codeBlocks.filter(block => 
@@ -53,11 +52,7 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
               align-items: center; 
               height: 100vh; 
               overflow: hidden; 
-              background-color: transparent; /* Card background will show through */
-            }
-            /* Attempt to make text visible if not styled by user's CSS */
-            body, body * { 
-              color: hsl(var(--foreground)) !important; /* Force a visible color */
+              background-color: transparent;
             }
             ${cssContent}
           </style>
@@ -79,7 +74,7 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
       aria-label={`View details for ${design.title}`}
     >
       <CardHeader className="p-0 relative bg-muted/30 flex items-center justify-center aspect-[16/9] min-h-[150px] overflow-hidden">
-        {previewSrcDoc && !isPriced ? ( // Show iframe preview only if it exists and item is FREE
+        {previewSrcDoc && !isPriced ? (
           <div className="w-full h-full transform scale-[0.35] origin-center flex items-center justify-center pointer-events-none">
             <iframe
               srcDoc={previewSrcDoc}
@@ -89,11 +84,10 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
               scrolling="no"
             />
           </div>
-        ) : ( // Fallback to Code2 icon if priced or no preview for free item
+        ) : ( 
           <Code2 className="h-16 w-16 text-primary/70" />
         )}
 
-        {/* Badge for Price or "Free" */}
         {isPriced ? (
           <Badge variant="secondary" className="absolute top-2 right-2 text-xs px-2 py-1 flex items-center z-10">
             <IndianRupee className="h-3 w-3 mr-1" />

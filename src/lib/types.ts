@@ -1,8 +1,9 @@
 export interface User {
   id: string;
   name: string;
-  email?: string; 
+  email?: string;
   avatarUrl?: string;
+  password?: string; // Added for storing user password in users.json
 }
 
 export interface Design {
@@ -15,7 +16,7 @@ export interface Design {
     css: string;
     js: string;
   };
-  designer: User;
+  designer: User; // User type now includes optional password, but it won't be typically populated here
   tags: string[];
 }
 

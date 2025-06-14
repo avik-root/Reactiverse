@@ -1,0 +1,16 @@
+[
+  {
+    "id": "user1",
+    "name": "Alice Wonderland",
+    "email": "alice@example.com",
+    "password": "password123",
+    "avatarUrl": "https://placehold.co/100x100.png"
+  },
+  {
+    "id": "user2",
+    "name": "Bob The Builder",
+    "email": "bob@example.com",
+    "password": "password123",
+    "avatarUrl": "https://placehold.co/100x100.png"
+  }
+]

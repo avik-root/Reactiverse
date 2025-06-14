@@ -1,34 +1,29 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { checkAdminDataExistsAction } from '@/lib/actions';
-import { useAuth } from '@/contexts/AuthContext'; // Import useAuth
+import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 
 export default function AdminRootPage() {
   const router = useRouter();
-  const { user, isAdmin, isLoading: authIsLoading } = useAuth(); // Get auth state
-  const [checkingAdminData, setCheckingAdminData] = useState(true);
+  const { user, isAdmin, isLoading: authIsLoading } = useAuth();
 
   useEffect(() => {
-    // Wait for AuthContext to finish loading its state
     if (authIsLoading) {
-      setCheckingAdminData(true); // Ensure loader shows while auth is loading
+      return; // Wait for AuthContext to finish loading its state
+    }
+
+    if (user && isAdmin) {
+      // If AuthContext confirms an admin is logged in, go to dashboard
+      router.replace('/admin/dashboard');
       return;
     }
 
-    // If user is already identified as admin by AuthContext, go to dashboard
-    if (user && isAdmin) {
-      router.replace('/admin/dashboard');
-      return; // Stop further execution in this effect
-    }
-
-    // If not an admin (or user not loaded yet by AuthContext but authIsLoading is false),
-    // then check if admin data exists to decide between login/create-account
-    async function checkAndRedirect() {
-      setCheckingAdminData(true);
+    // If AuthContext shows no logged-in admin, proceed to check server-side status
+    async function determineAdminRoute() {
       try {
         const { adminExists } = await checkAdminDataExistsAction();
         if (adminExists) {
@@ -38,16 +33,18 @@ export default function AdminRootPage() {
         }
       } catch (error) {
         console.error("Failed to check admin status:", error);
-        router.replace('/admin/create-account'); // Fallback
+        // Fallback to login page on error to be safe, or create-account if preferred
+        router.replace('/admin/login');
       }
-      // No need to setCheckingAdminData(false) here as redirection will unmount this page.
     }
-    checkAndRedirect();
 
-  }, [router, user, isAdmin, authIsLoading]);
+    determineAdminRoute();
 
-  // Show a loader while AuthContext is loading or admin data check is in progress
-  if (authIsLoading || checkingAdminData) {
+  }, [user, isAdmin, authIsLoading, router]);
+
+  // Show a loader ONLY while AuthContext is loading.
+  // Once authIsLoading is false, redirection logic in useEffect should take over.
+  if (authIsLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -56,5 +53,7 @@ export default function AdminRootPage() {
     );
   }
 
-  return null; // Should have redirected by now
+  // Once authIsLoading is false, this component should have already initiated a redirect.
+  // Returning null prevents any flash of unstyled content or incorrect UI.
+  return null;
 }

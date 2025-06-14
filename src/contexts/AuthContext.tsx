@@ -1,8 +1,9 @@
+
 'use client';
 
 import type { AuthUser, User } from '@/lib/types';
 import type React from 'react';
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -36,7 +37,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(false);
   }, []);
 
-  const login = (userData: AuthUser, adminStatus: boolean = false) => {
+  const login = useCallback((userData: AuthUser, adminStatus: boolean = false) => {
     setUser(userData);
     setIsAdmin(adminStatus);
     try {
@@ -45,9 +46,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error("Failed to save user to localStorage", error);
     }
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     setUser(null);
     setIsAdmin(false);
     try {
@@ -56,9 +57,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error("Failed to remove user from localStorage", error);
     }
-  };
+  }, []);
 
-  const updateAuthUser = (updatedUserData: Partial<AuthUser>) => {
+  const updateAuthUser = useCallback((updatedUserData: Partial<AuthUser>) => {
     setUser(prevUser => {
       if (!prevUser) return null;
       const newUser = { ...prevUser, ...updatedUserData };
@@ -69,7 +70,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return newUser;
     });
-  };
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, isAdmin, login, logout, updateAuthUser, isLoading }}>

@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useActionState, useEffect, useState, useCallback } from 'react';
@@ -37,7 +36,9 @@ export default function TwoFactorAuthForm() {
   const [isTwoFactorEnabledLocally, setIsTwoFactorEnabledLocally] = useState(false);
   const [showEnableForm, setShowEnableForm] = useState(false);
   const [showDisableForm, setShowDisableForm] = useState(false);
-  const [showCurrentPasswordFor2FA, setShowCurrentPasswordFor2FA] = useState(false); // Used by both enable/disable forms
+  const [showCurrentPasswordFor2FA, setShowCurrentPasswordFor2FA] = useState(false);
+  const [lastProcessedMessage, setLastProcessedMessage] = useState<string | null | undefined>(null);
+
 
   useEffect(() => {
     if (user && 'twoFactorEnabled' in user) {
@@ -47,36 +48,44 @@ export default function TwoFactorAuthForm() {
 
   useEffect(() => {
     const activeState = enableState?.actionType === 'enable' ? enableState : disableState;
-    if (activeState?.message) {
+    
+    if (activeState?.message && activeState.message !== lastProcessedMessage) {
+      setLastProcessedMessage(activeState.message); // Mark as processed
+
       toast({
         title: activeState.success ? 'Success!' : 'Error',
         description: activeState.message,
         variant: activeState.success ? 'default' : 'destructive',
       });
+
       if (activeState.success) {
         const new2FAStatus = activeState.actionType === 'enable';
-        setIsTwoFactorEnabledLocally(new2FAStatus);
+        // setIsTwoFactorEnabledLocally is updated by the effect listening to `user`
         if (user && 'id' in user) { 
             updateAuthUser((currentUser) => {
                 if (!currentUser || !('id' in currentUser)) return currentUser; 
-                return { ...currentUser, twoFactorEnabled: new2FAStatus };
+                // Only return a new object if the status actually changed
+                if (('twoFactorEnabled' in currentUser) && currentUser.twoFactorEnabled !== new2FAStatus) {
+                    return { ...currentUser, twoFactorEnabled: new2FAStatus };
+                }
+                return currentUser;
             });
         }
         setShowEnableForm(false);
         setShowDisableForm(false);
-        setShowCurrentPasswordFor2FA(false); // Reset password visibility
+        setShowCurrentPasswordFor2FA(false); 
         (document.getElementById('enable2FAForm') as HTMLFormElement)?.reset();
         (document.getElementById('disable2FAForm') as HTMLFormElement)?.reset();
       }
     }
-  }, [enableState, disableState, toast, updateAuthUser, user]);
+  }, [enableState, disableState, toast, updateAuthUser, user, lastProcessedMessage]);
 
   if (!user || !('id' in user)) { 
     return <p>Loading user data or 2FA not applicable...</p>;
   }
 
   const handleToggleChange = useCallback((checked: boolean) => {
-    setShowCurrentPasswordFor2FA(false); // Reset on toggle
+    setShowCurrentPasswordFor2FA(false); 
     if (checked) { 
         setShowEnableForm(true);
         setShowDisableForm(false);

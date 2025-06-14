@@ -70,8 +70,10 @@ const SignupSchema = z.object({
 });
 
 const AdminLoginSchema = z.object({
-  username: z.string().min(1, { message: 'Username is required.' }),
-  password: z.string().min(1, { message: 'Password is required.' }),
+  username: z.string().min(1, { message: 'Username is required.' }).optional(), // Optional for PIN step
+  password: z.string().min(1, { message: 'Password is required.' }).optional(), // Optional for PIN step
+  pin: z.string().length(6, { message: 'PIN must be 6 digits.' }).regex(/^\d{6}$/, "PIN must be 6 digits.").optional(),
+  adminIdForPin: z.string().optional(),
 });
 
 const AdminCreateAccountSchema = z.object({
@@ -211,9 +213,8 @@ const AboutUsContentSchema = z.object({
   offerTitle: z.string().min(1, "Offer title is required"),
   offerItems: z.preprocess(
     (val) => {
-      // Handle array of FormData entries for titles and descriptions
       const items: { title: string; description: string }[] = [];
-      const data = val as Record<string, any>; // Assuming val is an object from Object.fromEntries
+      const data = val as Record<string, any>; 
       let i = 0;
       while(data[`offerItems[${i}].title`] !== undefined || data[`offerItems[${i}].description`] !== undefined) {
         items.push({
@@ -222,10 +223,8 @@ const AboutUsContentSchema = z.object({
         });
         i++;
       }
-      // If items were constructed, return them. Otherwise, return original value for Zod to handle.
-      // This handles both direct array passing (e.g. from JSON or state) and form data.
       if (items.length > 0) return items;
-      return val; // Fallback to original val, Zod will validate its structure
+      return val; 
     },
     z.array(
       z.object({
@@ -277,7 +276,7 @@ const GuidelinesPageContentSchema = z.object({
     }
   }
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { keyAreasJSON, ...rest } = data; // remove keyAreasJSON after processing
+  const { keyAreasJSON, ...rest } = data; 
   return rest;
 });
 
@@ -337,8 +336,11 @@ export type AdminLoginFormState = {
   errors?: {
     username?: string[];
     password?: string[];
+    pin?: string[];
     general?: string[];
   };
+  requiresPin?: boolean;
+  adminIdForPin?: string;
 };
 
 type CodeBlockError = { language?: string[]; code?: string[] };
@@ -436,6 +438,9 @@ export async function loginUser(prevState: LoginFormState, formData: FormData): 
     return { message: 'Login successful!', user: {...userToReturn, isAdmin: false} };
 
   } else {
+    if (!identifier || !password) {
+        return { message: 'Username/email and password are required.', errors: { general: ['Username/email and password are required.'] } };
+    }
     targetUser = users.find(u => (u.email === identifier || u.username === identifier));
     if (!targetUser || !targetUser.passwordHash) {
       return { message: 'Invalid credentials.', errors: { general: ['Invalid username/email or password.'] } };
@@ -469,7 +474,6 @@ export async function signupUser(prevState: SignupFormState, formData: FormData)
     };
   }
 
-  // Check if new user registrations are allowed
   const settings = await getSiteSettingsFromFile();
   if (!settings.allowNewUserRegistrations) {
     return {
@@ -517,20 +521,57 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
     };
   }
 
-  const { username, password } = validatedFields.data;
+  const { username, password, pin, adminIdForPin } = validatedFields.data;
   const adminUsers = await getAdminUsers();
-  const adminUser = adminUsers.find(admin => admin.username === username);
+  let targetAdmin: StoredAdminUser | undefined;
 
-  if (!adminUser || !adminUser.passwordHash) {
-    return { message: 'Invalid username or password.', errors: { general: ['Invalid username or password.'] } };
+  if (adminIdForPin && pin) { // PIN verification step
+    targetAdmin = adminUsers.find(admin => admin.id === adminIdForPin);
+    if (!targetAdmin) {
+      return { message: 'Admin user not found for PIN verification.', errors: { general: ['An error occurred. Please try logging in again.'] } };
+    }
+    if (!targetAdmin.twoFactorEnabled || !targetAdmin.twoFactorPinHash) {
+      return { message: '2FA is not enabled for this admin or PIN not set up.', errors: { general: ['Admin 2FA error. Please try logging in again.'] } };
+    }
+    const pinMatches = await comparePin(pin, targetAdmin.twoFactorPinHash);
+    if (!pinMatches) {
+      return {
+        message: 'Invalid PIN.',
+        errors: { pin: ['Incorrect PIN.'] },
+        requiresPin: true,
+        adminIdForPin: targetAdmin.id,
+      };
+    }
+    // PIN is correct, proceed to login
+  } else if (username && password) { // Initial username/password step
+    targetAdmin = adminUsers.find(admin => admin.username === username);
+    if (!targetAdmin || !targetAdmin.passwordHash) {
+      return { message: 'Invalid username or password.', errors: { general: ['Invalid username or password.'] } };
+    }
+    const passwordMatches = await comparePassword(password, targetAdmin.passwordHash);
+    if (!passwordMatches) {
+      return { message: 'Invalid username or password.', errors: { general: ['Invalid username or password.'] } };
+    }
+
+    if (targetAdmin.twoFactorEnabled) {
+      return {
+        message: 'Please enter your 2FA PIN.',
+        requiresPin: true,
+        adminIdForPin: targetAdmin.id,
+      };
+    }
+    // Password correct and 2FA not enabled, proceed to login
+  } else {
+    // This case should not happen if form is structured correctly
+    return { message: 'Invalid login attempt.', errors: { general: ['Invalid login state.'] } };
   }
 
-  const passwordMatches = await comparePassword(password, adminUser.passwordHash);
-  if (!passwordMatches) {
-    return { message: 'Invalid username or password.', errors: { general: ['Invalid username or password.'] } };
+  if (!targetAdmin) { // Should be caught earlier, but as a safeguard
+    return { message: 'Admin user not found.', errors: { general: ['Admin user not found.'] } };
   }
 
-  cookies().set(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS, adminUser.id, {
+  // If all checks pass (either direct login or PIN verification successful)
+  cookies().set(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS, targetAdmin.id, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     path: '/admin',
@@ -539,9 +580,10 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
   });
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { passwordHash, twoFactorPinHash, ...adminUserToReturn } = adminUser;
-  return { message: 'Admin login successful!', adminUser: {...adminUserToReturn, isAdmin: true } };
+  const { passwordHash, twoFactorPinHash, ...adminUserToReturn } = targetAdmin;
+  return { message: 'Admin login successful!', adminUser: { ...adminUserToReturn, isAdmin: true } };
 }
+
 
 export async function logoutAdminAction(): Promise<{ success: boolean }> {
   try {
@@ -940,8 +982,8 @@ export async function deleteDesignAction(designId: string): Promise<DeleteDesign
       return { success: false, message: 'Design not found or already deleted.' };
     }
     revalidatePath('/dashboard/designs');
-    revalidatePath('/admin/designs'); // Also revalidate admin designs page
-    revalidatePath('/'); // Revalidate home page as well
+    revalidatePath('/admin/designs'); 
+    revalidatePath('/'); 
     return { success: true, message: 'Design deleted successfully.' };
   } catch (error) {
     console.error('Error deleting design via action:', error);
@@ -955,7 +997,7 @@ export async function checkAdminDataExistsAction(): Promise<{ adminExists: boole
     return { adminExists: admins.length > 0 };
   } catch (error) {
     console.error("Error checking admin data:", error);
-    return { adminExists: false }; // Default to false on error, forcing creation flow
+    return { adminExists: false }; 
   }
 }
 
@@ -993,7 +1035,7 @@ export async function createAdminAccountAction(prevState: AdminCreateAccountForm
     phone,
     passwordHash: hashedPassword,
     avatarUrl: `https://placehold.co/100x100.png?text=${name.charAt(0).toUpperCase()}`,
-    twoFactorEnabled: false, // Default for new admin
+    twoFactorEnabled: false, 
   };
 
   try {
@@ -1007,7 +1049,6 @@ export async function createAdminAccountAction(prevState: AdminCreateAccountForm
   }
 }
 
-// Action for admins to get all users (sanitized)
 export async function getAllUsersAdminAction(): Promise<User[]> {
   try {
     const storedUsers = await getUsersFromFile();
@@ -1022,7 +1063,6 @@ export async function getAllUsersAdminAction(): Promise<User[]> {
   }
 }
 
-// Action for admins to delete a user
 export async function deleteUserAdminAction(userId: string): Promise<{ success: boolean; message: string }> {
   if (!userId) {
     return { success: false, message: 'User ID is required for deletion.' };
@@ -1083,7 +1123,6 @@ export async function updateSiteSettingsAction(
   }
 }
 
-// Admin Account Settings Actions
 
 export async function updateAdminProfileAction(
   prevState: UpdateAdminProfileFormState,
@@ -1252,7 +1291,6 @@ export async function getPageContentAction(pageKey: PageContentKeys): Promise<an
       return allContent[pageKey];
     }
     console.warn(`Content for key "${pageKey}" not found in getPageContentAction.`);
-    // Return a default structure if content is missing to prevent errors on page load
     switch (pageKey) {
       case 'aboutUs': return {} as AboutUsContent;
       case 'support': return {} as SupportPageContent;
@@ -1262,7 +1300,6 @@ export async function getPageContentAction(pageKey: PageContentKeys): Promise<an
     }
   } catch (error) {
     console.error(`Error in getPageContentAction for key "${pageKey}":`, error);
-    // Return a default structure on error as well
     switch (pageKey) {
       case 'aboutUs': return {} as AboutUsContent;
       case 'support': return {} as SupportPageContent;
@@ -1284,7 +1321,6 @@ export async function updatePageContentAction<T extends PageContentKeys>(
 
   const rawData = Object.fromEntries(formData.entries());
 
-  // Special handling for offerItems in aboutUs if they are sent as individual fields
   if (pageKey === 'aboutUs') {
     const offerItems: { title: string; description: string }[] = [];
     let i = 0;
@@ -1305,7 +1341,6 @@ export async function updatePageContentAction<T extends PageContentKeys>(
   }
 
 
-  // Special handling for keyAreasJSON in guidelines
   if (pageKey === 'guidelines' && rawData.keyAreasJSON && typeof rawData.keyAreasJSON === 'string') {
       try {
           const parsedKeyAreas = JSON.parse(rawData.keyAreasJSON);
@@ -1360,7 +1395,7 @@ export async function updateSiteLogoAction(prevState: SiteLogoUploadState, formD
 
   try {
     const buffer = Buffer.from(await logoFile.arrayBuffer());
-    const fileName = "site_logo.png"; // Standardized name
+    const fileName = "site_logo.png"; 
     const filePath = await saveSiteLogoToServer(buffer, fileName);
 
     revalidatePath('/'); 
@@ -1372,6 +1407,5 @@ export async function updateSiteLogoAction(prevState: SiteLogoUploadState, formD
     return { message: 'Failed to upload logo. Please try again.', success: false, errors: { general: ['Server error during upload.'] } };
   }
 }
-
-
+ 
     

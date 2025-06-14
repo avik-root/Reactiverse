@@ -1,5 +1,4 @@
 
-
 // This file should only be imported by server-side code (e.g., server actions, API routes)
 import type { StoredAdminUser, StoredUser, Design } from './types';
 import fs from 'fs/promises';
@@ -78,6 +77,33 @@ export async function updateUserInFile(updatedUser: StoredUser): Promise<boolean
     throw error; // Re-throw
   }
 }
+
+export async function deleteUserFromFile(userId: string): Promise<boolean> {
+  try {
+    let users = await getUsersFromFile();
+    const initialLength = users.length;
+    users = users.filter(u => u.id !== userId);
+    if (users.length === initialLength) {
+      console.warn('User not found for deletion:', userId);
+      return false; // User not found
+    }
+    await fs.writeFile(USERS_FILE_PATH, JSON.stringify(users, null, 2), 'utf-8');
+    
+    // Also remove designs submitted by this user
+    let designs = await getDesignsFromFile();
+    const designsByDeletedUser = designs.filter(d => d.submittedByUserId === userId);
+    if (designsByDeletedUser.length > 0) {
+        designs = designs.filter(d => d.submittedByUserId !== userId);
+        await saveDesignsToFile(designs);
+        console.log(`Deleted ${designsByDeletedUser.length} designs associated with user ${userId}`);
+    }
+    return true;
+  } catch (error) {
+    console.error('Failed to delete user from users.json or their designs:', error);
+    throw error;
+  }
+}
+
 
 export async function getDesignsFromFile(): Promise<Design[]> {
   try {

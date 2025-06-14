@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { z } from 'zod';
@@ -13,7 +12,8 @@ import {
   updateDesignInFile,
   deleteDesignFromFile,
   saveDesignsToFile,
-  saveFirstAdminUser
+  saveFirstAdminUser,
+  deleteUserFromFile as deleteUserFromServerData, // Renamed to avoid conflict
 } from './server-data';
 import type { AdminUser, User, Design, AuthUser, StoredUser, StoredAdminUser, CodeBlockItem, DeleteDesignResult, AdminCreateAccountFormState } from './types';
 import { revalidatePath } from 'next/cache';
@@ -722,6 +722,7 @@ export async function deleteDesignAction(designId: string): Promise<DeleteDesign
       return { success: false, message: 'Design not found or already deleted.' };
     }
     revalidatePath('/dashboard/designs');
+    revalidatePath('/admin/designs'); // Also revalidate admin designs page
     revalidatePath('/'); // Revalidate home page as well
     return { success: true, message: 'Design deleted successfully.' };
   } catch (error) {
@@ -787,4 +788,42 @@ export async function createAdminAccountAction(prevState: AdminCreateAccountForm
   }
 }
 
+// Action for admins to get all users (sanitized)
+export async function getAllUsersAdminAction(): Promise<User[]> {
+  try {
+    const storedUsers = await getUsersFromFile();
+    return storedUsers.map(user => {
+      const { passwordHash, twoFactorPinHash, ...sanitizedUser } = user;
+      return sanitizedUser;
+    });
+  } catch (error) {
+    console.error("Error fetching all users for admin:", error);
+    return [];
+  }
+}
 
+// Action for admins to delete a user
+export async function deleteUserAdminAction(userId: string): Promise<{ success: boolean; message: string }> {
+  if (!userId) {
+    return { success: false, message: 'User ID is required for deletion.' };
+  }
+
+  // Optional: Add a check to prevent admin from deleting their own account via this specific user list
+  // This would require knowing the current admin's ID, which is tricky in a generic server action
+  // without passing it, or relying on auth context (which server actions don't have directly).
+  // For now, client-side check is implemented in the ManageUsersPage.
+
+  try {
+    const deleted = await deleteUserFromServerData(userId); // Use renamed import
+    if (!deleted) {
+      return { success: false, message: 'User not found or already deleted.' };
+    }
+    revalidatePath('/admin/users');
+    // Also consider revalidating other paths if users affect them (e.g., designs by that user)
+    // For now, just revalidating the user list.
+    return { success: true, message: 'User deleted successfully.' };
+  } catch (error) {
+    console.error('Error deleting user via admin action:', error);
+    return { success: false, message: 'Failed to delete user due to a server error.' };
+  }
+}

@@ -1,1 +1,11 @@
-[]
+[
+  {
+    "id": "admin-1749930797589",
+    "name": "Aviksha",
+    "username": "aviksha",
+    "email": "aaviksha@gmal.com",
+    "phone": "+919294969890",
+    "passwordHash": "$2a$10$m.5RNxWXs7xb31J3gLBRauCnti8NtEs3avv86Xcj1skcvPjlU9QJ2",
+    "avatarUrl": "https://placehold.co/100x100.png?text=A"
+  }
+]

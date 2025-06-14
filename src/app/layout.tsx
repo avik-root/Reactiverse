@@ -1,3 +1,4 @@
+
 import type { Metadata } from 'next';
 import './globals.css';
 import '@/components/core/DotGrid.css'; // Import CSS for DotGrid
@@ -5,7 +6,7 @@ import { Toaster } from '@/components/ui/toaster';
 import Header from '@/components/core/Header';
 import Footer from '@/components/core/Footer';
 import { AuthProvider } from '@/contexts/AuthContext';
-import DotGrid from '@/components/core/DotGrid'; // Import DotGrid component
+import ClientDotGrid from '@/components/core/ClientDotGrid'; // Import the new client component
 
 export const metadata: Metadata = {
   title: 'Reactiverse - Showcase Your Designs',
@@ -26,7 +27,7 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased"> {/* Main body styling */}
-        <DotGrid
+        <ClientDotGrid
           dotSize={2} // Size of each dot
           gap={30} // Spacing between dots
           baseColor="#B085FF" // Dark theme primary: hsl(271, 100%, 75.3%)

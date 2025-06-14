@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import type { Design, DeleteDesignResult } from '@/lib/types';
 import DesignCard from '@/components/design/DesignCard';
 import DesignDetailDialog from '@/components/design/DesignDetailDialog';
-import { getAllDesignsAction, deleteDesignAction } from '@/lib/actions'; 
+import { getAllDesignsAction, deleteDesignAction } from '@/lib/actions';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,8 @@ import Link from 'next/link';
 import { PlusCircle, Info, Edit, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,7 +24,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
 
@@ -36,10 +37,11 @@ export default function MyDesignsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [designToDelete, setDesignToDelete] = useState<Design | null>(null);
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
 
   useEffect(() => {
     async function fetchUserDesigns() {
-      if (!user || !('id' in user)) { 
+      if (!user || !('id' in user)) {
         setIsLoading(false);
         return;
       }
@@ -63,11 +65,12 @@ export default function MyDesignsPage() {
 
   const handleDeleteClick = (design: Design) => {
     setDesignToDelete(design);
+    setDeleteConfirmationText(''); // Reset confirmation text
     setIsDeleteAlertOpen(true);
   };
 
   const handleConfirmDelete = async () => {
-    if (designToDelete) {
+    if (designToDelete && deleteConfirmationText.toLowerCase() === 'delete') {
       const result: DeleteDesignResult = await deleteDesignAction(designToDelete.id);
       toast({
         title: result.success ? "Success" : "Error",
@@ -79,7 +82,20 @@ export default function MyDesignsPage() {
       }
       setIsDeleteAlertOpen(false);
       setDesignToDelete(null);
+      setDeleteConfirmationText('');
+    } else if (deleteConfirmationText.toLowerCase() !== 'delete') {
+        toast({
+            title: "Confirmation Error",
+            description: "Please type 'delete' to confirm.",
+            variant: "destructive",
+        });
     }
+  };
+
+  const handleCloseDeleteAlert = () => {
+    setIsDeleteAlertOpen(false);
+    setDesignToDelete(null);
+    setDeleteConfirmationText('');
   };
 
 
@@ -102,10 +118,11 @@ export default function MyDesignsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(3)].map((_, i) => (
               <div key={i} className="space-y-2 p-4 border rounded-lg bg-card">
-                <Skeleton className="h-[100px] w-full rounded-lg bg-muted/50" />
+                 <div className="bg-muted/30 flex items-center justify-center aspect-[16/9] min-h-[150px] rounded-t-lg">
+                    <Skeleton className="h-16 w-16 text-primary/70" />
+                </div>
                 <Skeleton className="h-6 w-3/4 rounded-md" />
                 <Skeleton className="h-4 w-1/2 rounded-md" />
-                <Skeleton className="h-8 w-1/3 rounded-md mt-2" />
                 <div className="flex gap-2 mt-2">
                   <Skeleton className="h-8 w-1/2 rounded-md" />
                   <Skeleton className="h-8 w-1/2 rounded-md" />
@@ -118,7 +135,7 @@ export default function MyDesignsPage() {
             {userDesigns.map((design) => (
               <div key={design.id} className="flex flex-col">
                 <DesignCard design={design} onOpenDetail={handleOpenDetail} />
-                <div className="mt-2 flex gap-2 p-2 bg-card border border-t-0 rounded-b-lg">
+                <div className="mt-auto flex gap-2 p-2 bg-card border border-t-0 rounded-b-lg">
                   <Button variant="outline" size="sm" asChild className="flex-1">
                     <Link href={`/dashboard/designs/edit/${design.id}`}>
                       <Edit className="mr-1.5 h-3.5 w-3.5" /> Edit
@@ -136,7 +153,7 @@ export default function MyDesignsPage() {
             <Info className="h-4 w-4" />
             <AlertTitle>No Designs Yet!</AlertTitle>
             <AlertDescription>
-              You haven&apos;t submitted any designs. 
+              You haven&apos;t submitted any designs.
               <Button variant="link" asChild className="p-0 h-auto ml-1 text-accent">
                 <Link href="/dashboard/designs/submit">Click here to add your first design!</Link>
               </Button>
@@ -154,18 +171,40 @@ export default function MyDesignsPage() {
       )}
 
       {designToDelete && (
-         <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
+         <AlertDialog open={isDeleteAlertOpen} onOpenChange={(isOpen) => {
+             if (!isOpen) {
+                handleCloseDeleteAlert();
+             } else {
+                setIsDeleteAlertOpen(true);
+             }
+         }}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
               <AlertDialogDescription>
                 This action cannot be undone. This will permanently delete your design
-                &quot;{designToDelete.title}&quot; and remove its data from our servers.
+                &quot;{designToDelete.title}&quot;. <br/>
+                To confirm, please type <strong className="text-destructive">delete</strong> in the box below.
               </AlertDialogDescription>
             </AlertDialogHeader>
+            <div className="space-y-2 my-4">
+              <Label htmlFor="deleteConfirmInput" className="sr-only">Confirm delete</Label>
+              <Input
+                id="deleteConfirmInput"
+                type="text"
+                value={deleteConfirmationText}
+                onChange={(e) => setDeleteConfirmationText(e.target.value)}
+                placeholder="Type 'delete' to confirm"
+                className="border-primary focus:ring-destructive"
+              />
+            </div>
             <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setDesignToDelete(null)}>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive hover:bg-destructive/90">
+              <AlertDialogCancel onClick={handleCloseDeleteAlert}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleConfirmDelete}
+                disabled={deleteConfirmationText.toLowerCase() !== 'delete'}
+                className={deleteConfirmationText.toLowerCase() === 'delete' ? "bg-destructive hover:bg-destructive/90" : "bg-destructive/50 cursor-not-allowed"}
+              >
                 Yes, delete design
               </AlertDialogAction>
             </AlertDialogFooter>

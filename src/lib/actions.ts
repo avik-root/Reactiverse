@@ -14,8 +14,22 @@ import {
   saveDesignsToFile,
   saveFirstAdminUser,
   deleteUserFromFile as deleteUserFromServerData, // Renamed to avoid conflict
+  getSiteSettings as getSiteSettingsFromFile,
+  saveSiteSettings as saveSiteSettingsToFile,
 } from './server-data';
-import type { AdminUser, User, Design, AuthUser, StoredUser, StoredAdminUser, CodeBlockItem, DeleteDesignResult, AdminCreateAccountFormState } from './types';
+import type { 
+  AdminUser, 
+  User, 
+  Design, 
+  AuthUser, 
+  StoredUser, 
+  StoredAdminUser, 
+  CodeBlockItem, 
+  DeleteDesignResult, 
+  AdminCreateAccountFormState,
+  SiteSettings,
+  SiteSettingsFormState
+} from './types';
 import { revalidatePath } from 'next/cache';
 import { hashPassword, comparePassword, hashPin, comparePin } from './auth-utils';
 
@@ -118,6 +132,20 @@ const EnableTwoFactorSchema = z.object({
 const DisableTwoFactorSchema = z.object({
   userId: z.string(),
   currentPasswordFor2FA: z.string().min(1, {message: "Current password is required to disable 2FA."}),
+});
+
+const HSLColorSchema = z.string()
+  .regex(
+    /^\d{1,3}\s+\d{1,3}%\s+\d{1,3}(?:\.\d+)?%$/,
+    "Invalid HSL format. Example: '271 100% 75.3%'"
+  )
+  .optional();
+
+const SiteSettingsSchema = z.object({
+  siteTitle: z.string().min(3, { message: 'Site title must be at least 3 characters.' }),
+  allowNewUserRegistrations: z.preprocess((val) => val === 'on' || val === true, z.boolean()),
+  primaryHSL: HSLColorSchema,
+  accentHSL: HSLColorSchema,
 });
 
 
@@ -281,6 +309,15 @@ export async function signupUser(prevState: SignupFormState, formData: FormData)
     return {
       errors: validatedFields.error.flatten().fieldErrors,
       message: 'Invalid fields. Please check your input.',
+    };
+  }
+
+  // Check if new user registrations are allowed
+  const settings = await getSiteSettingsFromFile();
+  if (!settings.allowNewUserRegistrations) {
+    return {
+      message: 'New user registrations are currently disabled by the administrator.',
+      errors: { general: ['Registrations are disabled.'] }
     };
   }
 
@@ -825,5 +862,49 @@ export async function deleteUserAdminAction(userId: string): Promise<{ success: 
   } catch (error) {
     console.error('Error deleting user via admin action:', error);
     return { success: false, message: 'Failed to delete user due to a server error.' };
+  }
+}
+
+export async function getSiteSettingsAction(): Promise<SiteSettings> {
+  return getSiteSettingsFromFile();
+}
+
+export async function updateSiteSettingsAction(
+  prevState: SiteSettingsFormState,
+  formData: FormData
+): Promise<SiteSettingsFormState> {
+  const validatedFields = SiteSettingsSchema.safeParse(Object.fromEntries(formData.entries()));
+
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: 'Invalid settings. Please check your input.',
+      success: false,
+    };
+  }
+  
+  const { siteTitle, allowNewUserRegistrations, primaryHSL, accentHSL } = validatedFields.data;
+
+  // Fetch current settings to preserve any fields not in the form or for default values
+  const currentSettings = await getSiteSettingsFromFile();
+
+  const newSettings: SiteSettings = {
+    ...currentSettings, // Start with current settings
+    siteTitle,
+    allowNewUserRegistrations,
+    themeColors: {
+      primaryHSL: primaryHSL || currentSettings.themeColors.primaryHSL, // Use new if provided, else current
+      accentHSL: accentHSL || currentSettings.themeColors.accentHSL,     // Use new if provided, else current
+    },
+  };
+
+  try {
+    await saveSiteSettingsToFile(newSettings);
+    revalidatePath('/admin/settings');
+    // Potentially revalidatePath('/') if siteTitle is used in global layout/metadata
+    return { message: 'Site settings updated successfully!', success: true, settings: newSettings };
+  } catch (error) {
+    console.error('Error updating site settings:', error);
+    return { message: 'Failed to update settings. Please try again.', success: false, errors: { general: ['Server error.'] } };
   }
 }

@@ -1,12 +1,22 @@
 
 // This file should only be imported by server-side code (e.g., server actions, API routes)
-import type { StoredAdminUser, StoredUser, Design } from './types';
+import type { StoredAdminUser, StoredUser, Design, SiteSettings } from './types';
 import fs from 'fs/promises';
 import path from 'path';
 
 const USERS_FILE_PATH = path.join(process.cwd(), 'users.json');
 const ADMIN_USERS_FILE_PATH = path.join(process.cwd(), 'admin.json');
 const DESIGNS_FILE_PATH = path.join(process.cwd(), 'designs.json');
+const SETTINGS_FILE_PATH = path.join(process.cwd(), 'settings.json');
+
+const DEFAULT_SITE_SETTINGS: SiteSettings = {
+  siteTitle: "Reactiverse",
+  allowNewUserRegistrations: true,
+  themeColors: {
+    primaryHSL: "271 100% 75.3%", // Default from globals.css dark theme
+    accentHSL: "300 100% 70%",   // Default from globals.css dark theme
+  }
+};
 
 export async function getAdminUsers(): Promise<StoredAdminUser[]> {
   try {
@@ -170,6 +180,31 @@ export async function deleteDesignFromFile(designId: string): Promise<boolean> {
     return true;
   } catch (error) {
     console.error('Failed to delete design from designs.json:', error);
+    throw error;
+  }
+}
+
+export async function getSiteSettings(): Promise<SiteSettings> {
+  try {
+    const jsonData = await fs.readFile(SETTINGS_FILE_PATH, 'utf-8');
+    return JSON.parse(jsonData) as SiteSettings;
+  } catch (error) {
+    console.warn('Failed to read settings.json or file not found, returning default settings:', error);
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      // Create the file with default settings if it doesn't exist
+      await fs.writeFile(SETTINGS_FILE_PATH, JSON.stringify(DEFAULT_SITE_SETTINGS, null, 2));
+      return DEFAULT_SITE_SETTINGS;
+    }
+    // For other errors, still return default but log the error
+    return DEFAULT_SITE_SETTINGS;
+  }
+}
+
+export async function saveSiteSettings(settings: SiteSettings): Promise<void> {
+  try {
+    await fs.writeFile(SETTINGS_FILE_PATH, JSON.stringify(settings, null, 2), 'utf-8');
+  } catch (error) {
+    console.error('Failed to save site settings to settings.json:', error);
     throw error;
   }
 }

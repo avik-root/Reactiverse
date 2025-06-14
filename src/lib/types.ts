@@ -70,4 +70,25 @@ export type AdminCreateAccountFormState = {
   };
 };
 
+export interface SiteSettings {
+  siteTitle: string;
+  allowNewUserRegistrations: boolean;
+  themeColors: {
+    primaryHSL: string; // e.g., "271 100% 75.3%"
+    accentHSL: string;  // e.g., "300 100% 70%"
+  };
+}
 
+// Form state for Site Settings
+export type SiteSettingsFormState = {
+  message?: string | null;
+  success?: boolean;
+  settings?: SiteSettings | null;
+  errors?: {
+    siteTitle?: string[];
+    allowNewUserRegistrations?: string[];
+    primaryHSL?: string[];
+    accentHSL?: string[];
+    general?: string[];
+  };
+};

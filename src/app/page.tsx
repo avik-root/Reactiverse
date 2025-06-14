@@ -40,9 +40,8 @@ export default function HomePage() {
         <h1 className="text-4xl md:text-5xl font-bold font-headline text-primary mb-4">
           Welcome to Reactiverse
         </h1>
-        <ScrambledText className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-          Discover amazing components and designs shared by our talented community.
-          Dive in and get inspired!
+        <ScrambledText className="text-lg md:text-xl text-muted-foreground mx-auto whitespace-nowrap">
+          Discover amazing components and designs shared by our talented community. Dive in and get inspired!
         </ScrambledText>
       </section>
 

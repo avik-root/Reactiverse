@@ -45,7 +45,9 @@ const Header = () => {
             {navLinks.map(link => (
               <Button variant="ghost" asChild key={link.href}>
                 <Link href={link.href} className="flex items-center text-sm">
-                  <link.icon className="mr-1.5 h-4 w-4" /> {link.label}
+                  <>
+                    <link.icon className="mr-1.5 h-4 w-4" /> {link.label}
+                  </>
                 </Link>
               </Button>
             ))}
@@ -53,12 +55,12 @@ const Header = () => {
         </div>
         
         <div className="flex items-center gap-2">
-          {/* Mobile Nav (Dropdown for main links) - Consider a Sheet for more items if needed */}
+          {/* Mobile Nav (Dropdown for main links) */}
           <div className="md:hidden">
              <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon">
-                  <LayoutDashboard className="h-5 w-5" /> {/* Using LayoutDashboard as a generic menu icon */}
+                  <LayoutDashboard className="h-5 w-5" />
                   <span className="sr-only">Toggle navigation</span>
                 </Button>
               </DropdownMenuTrigger>
@@ -66,8 +68,10 @@ const Header = () => {
                 {navLinks.map((link) => (
                   <DropdownMenuItem key={link.href} asChild>
                     <Link href={link.href} className="flex items-center">
-                      <link.icon className="mr-2 h-4 w-4" />
-                      {link.label}
+                      <>
+                        <link.icon className="mr-2 h-4 w-4" />
+                        {link.label}
+                      </>
                     </Link>
                   </DropdownMenuItem>
                 ))}
@@ -104,15 +108,19 @@ const Header = () => {
                 {isAdmin ? (
                   <DropdownMenuItem asChild>
                     <Link href="/admin/dashboard" className="flex items-center">
-                      <ShieldCheck className="mr-2 h-4 w-4" />
-                      Admin Dashboard
+                      <>
+                        <ShieldCheck className="mr-2 h-4 w-4" />
+                        Admin Dashboard
+                      </>
                     </Link>
                   </DropdownMenuItem>
                 ) : (
                   <DropdownMenuItem asChild>
                     <Link href="/dashboard" className="flex items-center">
-                      <LayoutDashboard className="mr-2 h-4 w-4" />
-                      User Dashboard
+                      <>
+                        <LayoutDashboard className="mr-2 h-4 w-4" />
+                        User Dashboard
+                      </>
                     </Link>
                   </DropdownMenuItem>
                 )}
@@ -126,12 +134,16 @@ const Header = () => {
             <>
               <Button variant="ghost" asChild className="hidden sm:inline-flex">
                 <Link href="/auth/login">
-                  <LogIn className="mr-2 h-4 w-4" /> Login
+                  <>
+                    <LogIn className="mr-2 h-4 w-4" /> Login
+                  </>
                 </Link>
               </Button>
               <Button asChild className="hidden sm:inline-flex">
                 <Link href="/auth/signup">
-                 <UserPlus className="mr-2 h-4 w-4" /> Sign Up
+                 <>
+                   <UserPlus className="mr-2 h-4 w-4" /> Sign Up
+                 </>
                 </Link>
               </Button>
                {/* Mobile Login/Signup buttons */}
@@ -141,7 +153,7 @@ const Header = () => {
                <Button asChild size="icon" className="sm:hidden">
                 <Link href="/auth/signup"><UserPlus className="h-5 w-5" /></Link>
               </Button>
-              <Button variant="outline" size="sm" asChild className="hidden xsm:inline-flex"> {/* xsm is a custom breakpoint, assuming it might exist or for very small screens */}
+              <Button variant="outline" size="sm" asChild className="hidden xsm:inline-flex">
                 <Link href="/admin/login">Admin</Link>
               </Button>
             </>

@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import PasswordStrengthMeter from '@/components/auth/PasswordStrengthMeter';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { UserPlus, KeyRound, ShieldCheck, AtSign, UserSquare2, Phone } from 'lucide-react';
+import { UserPlus, KeyRound, ShieldCheck, AtSign, UserSquare2, Phone, Eye, EyeOff } from 'lucide-react';
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -29,6 +29,8 @@ export default function AdminCreateAccountForm() {
   const { toast } = useToast();
   const router = useRouter();
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     if (state?.message) {
@@ -137,14 +139,25 @@ export default function AdminCreateAccountForm() {
                 <Input 
                     id="password" 
                     name="password" 
-                    type="password" 
+                    type={showPassword ? 'text' : 'password'} 
                     required 
-                    className="pl-10"
+                    className="pl-10 pr-10"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     aria-invalid={!!state?.errors?.password}
                     aria-describedby="password-error"
                 />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
               </div>
               <PasswordStrengthMeter password={password} />
               {state?.errors?.password && <p id="password-error" className="text-sm text-destructive">{state.errors.password.join(', ')}</p>}
@@ -156,12 +169,23 @@ export default function AdminCreateAccountForm() {
                 <Input 
                     id="confirmPassword" 
                     name="confirmPassword" 
-                    type="password" 
+                    type={showConfirmPassword ? 'text' : 'password'}
                     required 
-                    className="pl-10"
+                    className="pl-10 pr-10"
                     aria-invalid={!!state?.errors?.confirmPassword}
                     aria-describedby="confirmPassword-error"
                 />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                  tabIndex={-1}
+                >
+                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
               </div>
               {state?.errors?.confirmPassword && <p id="confirmPassword-error" className="text-sm text-destructive">{state.errors.confirmPassword.join(', ')}</p>}
             </div>
@@ -175,4 +199,3 @@ export default function AdminCreateAccountForm() {
     </div>
   );
 }
-

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useActionState, useEffect, useState } from 'react';
@@ -11,7 +12,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { UserPlus, AtSign, Phone, KeyRound, UserSquare2 } from 'lucide-react';
+import { UserPlus, AtSign, Phone, KeyRound, UserSquare2, Eye, EyeOff } from 'lucide-react';
 import PasswordStrengthMeter from './PasswordStrengthMeter';
 
 function SubmitButton() {
@@ -29,6 +30,7 @@ export default function SignupForm() {
   const { toast } = useToast();
   const router = useRouter();
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (state?.message) {
@@ -111,12 +113,28 @@ export default function SignupForm() {
               <Label htmlFor="password">Password</Label>
                <div className="relative">
                 <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input id="password" name="password" type="password" required className="pl-10"
+                <Input 
+                  id="password" 
+                  name="password" 
+                  type={showPassword ? 'text' : 'password'}
+                  required 
+                  className="pl-10 pr-10"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   aria-invalid={!!state?.errors?.password}
                   aria-describedby="password-error"
                 />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
               </div>
               <PasswordStrengthMeter password={password} />
               {state?.errors?.password && <p id="password-error" className="text-sm text-destructive">{state.errors.password.join(', ')}</p>}

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useActionState, useEffect, useState, useCallback } from 'react';
@@ -11,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { ShieldCheck, ShieldOff, Lock, KeyRound } from 'lucide-react';
+import { ShieldCheck, ShieldOff, Lock, KeyRound, Eye, EyeOff } from 'lucide-react';
 
 function SubmitButton({ actionType }: { actionType: 'enable' | 'disable' }) {
   const { pending } = useFormStatus();
@@ -36,6 +37,7 @@ export default function TwoFactorAuthForm() {
   const [isTwoFactorEnabledLocally, setIsTwoFactorEnabledLocally] = useState(false);
   const [showEnableForm, setShowEnableForm] = useState(false);
   const [showDisableForm, setShowDisableForm] = useState(false);
+  const [showCurrentPasswordFor2FA, setShowCurrentPasswordFor2FA] = useState(false); // Used by both enable/disable forms
 
   useEffect(() => {
     if (user && 'twoFactorEnabled' in user) {
@@ -54,28 +56,27 @@ export default function TwoFactorAuthForm() {
       if (activeState.success) {
         const new2FAStatus = activeState.actionType === 'enable';
         setIsTwoFactorEnabledLocally(new2FAStatus);
-        // Ensure user is defined and is a regular user before trying to update context
         if (user && 'id' in user) { 
-            // Pass a function to updateAuthUser to ensure it uses the latest user state from context
             updateAuthUser((currentUser) => {
-                if (!currentUser || !('id' in currentUser)) return currentUser; // Should not happen if 'id' in user check passed
+                if (!currentUser || !('id' in currentUser)) return currentUser; 
                 return { ...currentUser, twoFactorEnabled: new2FAStatus };
             });
         }
         setShowEnableForm(false);
         setShowDisableForm(false);
+        setShowCurrentPasswordFor2FA(false); // Reset password visibility
         (document.getElementById('enable2FAForm') as HTMLFormElement)?.reset();
         (document.getElementById('disable2FAForm') as HTMLFormElement)?.reset();
       }
     }
-  // Removed `user` from dependency array to prevent loop. `updateAuthUser` is stable.
-  }, [enableState, disableState, toast, updateAuthUser]);
+  }, [enableState, disableState, toast, updateAuthUser, user]);
 
   if (!user || !('id' in user)) { 
     return <p>Loading user data or 2FA not applicable...</p>;
   }
 
   const handleToggleChange = useCallback((checked: boolean) => {
+    setShowCurrentPasswordFor2FA(false); // Reset on toggle
     if (checked) { 
         setShowEnableForm(true);
         setShowDisableForm(false);
@@ -133,14 +134,32 @@ export default function TwoFactorAuthForm() {
               <Label htmlFor="currentPasswordFor2FA_enable">Current Password</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input id="currentPasswordFor2FA_enable" name="currentPasswordFor2FA" type="password" required className="pl-10" aria-describedby="enable-currentPassword-error"/>
+                <Input 
+                    id="currentPasswordFor2FA_enable" 
+                    name="currentPasswordFor2FA" 
+                    type={showCurrentPasswordFor2FA ? 'text' : 'password'} 
+                    required 
+                    className="pl-10 pr-10" 
+                    aria-describedby="enable-currentPassword-error"
+                />
+                 <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowCurrentPasswordFor2FA(!showCurrentPasswordFor2FA)}
+                  aria-label={showCurrentPasswordFor2FA ? "Hide password" : "Show password"}
+                  tabIndex={-1}
+                >
+                  {showCurrentPasswordFor2FA ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
               </div>
               {enableState?.errors?.currentPasswordFor2FA && <p id="enable-currentPassword-error" className="text-sm text-destructive">{enableState.errors.currentPasswordFor2FA.join(', ')}</p>}
             </div>
             {enableState?.errors?.general && <p className="text-sm text-destructive">{enableState.errors.general.join(', ')}</p>}
-            <CardFooter className="p-0 pt-2">
+            <CardFooter className="p-0 pt-2 flex gap-2">
               <SubmitButton actionType="enable" />
-              <Button variant="outline" type="button" onClick={() => setShowEnableForm(false)} className="ml-2">Cancel</Button>
+              <Button variant="outline" type="button" onClick={() => {setShowEnableForm(false); setShowCurrentPasswordFor2FA(false);}} className="w-full sm:w-auto">Cancel</Button>
             </CardFooter>
           </form>
         )}
@@ -153,14 +172,32 @@ export default function TwoFactorAuthForm() {
               <Label htmlFor="currentPasswordFor2FA_disable">Current Password</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input id="currentPasswordFor2FA_disable" name="currentPasswordFor2FA" type="password" required className="pl-10" aria-describedby="disable-currentPassword-error"/>
+                <Input 
+                  id="currentPasswordFor2FA_disable" 
+                  name="currentPasswordFor2FA" 
+                  type={showCurrentPasswordFor2FA ? 'text' : 'password'} 
+                  required 
+                  className="pl-10 pr-10" 
+                  aria-describedby="disable-currentPassword-error"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowCurrentPasswordFor2FA(!showCurrentPasswordFor2FA)}
+                  aria-label={showCurrentPasswordFor2FA ? "Hide password" : "Show password"}
+                  tabIndex={-1}
+                >
+                  {showCurrentPasswordFor2FA ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
               </div>
               {disableState?.errors?.currentPasswordFor2FA && <p id="disable-currentPassword-error" className="text-sm text-destructive">{disableState.errors.currentPasswordFor2FA.join(', ')}</p>}
             </div>
             {disableState?.errors?.general && <p className="text-sm text-destructive">{disableState.errors.general.join(', ')}</p>}
-             <CardFooter className="p-0 pt-2">
+             <CardFooter className="p-0 pt-2 flex gap-2">
                 <SubmitButton actionType="disable" />
-                <Button variant="outline" type="button" onClick={() => setShowDisableForm(false)} className="ml-2">Cancel</Button>
+                <Button variant="outline" type="button" onClick={() => {setShowDisableForm(false); setShowCurrentPasswordFor2FA(false);}} className="w-full sm:w-auto">Cancel</Button>
             </CardFooter>
           </form>
         )}

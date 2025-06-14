@@ -1,7 +1,8 @@
 
+
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react'; // Added useState
 import { useFormStatus } from 'react-dom';
 import { loginAdmin, type AdminLoginFormState } from '@/lib/actions';
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,7 @@ import { useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
-import { ShieldAlert } from 'lucide-react';
+import { ShieldAlert, Eye, EyeOff, KeyRound } from 'lucide-react'; // Added Eye, EyeOff, KeyRound
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -29,6 +30,7 @@ export default function AdminLoginForm() {
   const { toast } = useToast();
   const { login: authLogin, user: authUser, isAdmin } = useAuth();
   const router = useRouter();
+  const [showPassword, setShowPassword] = useState(false); // State for password visibility
 
   useEffect(() => {
     if (state?.message && !state.adminUser) {
@@ -73,10 +75,29 @@ export default function AdminLoginForm() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" name="password" type="password" required 
-                aria-invalid={!!state?.errors?.password}
-                aria-describedby="password-error"
-              />
+              <div className="relative">
+                <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  id="password" 
+                  name="password" 
+                  type={showPassword ? 'text' : 'password'} 
+                  required 
+                  className="pl-10 pr-10"
+                  aria-invalid={!!state?.errors?.password}
+                  aria-describedby="password-error"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
               {state?.errors?.password && <p id="password-error" className="text-sm text-destructive">{state.errors.password.join(', ')}</p>}
             </div>
             {state?.errors?.general && <p className="text-sm text-destructive">{state.errors.general.join(', ')}</p>}

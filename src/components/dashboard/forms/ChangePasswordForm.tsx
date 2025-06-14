@@ -1,4 +1,5 @@
 
+
 // src/components/dashboard/forms/ChangePasswordForm.tsx
 'use client';
 
@@ -11,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Lock, KeyRound, ShieldCheck } from 'lucide-react';
+import { Lock, KeyRound, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import PasswordStrengthMeter from '@/components/auth/PasswordStrengthMeter';
 
 
@@ -30,7 +31,11 @@ export default function ChangePasswordForm() {
   
   const initialState: ChangePasswordFormState = { message: null, errors: {}, success: false };
   const [state, dispatch] = useActionState(changePasswordAction, initialState);
+  
   const [newPassword, setNewPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     if (state?.message) {
@@ -40,15 +45,17 @@ export default function ChangePasswordForm() {
         variant: state.success ? 'default' : 'destructive',
       });
       if (state.success) {
-        // Form can be reset here if needed by managing input values with useState
         const form = document.getElementById('changePasswordForm') as HTMLFormElement;
         form?.reset();
         setNewPassword('');
+        setShowCurrentPassword(false);
+        setShowNewPassword(false);
+        setShowConfirmPassword(false);
       }
     }
   }, [state, toast]);
 
-  if (!user || !('id' in user)) { // Check if user is a regular user with an id
+  if (!user || !('id' in user)) { 
     return <p>Loading user data...</p>;
   }
 
@@ -69,11 +76,22 @@ export default function ChangePasswordForm() {
                 <Input 
                     id="currentPassword" 
                     name="currentPassword" 
-                    type="password" 
+                    type={showCurrentPassword ? 'text' : 'password'}
                     required 
-                    className="pl-10"
+                    className="pl-10 pr-10"
                     aria-describedby="currentPassword-error"
                 />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                  aria-label={showCurrentPassword ? "Hide current password" : "Show current password"}
+                  tabIndex={-1}
+                >
+                  {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
             </div>
             {state?.errors?.currentPassword && <p id="currentPassword-error" className="text-sm text-destructive">{state.errors.currentPassword.join(', ')}</p>}
           </div>
@@ -85,13 +103,24 @@ export default function ChangePasswordForm() {
                 <Input 
                     id="newPassword" 
                     name="newPassword" 
-                    type="password" 
+                    type={showNewPassword ? 'text' : 'password'}
                     required 
-                    className="pl-10"
+                    className="pl-10 pr-10"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     aria-describedby="newPassword-error"
                 />
+                 <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  aria-label={showNewPassword ? "Hide new password" : "Show new password"}
+                  tabIndex={-1}
+                >
+                  {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
             </div>
             <PasswordStrengthMeter password={newPassword} />
             {state?.errors?.newPassword && <p id="newPassword-error" className="text-sm text-destructive">{state.errors.newPassword.join(', ')}</p>}
@@ -104,11 +133,22 @@ export default function ChangePasswordForm() {
                 <Input 
                     id="confirmPassword" 
                     name="confirmPassword" 
-                    type="password" 
+                    type={showConfirmPassword ? 'text' : 'password'}
                     required 
-                    className="pl-10"
+                    className="pl-10 pr-10"
                     aria-describedby="confirmPassword-error"
                 />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                  tabIndex={-1}
+                >
+                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
             </div>
             {state?.errors?.confirmPassword && <p id="confirmPassword-error" className="text-sm text-destructive">{state.errors.confirmPassword.join(', ')}</p>}
           </div>

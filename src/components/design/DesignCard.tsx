@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { IndianRupee, Filter, Code2 } from 'lucide-react'; 
+import { useMemo } from 'react';
 
 interface DesignCardProps {
   design: Design;
@@ -21,6 +22,12 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
 
   const isPriced = design.price && design.price > 0;
 
+  const htmlPreviewContent = useMemo(() => {
+    if (isPriced) return null; // No preview for priced items on card
+    const htmlBlock = design.codeBlocks.find(block => block.language.toLowerCase() === 'html');
+    return htmlBlock ? htmlBlock.code : null;
+  }, [design.codeBlocks, isPriced]);
+
   return (
     <Card 
       className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 ease-in-out cursor-pointer h-full flex flex-col rounded-lg"
@@ -30,10 +37,22 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onOpenDetail(design)}}
       aria-label={`View details for ${design.title}`}
     >
-      <CardHeader className="p-4 relative bg-muted/30 flex items-center justify-center aspect-[16/9] min-h-[150px]">
-        <Code2 className="h-16 w-16 text-primary/70" />
+      <CardHeader className="p-0 relative bg-muted/30 flex items-center justify-center aspect-[16/9] min-h-[150px] overflow-hidden">
+        {htmlPreviewContent ? (
+          <div className="w-full h-full transform scale-[0.35] origin-center flex items-center justify-center pointer-events-none">
+            <iframe
+              srcDoc={`<html><head><style>body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; background-color: transparent; } * { color: hsl(var(--foreground)) !important; }</style></head><body>${htmlPreviewContent}</body></html>`}
+              title={`${design.title} card preview`}
+              sandbox="allow-same-origin" // Minimal sandbox for static HTML
+              className="w-[calc(100%/0.35)] h-[calc(100%/0.35)] border-0 overflow-hidden bg-transparent"
+              scrolling="no"
+            />
+          </div>
+        ) : (
+          <Code2 className="h-16 w-16 text-primary/70" />
+        )}
         {isPriced && (
-          <Badge variant="secondary" className="absolute top-3 right-3 text-xs px-2 py-1 flex items-center">
+          <Badge variant="secondary" className="absolute top-2 right-2 text-xs px-2 py-1 flex items-center z-10">
             <IndianRupee className="h-3 w-3 mr-1" />
             {design.price?.toFixed(2)}
           </Badge>

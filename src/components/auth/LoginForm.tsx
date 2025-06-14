@@ -1,6 +1,8 @@
+
 'use client';
 
-import { useFormState, useFormStatus } from 'react-dom';
+import { useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
 import { loginUser, type LoginFormState } from '@/lib/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,7 +27,7 @@ function SubmitButton() {
 
 export default function LoginForm() {
   const initialState: LoginFormState = { message: null, errors: {} };
-  const [state, dispatch] = useFormState(loginUser, initialState);
+  const [state, dispatch] = useActionState(loginUser, initialState);
   const { toast } = useToast();
   const { login: authLogin, user: authUser } = useAuth();
   const router = useRouter();

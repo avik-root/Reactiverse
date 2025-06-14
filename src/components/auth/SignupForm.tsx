@@ -1,6 +1,8 @@
+
 'use client';
 
-import { useFormState, useFormStatus } from 'react-dom';
+import { useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
 import { signupUser, type SignupFormState } from '@/lib/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,7 +25,7 @@ function SubmitButton() {
 
 export default function SignupForm() {
   const initialState: SignupFormState = { message: null, errors: {} };
-  const [state, dispatch] = useFormState(signupUser, initialState);
+  const [state, dispatch] = useActionState(signupUser, initialState);
   const { toast } = useToast();
   const router = useRouter();
 

@@ -1,6 +1,8 @@
+
 'use client';
 
-import { useFormState, useFormStatus } from 'react-dom';
+import { useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
 import { loginAdmin, type AdminLoginFormState } from '@/lib/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,7 +25,7 @@ function SubmitButton() {
 
 export default function AdminLoginForm() {
   const initialState: AdminLoginFormState = { message: null, errors: {} };
-  const [state, dispatch] = useFormState(loginAdmin, initialState);
+  const [state, dispatch] = useActionState(loginAdmin, initialState);
   const { toast } = useToast();
   const { login: authLogin, user: authUser, isAdmin } = useAuth();
   const router = useRouter();

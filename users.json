@@ -7,7 +7,8 @@
     "phone": "+911234567890",
     "passwordHash": "$2a$10$77HlwQT9FL7jKLrwGTmGEev/CW5Xew58ddN/ns2h1vOj3AvWQmTam",
     "avatarUrl": "https://placehold.co/100x100.png?text=T",
-    "twoFactorEnabled": true,
-    "twoFactorPinHash": "$2a$10$CWCGVh0IIIxTp3P9uqlJkeR1lQopPR7vAUVkJtAlk.F36cfbO6feK"
+    "twoFactorEnabled": false,
+    "failedPinAttempts": 0,
+    "isLocked": false
   }
 ]

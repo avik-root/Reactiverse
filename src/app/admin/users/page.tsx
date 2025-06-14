@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState, useActionState, useCallback } from 'react';
+import { useEffect, useState, useActionState, useCallback, startTransition } from 'react';
 import type { User, StoredUser, AdminSetUser2FAStatusFormState } from '@/lib/types';
 import { getAllUsersAdminAction, deleteUserAdminAction, adminSetUser2FAStatusAction } from '@/lib/actions';
 import { useAuth } from '@/contexts/AuthContext';
@@ -126,7 +126,9 @@ export default function ManageUsersPage() {
       formData.append('userId', userFor2FAManagement.id);
       formData.append('enable', current2FAAction === 'enable' ? 'true' : 'false');
       formData.append('adminId', adminUser.id); // Pass adminId for verification
-      set2FAFormAction(formData);
+      startTransition(() => {
+        set2FAFormAction(formData);
+      });
     }
   };
 
@@ -346,3 +348,4 @@ const InfoItem: React.FC<InfoItemProps> = ({ icon, label, value}) => (
         </div>
     </div>
 );
+

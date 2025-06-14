@@ -4,14 +4,31 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { checkAdminDataExistsAction } from '@/lib/actions';
-import { Loader2 } from 'lucide-react'; 
+import { useAuth } from '@/contexts/AuthContext'; // Import useAuth
+import { Loader2 } from 'lucide-react';
 
 export default function AdminRootPage() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(true);
+  const { user, isAdmin, isLoading: authIsLoading } = useAuth(); // Get auth state
+  const [checkingAdminData, setCheckingAdminData] = useState(true);
 
   useEffect(() => {
-    async function checkAdminStatus() {
+    // Wait for AuthContext to finish loading its state
+    if (authIsLoading) {
+      setCheckingAdminData(true); // Ensure loader shows while auth is loading
+      return;
+    }
+
+    // If user is already identified as admin by AuthContext, go to dashboard
+    if (user && isAdmin) {
+      router.replace('/admin/dashboard');
+      return; // Stop further execution in this effect
+    }
+
+    // If not an admin (or user not loaded yet by AuthContext but authIsLoading is false),
+    // then check if admin data exists to decide between login/create-account
+    async function checkAndRedirect() {
+      setCheckingAdminData(true);
       try {
         const { adminExists } = await checkAdminDataExistsAction();
         if (adminExists) {
@@ -21,20 +38,16 @@ export default function AdminRootPage() {
         }
       } catch (error) {
         console.error("Failed to check admin status:", error);
-        // Fallback or error display, for now, attempt create account path
-        router.replace('/admin/create-account');
-      } finally {
-        // A small delay to prevent flash of content if check is very fast
-        // setTimeout(() => setIsLoading(false), 300);
-        // No need for timeout if redirecting anyway
+        router.replace('/admin/create-account'); // Fallback
       }
+      // No need to setCheckingAdminData(false) here as redirection will unmount this page.
     }
-    checkAdminStatus();
-  }, [router]);
+    checkAndRedirect();
 
-  // Render a loading indicator while the check is in progress
-  // This content will likely not be seen due to immediate redirection
-  if (isLoading) {
+  }, [router, user, isAdmin, authIsLoading]);
+
+  // Show a loader while AuthContext is loading or admin data check is in progress
+  if (authIsLoading || checkingAdminData) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
@@ -43,5 +56,5 @@ export default function AdminRootPage() {
     );
   }
 
-  return null; // Or a minimal loading state, as redirection should happen quickly
+  return null; // Should have redirected by now
 }

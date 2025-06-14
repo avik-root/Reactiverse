@@ -17,16 +17,16 @@ function SubmitButton({ actionType }: { actionType: 'enable' | 'disable' }) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" className="w-full" disabled={pending} variant={actionType === 'disable' ? 'destructive' : 'default'}>
-      {pending ? (actionType === 'enable' ? 'Enabling 2FA...' : 'Disabling 2FA...') : 
+      {pending ? (actionType === 'enable' ? 'Enabling 2FA...' : 'Disabling 2FA...') :
         actionType === 'enable' ? <><ShieldCheck className="mr-2 h-4 w-4" /> Enable 2FA</> : <><ShieldOff className="mr-2 h-4 w-4" /> Disable 2FA</>}
     </Button>
   );
 }
 
 export default function AdminTwoFactorAuthForm() {
-  const { user: adminUser, updateAuthUser } = useAuth(); 
+  const { user: adminUser, updateAuthUser } = useAuth();
   const { toast } = useToast();
-  
+
   const initialEnableState: AdminTwoFactorAuthFormState = { message: null, errors: {}, success: false, actionType: 'enable' };
   const initialDisableState: AdminTwoFactorAuthFormState = { message: null, errors: {}, success: false, actionType: 'disable' };
 
@@ -37,6 +37,7 @@ export default function AdminTwoFactorAuthForm() {
   const [showEnableForm, setShowEnableForm] = useState(false);
   const [showDisableForm, setShowDisableForm] = useState(false);
   const [showCurrentPasswordFor2FA, setShowCurrentPasswordFor2FA] = useState(false);
+  const [lastProcessedMessage, setLastProcessedMessage] = useState<string | null | undefined>(null);
 
   useEffect(() => {
     if (adminUser && adminUser.isAdmin && 'twoFactorEnabled' in adminUser) {
@@ -46,7 +47,10 @@ export default function AdminTwoFactorAuthForm() {
 
   useEffect(() => {
     const activeState = enableState?.actionType === 'enable' ? enableState : disableState;
-    if (activeState?.message) { // Process only if an action has occurred (message is present)
+
+    if (activeState?.message && activeState.message !== lastProcessedMessage) {
+      setLastProcessedMessage(activeState.message); // Mark this message as processed
+
       toast({
         title: activeState.success ? 'Success!' : 'Error',
         description: activeState.message,
@@ -55,55 +59,48 @@ export default function AdminTwoFactorAuthForm() {
 
       if (activeState.success) {
         const new2FAStatusByAction = activeState.actionType === 'enable';
-        
+
         updateAuthUser(currentUser => {
             if (!currentUser || !currentUser.isAdmin) return currentUser;
-            // Only create a new user object if the 2FA status actually changed
             if (('twoFactorEnabled' in currentUser) && currentUser.twoFactorEnabled !== new2FAStatusByAction) {
                 return { ...currentUser, twoFactorEnabled: new2FAStatusByAction };
             }
-            return currentUser; // Return the same object if no change needed
+            return currentUser;
         });
 
-        // Reset form visibility and other local states
         setShowEnableForm(false);
         setShowDisableForm(false);
         setShowCurrentPasswordFor2FA(false);
-        // It's good practice to reset the actual HTML form elements if possible,
-        // though with useActionState, the form might re-render cleanly.
-        // If direct reset is needed:
         const enableForm = document.getElementById('enableAdmin2FAForm') as HTMLFormElement;
         const disableForm = document.getElementById('disableAdmin2FAForm') as HTMLFormElement;
         enableForm?.reset();
         disableForm?.reset();
       }
     }
-  }, [enableState, disableState, toast, updateAuthUser]); // Removed adminUser from deps here
+  }, [enableState, disableState, toast, updateAuthUser, lastProcessedMessage]);
 
-  if (!adminUser || !adminUser.isAdmin) { 
+  if (!adminUser || !adminUser.isAdmin) {
     return <p>Loading admin data or not authorized...</p>;
   }
 
   const handleToggleChange = useCallback((checked: boolean) => {
-    // `checked` here is the new desired state of the switch *if it were uncontrolled*
-    // For a controlled switch, this indicates the user's intent.
-    setShowCurrentPasswordFor2FA(false); 
-    if (checked) { // User wants to enable 2FA (current state is off, they clicked to turn on)
+    setShowCurrentPasswordFor2FA(false);
+    if (checked) {
         setShowEnableForm(true);
         setShowDisableForm(false);
-    } else { // User wants to disable 2FA (current state is on, they clicked to turn off)
+    } else {
         setShowDisableForm(true);
         setShowEnableForm(false);
     }
-  }, [setShowEnableForm, setShowDisableForm]); // Dependencies are stable setters
+  }, [setShowEnableForm, setShowDisableForm]);
 
   return (
     <Card className="w-full shadow-xl mt-8">
       <CardHeader>
         <CardTitle className="text-2xl font-headline text-primary">Admin Two-Factor Authentication (2FA)</CardTitle>
         <CardDescription>
-          {isTwoFactorEnabledLocally 
-            ? "2FA is currently enabled for your admin account." 
+          {isTwoFactorEnabledLocally
+            ? "2FA is currently enabled for your admin account."
             : "2FA is currently disabled. Enable it for an extra layer of security."}
         </CardDescription>
       </CardHeader>
@@ -111,8 +108,8 @@ export default function AdminTwoFactorAuthForm() {
         <div className="flex items-center space-x-2">
           <Switch
             id="adminTwoFactorToggle"
-            checked={isTwoFactorEnabledLocally} // Controlled by the actual 2FA status
-            onCheckedChange={handleToggleChange} // Shows the relevant form
+            checked={isTwoFactorEnabledLocally}
+            onCheckedChange={handleToggleChange}
             aria-label="Toggle Admin Two-Factor Authentication"
           />
           <Label htmlFor="adminTwoFactorToggle" className="text-lg">
@@ -144,12 +141,12 @@ export default function AdminTwoFactorAuthForm() {
               <Label htmlFor="currentPasswordFor2FA_enable_admin">Current Password</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                    id="currentPasswordFor2FA_enable_admin" 
-                    name="currentPasswordFor2FA" 
-                    type={showCurrentPasswordFor2FA ? 'text' : 'password'} 
-                    required 
-                    className="pl-10 pr-10" 
+                <Input
+                    id="currentPasswordFor2FA_enable_admin"
+                    name="currentPasswordFor2FA"
+                    type={showCurrentPasswordFor2FA ? 'text' : 'password'}
+                    required
+                    className="pl-10 pr-10"
                     aria-describedby="enable-currentPassword-error"
                 />
                  <Button
@@ -182,12 +179,12 @@ export default function AdminTwoFactorAuthForm() {
               <Label htmlFor="currentPasswordFor2FA_disable_admin">Current Password</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  id="currentPasswordFor2FA_disable_admin" 
-                  name="currentPasswordFor2FA" 
-                  type={showCurrentPasswordFor2FA ? 'text' : 'password'} 
-                  required 
-                  className="pl-10 pr-10" 
+                <Input
+                  id="currentPasswordFor2FA_disable_admin"
+                  name="currentPasswordFor2FA"
+                  type={showCurrentPasswordFor2FA ? 'text' : 'password'}
+                  required
+                  className="pl-10 pr-10"
                   aria-describedby="disable-currentPassword-error"
                 />
                 <Button
@@ -215,5 +212,3 @@ export default function AdminTwoFactorAuthForm() {
     </Card>
   );
 }
-
-    

@@ -1,4 +1,5 @@
 
+
 // This file should only be imported by server-side code (e.g., server actions, API routes)
 import type { StoredAdminUser, StoredUser, Design } from './types';
 import fs from 'fs/promises';
@@ -70,8 +71,6 @@ export async function getDesignsFromFile(): Promise<Design[]> {
   try {
     const jsonData = await fs.readFile(DESIGNS_FILE_PATH, 'utf-8');
     const designs = JSON.parse(jsonData) as Design[];
-    // Ensure designer objects in designs are sanitized if they contain sensitive info
-    // For now, assuming Design's User object is already the sanitized version or doesn't need it here.
     return designs;
   } catch (error) {
     console.error('Failed to read designs.json:', error);
@@ -99,6 +98,40 @@ export async function addDesignToFile(newDesign: Design): Promise<void> {
     await saveDesignsToFile(designs);
   } catch (error) {
     console.error('Failed to add design to designs.json:', error);
+    throw error;
+  }
+}
+
+export async function updateDesignInFile(updatedDesign: Design): Promise<boolean> {
+  try {
+    let designs = await getDesignsFromFile();
+    const designIndex = designs.findIndex(d => d.id === updatedDesign.id);
+    if (designIndex === -1) {
+      console.error('Design not found for update:', updatedDesign.id);
+      return false;
+    }
+    designs[designIndex] = { ...designs[designIndex], ...updatedDesign };
+    await saveDesignsToFile(designs);
+    return true;
+  } catch (error) {
+    console.error('Failed to update design in designs.json:', error);
+    throw error; 
+  }
+}
+
+export async function deleteDesignFromFile(designId: string): Promise<boolean> {
+  try {
+    let designs = await getDesignsFromFile();
+    const initialLength = designs.length;
+    designs = designs.filter(d => d.id !== designId);
+    if (designs.length === initialLength) {
+      console.warn('Design not found for deletion:', designId);
+      return false; // Design not found
+    }
+    await saveDesignsToFile(designs);
+    return true;
+  } catch (error) {
+    console.error('Failed to delete design from designs.json:', error);
     throw error;
   }
 }

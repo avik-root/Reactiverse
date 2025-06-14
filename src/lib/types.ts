@@ -1,4 +1,5 @@
 
+
 export interface User {
   id: string;
   name: string; 
@@ -39,3 +40,9 @@ export type AuthUser = Omit<User, 'passwordHash' | 'twoFactorPinHash'> | Omit<Ad
 
 export type StoredUser = User;
 export type StoredAdminUser = AdminUser;
+
+// State type for delete action result
+export interface DeleteDesignResult {
+  success: boolean;
+  message: string;
+}

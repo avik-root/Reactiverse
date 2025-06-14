@@ -2,8 +2,18 @@
 'use server';
 
 import { z } from 'zod';
-import { getUsersFromFile, saveUserToFile, getAdminUsers, addDesignToFile, updateUserInFile, getDesignsFromFile } from './server-data';
-import type { AdminUser, User, Design, AuthUser, StoredUser, StoredAdminUser, CodeBlockItem } from './types';
+import { 
+  getUsersFromFile, 
+  saveUserToFile, 
+  getAdminUsers, 
+  addDesignToFile, 
+  updateUserInFile, 
+  getDesignsFromFile,
+  updateDesignInFile,
+  deleteDesignFromFile,
+  saveDesignsToFile
+} from './server-data';
+import type { AdminUser, User, Design, AuthUser, StoredUser, StoredAdminUser, CodeBlockItem, DeleteDesignResult } from './types';
 import { revalidatePath } from 'next/cache';
 import { hashPassword, comparePassword, hashPin, comparePin } from './auth-utils';
 
@@ -52,6 +62,10 @@ const AddDesignSchema = z.object({
   tags: z.string().min(1, {message: 'Please add at least one tag.'}),
   price: z.coerce.number().min(0, { message: 'Price cannot be negative.' }).default(0),
   submittedByUserId: z.string(),
+});
+
+const UpdateDesignSchema = AddDesignSchema.extend({
+  designId: z.string().min(1, { message: 'Design ID is required for update.' }),
 });
 
 
@@ -137,6 +151,12 @@ export type AddDesignFormState = {
     tags?: string[];
     price?: string[];
     general?: string[];
+  };
+};
+
+export type UpdateDesignFormState = AddDesignFormState & {
+  errors?: AddDesignFormState['errors'] & {
+    designId?: string[];
   };
 };
 
@@ -380,6 +400,79 @@ export async function submitDesignAction(prevState: AddDesignFormState, formData
   }
 }
 
+// Placeholder for Update Design Action - to be implemented fully later
+export async function updateDesignAction(prevState: UpdateDesignFormState, formData: FormData): Promise<UpdateDesignFormState> {
+  const validatedFields = UpdateDesignSchema.safeParse(Object.fromEntries(formData.entries()));
+
+  if (!validatedFields.success) {
+    // Similar error handling as submitDesignAction for codeBlocksJSON if needed
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: 'Invalid fields. Please check your input.',
+      success: false,
+    };
+  }
+
+  const { designId, title, filterCategory, description, codeBlocksJSON, tags, price, submittedByUserId } = validatedFields.data;
+
+  const designs = await getDesignsFromFile();
+  const existingDesign = designs.find(d => d.id === designId);
+  if (!existingDesign) {
+    return { message: 'Design not found.', success: false, errors: { general: ['Design not found.'] } };
+  }
+
+  // Authorization: Ensure the user submitting is the original designer
+  if (existingDesign.submittedByUserId !== submittedByUserId) {
+     return { message: 'You are not authorized to edit this design.', success: false, errors: { general: ['Authorization failed.'] } };
+  }
+
+  const users = await getUsersFromFile();
+  const storedDesigner = users.find(u => u.id === submittedByUserId);
+  if (!storedDesigner) {
+    // This case should ideally not happen if submittedByUserId was validated on creation
+    return { message: 'Designer user not found.', success: false, errors: { general: ['Designer user not found.'] } };
+  }
+  const { passwordHash, twoFactorPinHash, ...designerInfo } = storedDesigner;
+
+
+  let parsedCodeBlocksRaw: Array<{ language: string; code: string }>;
+  try {
+    parsedCodeBlocksRaw = JSON.parse(codeBlocksJSON);
+  } catch (error) {
+    return { message: 'Error parsing code blocks data.', success: false, errors: { codeBlocksJSON: ['Invalid format for code blocks.'] } };
+  }
+
+  const codeBlocks: CodeBlockItem[] = parsedCodeBlocksRaw.map((cb, index) => ({
+    // Retain existing IDs if possible, or generate new ones. For simplicity, generating new ones.
+    id: `cb-${Date.now()}-${index}`, 
+    language: cb.language,
+    code: cb.code,
+  }));
+
+  const updatedDesign: Design = {
+    ...existingDesign,
+    title,
+    filterCategory,
+    description,
+    codeBlocks,
+    designer: designerInfo as User, // Or keep existingDesign.designer if not re-fetching
+    tags: tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
+    price,
+  };
+
+  try {
+    await updateDesignInFile(updatedDesign);
+    revalidatePath('/');
+    revalidatePath('/dashboard/designs');
+    revalidatePath(`/designs/${designId}`); // If there's a specific design detail page
+    return { message: 'Design updated successfully!', success: true };
+  } catch (error) {
+    console.error("Error updating design:", error);
+    return { message: 'Failed to update design. Please try again.', success: false, errors: { general: ['Server error.'] } };
+  }
+}
+
+
 export async function updateProfileAction(prevState: UpdateProfileFormState, formData: FormData): Promise<UpdateProfileFormState> {
   const validatedFields = UpdateProfileSchema.safeParse(Object.fromEntries(formData.entries()));
 
@@ -573,5 +666,24 @@ export async function getDesignByIdAction(id: string): Promise<Design | undefine
   } catch (error) {
     console.error(`Error fetching design by ID (${id}) via action:`, error);
     return undefined;
+  }
+}
+
+export async function deleteDesignAction(designId: string): Promise<DeleteDesignResult> {
+  if (!designId) {
+    return { success: false, message: 'Design ID is required for deletion.' };
+  }
+
+  try {
+    const deleted = await deleteDesignFromFile(designId);
+    if (!deleted) {
+      return { success: false, message: 'Design not found or already deleted.' };
+    }
+    revalidatePath('/dashboard/designs');
+    revalidatePath('/'); // Revalidate home page as well
+    return { success: true, message: 'Design deleted successfully.' };
+  } catch (error) {
+    console.error('Error deleting design via action:', error);
+    return { success: false, message: 'Failed to delete design due to a server error.' };
   }
 }

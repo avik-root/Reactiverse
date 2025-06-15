@@ -1,6 +1,6 @@
 
 // This file should only be imported by server-side code (e.g., server actions, API routes)
-import type { StoredAdminUser, StoredUser, Design, SiteSettings, PageContentData, PageContentKeys } from './types';
+import type { StoredAdminUser, StoredUser, Design, SiteSettings, PageContentData, PageContentKeys, TeamMembersContent } from './types';
 import fs from 'fs/promises';
 import path from 'path';
 import { constants } from 'fs';
@@ -21,6 +21,27 @@ const DEFAULT_SITE_SETTINGS: SiteSettings = {
   },
   logoPath: "/default-logo.png"
 };
+
+const DEFAULT_TEAM_MEMBERS_CONTENT: TeamMembersContent = {
+  title: "Meet Our Team",
+  founder: {
+    name: "Alex Johnson",
+    title: "Founder & CEO",
+    bio: "Visionary leader with a passion for innovative design and community building. Alex drives the strategic direction of Reactiverse, ensuring it remains a leading platform for UI/UX enthusiasts worldwide.",
+    imageUrl: "https://placehold.co/300x300.png",
+    imageAlt: "Founder Alex Johnson",
+    imageDataAiHint: "professional portrait"
+  },
+  coFounder: {
+    name: "Maria Garcia",
+    title: "Co-Founder & CTO",
+    bio: "Expert technologist driving the platform's architecture and development. Maria focuses on creating a seamless and powerful experience for all Reactiverse users.",
+    imageUrl: "https://placehold.co/300x300.png",
+    imageAlt: "Co-Founder Maria Garcia",
+    imageDataAiHint: "professional tech"
+  }
+};
+
 
 const DEFAULT_PAGE_CONTENT: PageContentData = {
   aboutUs: {
@@ -77,7 +98,8 @@ const DEFAULT_PAGE_CONTENT: PageContentData = {
     description: "Meet the most influential and creative designers on Reactiverse.",
     mainPlaceholderTitle: "Coming Soon!",
     mainPlaceholderContent: "We're currently curating our list of top designers. Check back soon to see who's leading the pack in creativity and innovation!"
-  }
+  },
+  teamMembers: DEFAULT_TEAM_MEMBERS_CONTENT,
 };
 
 
@@ -149,7 +171,7 @@ export async function getUsersFromFile(): Promise<StoredUser[]> {
       failedPinAttempts: user.failedPinAttempts === undefined ? 0 : user.failedPinAttempts,
       isLocked: user.isLocked === undefined ? false : user.isLocked,
       twoFactorEnabled: user.twoFactorEnabled === undefined ? false : user.twoFactorEnabled,
-      canSetPrice: user.canSetPrice === undefined ? false : user.canSetPrice, // Initialize canSetPrice
+      canSetPrice: user.canSetPrice === undefined ? false : user.canSetPrice,
     }));
   } catch (error) {
     console.error('Failed to read users.json:', error);
@@ -165,7 +187,7 @@ export async function saveUserToFile(newUser: StoredUser): Promise<void> {
         failedPinAttempts: newUser.failedPinAttempts || 0,
         isLocked: newUser.isLocked || false,
         twoFactorEnabled: newUser.twoFactorEnabled || false,
-        canSetPrice: newUser.canSetPrice || false, // Ensure new users get canSetPrice: false
+        canSetPrice: newUser.canSetPrice || false,
     });
     await fs.writeFile(USERS_FILE_PATH, JSON.stringify(users, null, 2), 'utf-8');
   } catch (error) {
@@ -187,7 +209,7 @@ export async function updateUserInFile(updatedUser: StoredUser): Promise<boolean
         ...updatedUser,
         failedPinAttempts: updatedUser.failedPinAttempts === undefined ? users[userIndex].failedPinAttempts : updatedUser.failedPinAttempts,
         isLocked: updatedUser.isLocked === undefined ? users[userIndex].isLocked : updatedUser.isLocked,
-        canSetPrice: updatedUser.canSetPrice === undefined ? users[userIndex].canSetPrice : updatedUser.canSetPrice, // Handle canSetPrice update
+        canSetPrice: updatedUser.canSetPrice === undefined ? users[userIndex].canSetPrice : updatedUser.canSetPrice,
     };
     await fs.writeFile(USERS_FILE_PATH, JSON.stringify(users, null, 2), 'utf-8');
     return true;
@@ -324,12 +346,22 @@ export async function getPageContent(): Promise<PageContentData> {
     }
     const jsonData = await fs.readFile(PAGE_CONTENT_FILE_PATH, 'utf-8');
     const parsedContent = JSON.parse(jsonData);
-    return {
+    // Merge ensuring all default keys exist
+    const mergedContent: PageContentData = {
       aboutUs: { ...DEFAULT_PAGE_CONTENT.aboutUs, ...parsedContent.aboutUs },
       support: { ...DEFAULT_PAGE_CONTENT.support, ...parsedContent.support },
       guidelines: { ...DEFAULT_PAGE_CONTENT.guidelines, ...parsedContent.guidelines },
       topDesigners: { ...DEFAULT_PAGE_CONTENT.topDesigners, ...parsedContent.topDesigners },
+      teamMembers: { ...DEFAULT_PAGE_CONTENT.teamMembers, ...parsedContent.teamMembers }
     };
+     // Ensure founder and coFounder objects exist within teamMembers
+    if (!mergedContent.teamMembers.founder) {
+      mergedContent.teamMembers.founder = DEFAULT_PAGE_CONTENT.teamMembers.founder;
+    }
+    if (!mergedContent.teamMembers.coFounder) {
+      mergedContent.teamMembers.coFounder = DEFAULT_PAGE_CONTENT.teamMembers.coFounder;
+    }
+    return mergedContent;
   } catch (error) {
     console.warn('Failed to read page_content.json, returning default content:', error);
     return DEFAULT_PAGE_CONTENT;
@@ -364,3 +396,4 @@ export async function saveSiteLogo(fileBuffer: Buffer, fileName: string): Promis
     throw error;
   }
 }
+

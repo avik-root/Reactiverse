@@ -54,5 +54,24 @@
     "description": "Meet the most influential and creative designers on Reactiverse.",
     "mainPlaceholderTitle": "Coming Soon!",
     "mainPlaceholderContent": "We're currently curating our list of top designers. Check back soon to see who's leading the pack in creativity and innovation!"
+  },
+  "teamMembers": {
+    "title": "Meet Our Team",
+    "founder": {
+      "name": "Alex Johnson",
+      "title": "Founder & CEO",
+      "bio": "Visionary leader with a passion for innovative design and community building. Alex drives the strategic direction of Reactiverse, ensuring it remains a leading platform for UI/UX enthusiasts worldwide.",
+      "imageUrl": "https://placehold.co/300x300.png",
+      "imageAlt": "Founder Alex Johnson",
+      "imageDataAiHint": "professional portrait"
+    },
+    "coFounder": {
+      "name": "Maria Garcia",
+      "title": "Co-Founder & CTO",
+      "bio": "Expert technologist driving the platform's architecture and development. Maria focuses on creating a seamless and powerful experience for all Reactiverse users.",
+      "imageUrl": "https://placehold.co/300x300.png",
+      "imageAlt": "Co-Founder Maria Garcia",
+      "imageDataAiHint": "professional tech"
+    }
   }
 }

@@ -5,7 +5,7 @@ import { useEffect, type ReactNode } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { LayoutDashboard, Users, Palette, Settings, LogOut, ShieldCheck, UserCog, FileText, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { LayoutDashboard, Users, Palette, Settings, LogOut, ShieldCheck, UserCog, FileText, Image as ImageIcon, Loader2, Users2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Logo from '@/components/core/Logo';
 import { Button } from '@/components/ui/button';
@@ -31,6 +31,7 @@ const contentEditingNavItems = [
     { href: '/admin/edit-content/support', label: 'Edit Support Page', icon: FileText },
     { href: '/admin/edit-content/guidelines', label: 'Edit Guidelines Page', icon: FileText },
     { href: '/admin/edit-content/top-designers', label: 'Edit Top Designers Page', icon: FileText },
+    { href: '/admin/edit-content/team', label: 'Edit Team Members', icon: Users2 },
     { href: '/admin/edit-content/logo', label: 'Change Site Logo', icon: ImageIcon },
 ];
 
@@ -49,14 +50,13 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   const handleLogout = async () => {
     await logout(); 
-    window.location.href = '/'; // Force a full page reload to the homepage
+    window.location.href = '/';
   };
 
   if (isPublicAdminPage) {
     return <>{children}</>;
   }
   
-  // For protected admin pages:
   if (isLoading) { 
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background">
@@ -66,7 +66,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     );
   }
 
-  // AuthContext has loaded (isLoading is false)
   if (!user || !isAdmin) {
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-background">
@@ -153,7 +152,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         <header className="md:hidden sticky top-0 bg-background/80 backdrop-blur-md z-30 p-4 mb-4 border-b rounded-lg shadow-sm">
             <div className="flex items-center justify-between">
                 <Logo />
-                 {/* Consider adding a mobile menu trigger here if sidebar isn't always visible on mobile */}
             </div>
         </header>
         {children}

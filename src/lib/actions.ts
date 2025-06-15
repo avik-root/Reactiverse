@@ -47,6 +47,8 @@ import type {
   SiteLogoUploadState,
   AdminSetUser2FAStatusFormState,
   AdminSetUserCanSetPriceFormState,
+  TeamMembersContent,
+  TeamMember,
 } from './types';
 import { revalidatePath } from 'next/cache';
 import { hashPassword, comparePassword, hashPin, comparePin } from './auth-utils';
@@ -302,6 +304,22 @@ const TopDesignersPageContentSchema = z.object({
   mainPlaceholderContent: z.string().min(1, "Placeholder content is required"),
 });
 
+const TeamMemberSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  title: z.string().min(1, "Title is required"),
+  bio: z.string().min(10, "Bio must be at least 10 characters"),
+  imageUrl: z.string().url("Invalid image URL").or(z.literal("")).optional(),
+  imageAlt: z.string().optional(),
+  imageDataAiHint: z.string().max(30, "AI hint too long").optional(),
+});
+
+const TeamMembersContentSchema = z.object({
+  title: z.string().min(1, "Section title is required"),
+  founder: TeamMemberSchema,
+  coFounder: TeamMemberSchema,
+});
+
+
 const SiteLogoSchema = z.object({
   logoFile: z.instanceof(File, { message: "Logo file is required." })
     .refine(file => file.size > 0, "Logo file cannot be empty.")
@@ -315,6 +333,7 @@ const pageContentSchemasMap = {
   support: SupportPageContentSchema,
   guidelines: GuidelinesPageContentSchema,
   topDesigners: TopDesignersPageContentSchema,
+  teamMembers: TeamMembersContentSchema,
 };
 
 
@@ -622,7 +641,6 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
 
 export async function logoutAdminAction(): Promise<{ success: boolean }> {
   try {
-    // More robust cookie deletion by setting maxAge to 0
     cookies().set(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS, '', { 
       path: '/admin', 
       maxAge: 0,
@@ -630,7 +648,6 @@ export async function logoutAdminAction(): Promise<{ success: boolean }> {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
     });
-    // cookies().delete(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS, { path: '/admin' }); // Original attempt
     return { success: true };
   } catch (error) {
     console.error('Error during admin logout action:', error);
@@ -958,7 +975,7 @@ export async function disableTwoFactorAction(prevState: TwoFactorAuthFormState, 
     ...userToUpdate,
     twoFactorEnabled: false,
     twoFactorPinHash: undefined,
-    failedPinAttempts: 0, // Also reset attempts and lock status
+    failedPinAttempts: 0,
     isLocked: false,
   };
 
@@ -1343,6 +1360,7 @@ export async function getPageContentAction(pageKey: PageContentKeys): Promise<an
       case 'support': return {} as SupportPageContent;
       case 'guidelines': return { keyAreas: [] } as GuidelinesPageContent;
       case 'topDesigners': return {} as TopDesignersPageContent;
+      case 'teamMembers': return { founder: {}, coFounder: {} } as TeamMembersContent;
       default: return null;
     }
   } catch (error) {
@@ -1352,6 +1370,7 @@ export async function getPageContentAction(pageKey: PageContentKeys): Promise<an
       case 'support': return {} as SupportPageContent;
       case 'guidelines': return { keyAreas: [] } as GuidelinesPageContent;
       case 'topDesigners': return {} as TopDesignersPageContent;
+      case 'teamMembers': return { founder: {}, coFounder: {} } as TeamMembersContent;
       default: return null;
     }
   }
@@ -1366,7 +1385,7 @@ export async function updatePageContentAction<T extends PageContentKeys>(
     return { message: `No validation schema found for page: ${pageKey}`, success: false, errors: { general: ["Configuration error."] } };
   }
 
-  const rawData = Object.fromEntries(formData.entries());
+  let rawData = Object.fromEntries(formData.entries());
 
   if (pageKey === 'aboutUs') {
     const offerItems: { title: string; description: string }[] = [];
@@ -1403,6 +1422,28 @@ export async function updatePageContentAction<T extends PageContentKeys>(
     rawData.keyAreas = [];
   }
 
+  if (pageKey === 'teamMembers') {
+    // Manually construct founder and coFounder objects from flat form data
+    const teamData: any = { title: rawData.title };
+    teamData.founder = {
+      name: rawData['founder.name'],
+      title: rawData['founder.title'],
+      bio: rawData['founder.bio'],
+      imageUrl: rawData['founder.imageUrl'],
+      imageAlt: rawData['founder.imageAlt'],
+      imageDataAiHint: rawData['founder.imageDataAiHint'],
+    };
+    teamData.coFounder = {
+      name: rawData['coFounder.name'],
+      title: rawData['coFounder.title'],
+      bio: rawData['coFounder.bio'],
+      imageUrl: rawData['coFounder.imageUrl'],
+      imageAlt: rawData['coFounder.imageAlt'],
+      imageDataAiHint: rawData['coFounder.imageDataAiHint'],
+    };
+    rawData = teamData; // Use the reconstructed object for validation
+  }
+
 
   const validatedFields = schema.safeParse(rawData);
 
@@ -1416,7 +1457,7 @@ export async function updatePageContentAction<T extends PageContentKeys>(
 
   try {
     await savePageContentToFile(pageKey, validatedFields.data);
-    const publicPath = pageKey === 'topDesigners' ? '/designers' : `/${pageKey}`;
+    const publicPath = pageKey === 'topDesigners' ? '/designers' : (pageKey === 'teamMembers' ? '/about' : `/${pageKey}`);
     revalidatePath(publicPath);
     revalidatePath(`/admin/edit-content/${pageKey}`);
 

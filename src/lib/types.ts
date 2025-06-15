@@ -11,7 +11,7 @@ export interface User {
   twoFactorPinHash?: string;
   failedPinAttempts?: number;
   isLocked?: boolean;
-  canSetPrice?: boolean; // New field
+  canSetPrice?: boolean;
 }
 
 export interface CodeBlockItem {
@@ -45,7 +45,7 @@ export interface AdminUser {
 }
 
 export type AuthUser =
-  | (Omit<User, 'passwordHash' | 'twoFactorPinHash'> & { isAdmin?: false; canSetPrice?: boolean; }) // Added canSetPrice
+  | (Omit<User, 'passwordHash' | 'twoFactorPinHash'> & { isAdmin?: false; canSetPrice?: boolean; })
   | (Omit<AdminUser, 'passwordHash' | 'twoFactorPinHash'> & { isAdmin: true });
 
 export type StoredUser = User;
@@ -128,6 +128,21 @@ export type AdminTwoFactorAuthFormState = {
   };
 };
 
+export interface TeamMember {
+  name: string;
+  title: string;
+  bio: string;
+  imageUrl?: string;
+  imageAlt?: string;
+  imageDataAiHint?: string;
+}
+
+export interface TeamMembersContent {
+  title: string;
+  founder: TeamMember;
+  coFounder: TeamMember;
+}
+
 export interface AboutUsOfferItem {
   title: string;
   description: string;
@@ -185,6 +200,7 @@ export type PageContentData = {
   support: SupportPageContent;
   guidelines: GuidelinesPageContent;
   topDesigners: TopDesignersPageContent;
+  teamMembers: TeamMembersContent;
 };
 
 export type PageContentKeys = keyof PageContentData;
@@ -192,9 +208,13 @@ export type PageContentKeys = keyof PageContentData;
 export type UpdatePageContentFormState<T> = {
   message?: string | null;
   success?: boolean;
-  errors?: Partial<Record<keyof T, string[]>> & { general?: string[] };
+  errors?: Partial<Record<keyof T, string[]>> & { general?: string[] } & {
+    founder?: Partial<Record<keyof TeamMember, string[]>>;
+    coFounder?: Partial<Record<keyof TeamMember, string[]>>;
+  };
   content?: T | null;
 };
+
 
 export type SiteLogoUploadState = {
     message?: string | null;
@@ -225,3 +245,4 @@ export type AdminSetUserCanSetPriceFormState = {
   };
   updatedUser?: User | null;
 };
+

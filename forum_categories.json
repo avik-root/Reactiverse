@@ -10,33 +10,6 @@
     "postCount": 0
   },
   {
-    "id": "cat-002",
-    "name": "Showcase & Feedback",
-    "description": "Share your latest designs and get constructive feedback from the community.",
-    "iconName": "Palette",
-    "slug": "showcase-feedback",
-    "topicCount": 1,
-    "postCount": 0
-  },
-  {
-    "id": "cat-003",
-    "name": "Coding & Technical Help",
-    "description": "Stuck on a problem? Ask for help with HTML, CSS, JavaScript, React, or other tech.",
-    "iconName": "Code2",
-    "slug": "coding-technical-help",
-    "topicCount": 0,
-    "postCount": 0
-  },
-  {
-    "id": "cat-004",
-    "name": "Ideas & Feature Requests",
-    "description": "Have an idea for Reactiverse or a component? Share it here!",
-    "iconName": "Lightbulb",
-    "slug": "ideas-feature-requests",
-    "topicCount": 0,
-    "postCount": 0
-  },
-  {
     "id": "cat-005",
     "name": "Announcements",
     "description": "Stay updated with the latest news and announcements from the Reactiverse team.",

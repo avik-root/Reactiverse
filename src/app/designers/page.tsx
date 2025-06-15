@@ -9,7 +9,7 @@ import DesignerDetailDialog from '@/components/designer/DesignerDetailDialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Award, Info, Search, Palette, Users, ListOrdered, PercentSquare, Crown, Medal, Trophy } from 'lucide-react';
+import { Award, Info, Search, Palette, Users, ListOrdered, PercentSquare, Crown, Medal, Trophy, Star } from 'lucide-react'; // Added Star here
 import type { TopDesignersPageContent } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -69,6 +69,7 @@ export default function DesignersPage() {
       };
     });
 
+    // Sort by totalLikes (desc), then by totalDesignsUploaded (desc), then by name (asc)
     return stats.sort((a, b) => {
       if (b.totalLikes !== a.totalLikes) return b.totalLikes - a.totalLikes;
       if (b.totalDesignsUploaded !== a.totalDesignsUploaded) return b.totalDesignsUploaded - a.totalDesignsUploaded;
@@ -89,6 +90,7 @@ export default function DesignersPage() {
   }, [fullDesignerStatsList, searchTerm]);
 
   const top20Designers = useMemo(() => {
+    // Take the top 20 from the already sorted and search-filtered list, but only if they have likes
     return displayableDesignerStatsList.filter(d => d.totalLikes > 0).slice(0, 20);
   }, [displayableDesignerStatsList]);
 
@@ -98,11 +100,11 @@ export default function DesignersPage() {
   };
 
   const getPercentileCategory = (rank: number, total: number): string => {
-    if (total === 0) return "Contributor";
-    const percentile = (rank / total) * 100;
-    if (percentile <= 10) return "Top 10%";
-    if (percentile <= 25) return "Top 25%";
-    if (percentile <= 50) return "Top 50%";
+    if (total === 0) return "Contributor"; // Should not happen if list is not empty
+    const percentile = ((total - rank + 1) / total) * 100; // (count better than or equal to) / total * 100
+    if (percentile >= 90) return "Top 10%";
+    if (percentile >= 75) return "Top 25%";
+    if (percentile >= 50) return "Top 50%";
     return "Valued Contributor";
   };
   
@@ -180,9 +182,10 @@ export default function DesignersPage() {
               <DesignerCard
                 key={designer.id}
                 user={designer}
-                rank={index + 1}
+                rank={index + 1} // Rank based on current filtered & sorted list
                 highlightMetricLabel="Total Likes"
                 highlightMetricValue={designer.totalLikes}
+                totalDesignsUploaded={designer.totalDesignsUploaded} // Pass this for detail dialog
                 onOpenDetail={() => handleOpenDesignerDetail(designer)}
               />
             ))}
@@ -192,7 +195,7 @@ export default function DesignersPage() {
             <Info className="h-4 w-4" />
             <AlertTitle>{searchTerm ? "No Designers Found" : "No Designers with Likes Yet"}</AlertTitle>
             <AlertDescription>
-              {searchTerm ? "No designers match your current search and have likes." : "Be the first to like some designs, or encourage designers to share their work!"}
+              {searchTerm ? "No designers match your current search criteria or they have no likes." : "Be the first to like some designs, or encourage designers to share their work!"}
             </AlertDescription>
           </Alert>
         )}
@@ -208,8 +211,9 @@ export default function DesignersPage() {
             <CardContent className="p-0">
               <ul className="divide-y divide-border">
                 {displayableDesignerStatsList.map((designer, index) => {
-                  const overallRank = fullDesignerStatsList.findIndex(d => d.id === designer.id) + 1;
-                  const percentileCategory = getPercentileCategory(overallRank, fullDesignerStatsList.length);
+                  // Find the designer's rank in the *full, unsorted (by search term)* list for percentile calculation
+                  const overallRankInFullList = fullDesignerStatsList.findIndex(d => d.id === designer.id) + 1;
+                  const percentileCategory = getPercentileCategory(overallRankInFullList, fullDesignerStatsList.length);
                   const IconComponent = getPercentileIcon(percentileCategory);
 
                   return (
@@ -259,8 +263,7 @@ export default function DesignersPage() {
 
       {selectedDesignerForDetail && (
         <DesignerDetailDialog
-          user={selectedDesignerForDetail}
-          // totalDesignsUploaded is part of DesignerStats, so it's passed directly
+          user={selectedDesignerForDetail} // DesignerStats includes User, totalLikes, and totalDesignsUploaded
           isOpen={isDesignerDetailOpen}
           onOpenChange={setIsDesignerDetailOpen}
         />
@@ -268,3 +271,4 @@ export default function DesignersPage() {
     </div>
   );
 }
+

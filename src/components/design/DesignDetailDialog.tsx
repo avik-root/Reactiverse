@@ -8,9 +8,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { IndianRupee, Filter, Code2, Eye, Info, ThumbsUp, Heart } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import LikeButton from './LikeButton'; // Import the new LikeButton
+import LikeButton from './LikeButton';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface DesignDetailDialogProps {
@@ -19,52 +19,73 @@ interface DesignDetailDialogProps {
   onOpenChange: (isOpen: boolean) => void;
 }
 
-const DesignDetailDialog: React.FC<DesignDetailDialogProps> = ({ design: initialDesign, isOpen, onOpenChange }) => {
+const DesignDetailDialog: React.FC<DesignDetailDialogProps> = ({ design: initialDesignProp, isOpen, onOpenChange }) => {
   const { user: currentUser } = useAuth();
-  const [design, setDesign] = useState(initialDesign);
+  // Use internal state for the design to manage likes locally while dialog is open
+  const [internalDesign, setInternalDesign] = useState<Design | null>(initialDesignProp);
+
+  // Ref to track if the dialog was previously open to handle re-initialization correctly
+  const wasOpenRef = useRef(isOpen);
 
   useEffect(() => {
-    setDesign(initialDesign);
-  }, [initialDesign]);
+    if (isOpen) {
+      // If dialog is opening or if the initialDesignProp's ID has changed
+      // (meaning a new design is being passed in), update internalDesign.
+      if (!wasOpenRef.current || (initialDesignProp && initialDesignProp.id !== internalDesign?.id)) {
+        setInternalDesign(initialDesignProp);
+      }
+    }
+    wasOpenRef.current = isOpen;
+  }, [isOpen, initialDesignProp, internalDesign?.id]);
 
-  if (!design) return null;
+
+  if (!internalDesign) return null;
 
   const getInitials = (name?: string) => {
     if (!name) return 'D';
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   }
 
-  const isPriced = design.price && design.price > 0;
+  const isPriced = internalDesign.price && internalDesign.price > 0;
   const currentUserId = currentUser && 'id' in currentUser ? currentUser.id : undefined;
-  const initialIsLiked = currentUserId ? design.likedBy.includes(currentUserId) : false;
-  const initialLikeCount = design.likedBy.length;
+  
+  // Derive these from internalDesign, which is updated by handleLikeChange
+  const initialIsLiked = currentUserId ? internalDesign.likedBy.includes(currentUserId) : false;
+  const initialLikeCount = internalDesign.likedBy.length;
 
-  const handleLikeChange = (newLikeCount: number, newIsLiked: boolean) => {
-    setDesign(prevDesign => {
+  const handleLikeChange = (newLikeCountFromServer: number, newIsLikedFromServer: boolean) => {
+    setInternalDesign(prevDesign => {
       if (!prevDesign) return null;
-      const newLikedBy = [...prevDesign.likedBy];
-      if (newIsLiked && currentUserId && !newLikedBy.includes(currentUserId)) {
-        newLikedBy.push(currentUserId);
-      } else if (!newIsLiked && currentUserId) {
-        const index = newLikedBy.indexOf(currentUserId);
-        if (index > -1) {
-          newLikedBy.splice(index, 1);
+      const updatedLikedBy = [...prevDesign.likedBy];
+
+      if (newIsLikedFromServer) {
+        if (currentUserId && !updatedLikedBy.includes(currentUserId)) {
+          updatedLikedBy.push(currentUserId);
+        }
+      } else {
+        if (currentUserId) {
+          const index = updatedLikedBy.indexOf(currentUserId);
+          if (index > -1) {
+            updatedLikedBy.splice(index, 1);
+          }
         }
       }
-      return { ...prevDesign, likedBy: newLikedBy };
+      // The newLikeCountFromServer can be used if we want to directly set it,
+      // but relying on updatedLikedBy.length is also fine.
+      return { ...prevDesign, likedBy: updatedLikedBy };
     });
   };
 
 
   const previewDoc = useMemo(() => {
-    if (!design || !design.codeBlocks || design.codeBlocks.length === 0) {
+    if (!internalDesign || !internalDesign.codeBlocks || internalDesign.codeBlocks.length === 0) {
       return '';
     }
 
-    const htmlBlock = design.codeBlocks.find(block => block.language.toLowerCase() === 'html');
-    const cssBlocks = design.codeBlocks.filter(block => block.language.toLowerCase() === 'css' || block.language.toLowerCase() === 'scss');
-    const jsBlocks = design.codeBlocks.filter(block => block.language.toLowerCase() === 'javascript');
-    const isFramework = design.codeBlocks.some(block => ['react', 'vue', 'angular', 'tailwind css'].includes(block.language.toLowerCase()));
+    const htmlBlock = internalDesign.codeBlocks.find(block => block.language.toLowerCase() === 'html');
+    const cssBlocks = internalDesign.codeBlocks.filter(block => block.language.toLowerCase() === 'css' || block.language.toLowerCase() === 'scss');
+    const jsBlocks = internalDesign.codeBlocks.filter(block => block.language.toLowerCase() === 'javascript');
+    const isFramework = internalDesign.codeBlocks.some(block => ['react', 'vue', 'angular', 'tailwind css'].includes(block.language.toLowerCase()));
 
     if (isFramework && !htmlBlock) {
         return null; 
@@ -92,39 +113,38 @@ const DesignDetailDialog: React.FC<DesignDetailDialogProps> = ({ design: initial
         </body>
       </html>
     `;
-  }, [design]);
+  }, [internalDesign]);
 
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-3xl md:max-w-4xl lg:max-w-5xl max-h-[90vh] flex flex-col">
         <DialogHeader className="pr-6">
-          <DialogTitle className="font-headline text-2xl text-primary">{design.title}</DialogTitle>
-          {design.filterCategory && (
+          <DialogTitle className="font-headline text-2xl text-primary">{internalDesign.title}</DialogTitle>
+          {internalDesign.filterCategory && (
             <div className="flex items-center text-sm text-muted-foreground pt-1">
                 <Filter className="h-4 w-4 mr-1.5 text-accent"/>
-                <span className="font-medium">{design.filterCategory}</span>
+                <span className="font-medium">{internalDesign.filterCategory}</span>
             </div>
           )}
           <div className="flex items-center gap-2 pt-2">
             <Avatar className="h-8 w-8">
-              <AvatarImage src={design.designer.avatarUrl || `https://placehold.co/40x40.png?text=${getInitials(design.designer.name)}`} alt={design.designer.name} data-ai-hint="designer avatar"/>
-              <AvatarFallback>{getInitials(design.designer.name)}</AvatarFallback>
+              <AvatarImage src={internalDesign.designer.avatarUrl || `https://placehold.co/40x40.png?text=${getInitials(internalDesign.designer.name)}`} alt={internalDesign.designer.name} data-ai-hint="designer avatar"/>
+              <AvatarFallback>{getInitials(internalDesign.designer.name)}</AvatarFallback>
             </Avatar>
-            <span className="text-sm text-muted-foreground">By {design.designer.name}</span>
+            <span className="text-sm text-muted-foreground">By {internalDesign.designer.name}</span>
             
             <div className="ml-auto flex items-center gap-4">
                 <LikeButton
-                    designId={design.id}
+                    designId={internalDesign.id}
                     initialLikeCount={initialLikeCount}
                     initialIsLiked={initialIsLiked}
-                    currentUserId={currentUserId}
-                    onLikeToggle={handleLikeChange}
+                    onLikeToggle={handleLikeChange} // This updates internalDesign
                 />
                 {isPriced ? (
                     <Badge variant="secondary">
                     <IndianRupee className="h-4 w-4 mr-1 text-primary" />
-                    Price: ₹{design.price.toFixed(2)}
+                    Price: ₹{internalDesign.price?.toFixed(2)}
                     </Badge>
                 ) : (
                     <Badge variant="outline" className="text-primary border-primary">
@@ -135,27 +155,27 @@ const DesignDetailDialog: React.FC<DesignDetailDialogProps> = ({ design: initial
             </div>
           </div>
           <DialogDescription className="pt-1 text-left">
-            {design.description}
+            {internalDesign.description}
           </DialogDescription>
         </DialogHeader>
 
         <div className="my-2">
             <h3 className="text-sm font-semibold mb-1">Tags:</h3>
             <div className="flex flex-wrap gap-1">
-              {design.tags.map(tag => (
+              {internalDesign.tags.map(tag => (
                 <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>
               ))}
             </div>
           </div>
 
         <div className="flex-grow overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent border-t pt-4 mt-2">
-          {design.codeBlocks && design.codeBlocks.length > 0 ? (
+          {internalDesign.codeBlocks && internalDesign.codeBlocks.length > 0 ? (
             <Tabs defaultValue="preview" className="w-full">
               <TabsList className="grid w-full grid-cols-1 h-auto mb-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                 <TabsTrigger value="preview" className="flex items-center gap-2">
                   <Eye className="h-4 w-4" /> Preview
                 </TabsTrigger>
-                {design.codeBlocks.map((block, index) => (
+                {internalDesign.codeBlocks.map((block, index) => (
                   <TabsTrigger key={block.id || `code-${index}`} value={block.id || `code-${index}`}  className="flex items-center gap-2">
                      <Code2 className="h-4 w-4" /> {block.language}
                   </TabsTrigger>
@@ -183,20 +203,20 @@ const DesignDetailDialog: React.FC<DesignDetailDialogProps> = ({ design: initial
                 ) : (
                   <iframe
                     srcDoc={previewDoc}
-                    title={`${design.title} Preview`}
-                    sandbox="allow-scripts allow-same-origin" // Basic sandboxing
+                    title={`${internalDesign.title} Preview`}
+                    sandbox="allow-scripts allow-same-origin" 
                     className="w-full h-full border-0 rounded-md"
                   />
                 )}
               </TabsContent>
 
-              {design.codeBlocks.map((block, index) => (
+              {internalDesign.codeBlocks.map((block, index) => (
                 <TabsContent key={block.id || `content-${index}`} value={block.id || `code-${index}`}>
                   <CodeBlock
                     codeSnippet={block.code}
                     language={block.language}
                     isLocked={isPriced}
-                    designId={design.id} 
+                    designId={internalDesign.id} 
                   />
                 </TabsContent>
               ))}
@@ -211,3 +231,4 @@ const DesignDetailDialog: React.FC<DesignDetailDialogProps> = ({ design: initial
 };
 
 export default DesignDetailDialog;
+

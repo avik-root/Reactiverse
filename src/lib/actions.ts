@@ -848,10 +848,9 @@ export async function updateProfileAction(prevState: UserUpdateProfileFormState,
   const rawData = Object.fromEntries(formData.entries());
   const avatarFile = formData.get('avatarFile') as File | null;
   
-  // Prepare data for Zod validation
   const dataToValidate = {
     ...rawData,
-    avatarFile: avatarFile && avatarFile.size > 0 ? avatarFile : undefined, // Only pass to Zod if file exists
+    avatarFile: avatarFile && avatarFile.size > 0 ? avatarFile : undefined,
   };
 
   const validatedFields = UpdateProfileSchema.safeParse(dataToValidate);
@@ -865,7 +864,7 @@ export async function updateProfileAction(prevState: UserUpdateProfileFormState,
   }
 
   const { userId, name, githubUrl, linkedinUrl, figmaUrl, isEmailPublic, isPhonePublic } = validatedFields.data;
-  const uploadedAvatarFile = validatedFields.data.avatarFile; // This is the potentially validated File object
+  const uploadedAvatarFile = validatedFields.data.avatarFile;
 
   const users = await getUsersFromFile();
   const userToUpdate = users.find(u => u.id === userId);
@@ -912,7 +911,7 @@ export async function updateProfileAction(prevState: UserUpdateProfileFormState,
   }
 }
 
-export async function changePasswordAction(prevState: ChangePasswordFormState, formData: FormData): Promise<ChangePasswordFormState> {
+export async function changePasswordAction(prevState: ChangeAdminPasswordFormState, formData: FormData): Promise<ChangeAdminPasswordFormState> {
   const validatedFields = ChangePasswordSchema.safeParse(Object.fromEntries(formData.entries()));
 
   if (!validatedFields.success) {
@@ -1755,3 +1754,4 @@ export async function toggleLikeDesignAction(designId: string, userId: string): 
     return { success: false, message: 'Server error while toggling like.' };
   }
 }
+

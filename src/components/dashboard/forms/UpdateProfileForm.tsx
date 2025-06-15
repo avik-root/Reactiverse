@@ -70,16 +70,14 @@ export default function UpdateProfileForm() {
       });
       if (state.success && state.user) {
         updateAuthUser(state.user);
-        // If avatar was successfully uploaded, the state.user.avatarUrl will have the new path
         if (state.user.avatarUrl) {
-          setCurrentAvatarSource(state.user.avatarUrl); // Update preview to new path
+          setCurrentAvatarSource(state.user.avatarUrl); 
         }
-        setAvatarFile(null); // Clear the stored file after submission
-        // Reset form fields if necessary, though typically not needed as inputs are controlled
+        setAvatarFile(null); 
         const form = document.getElementById('updateProfileForm') as HTMLFormElement;
         if (form) {
             const fileInput = form.elements.namedItem('avatarFile') as HTMLInputElement;
-            if (fileInput) fileInput.value = ""; // Clear file input
+            if (fileInput) fileInput.value = ""; 
         }
 
       }
@@ -97,7 +95,6 @@ export default function UpdateProfileForm() {
         });
         e.target.value = ''; 
         setAvatarFile(null);
-        // Revert preview to original/placeholder if selection is cleared
         const originalAvatar = (user && 'avatarUrl' in user && user.avatarUrl)
           ? user.avatarUrl
           : `https://placehold.co/128x128.png?text=${name.charAt(0) || 'U'}`;
@@ -119,10 +116,10 @@ export default function UpdateProfileForm() {
         return;
       }
 
-      setAvatarFile(file); // Store the file object
+      setAvatarFile(file); 
       const reader = new FileReader();
       reader.onloadend = () => {
-        setCurrentAvatarSource(reader.result as string); // Update preview
+        setCurrentAvatarSource(reader.result as string); 
       };
       reader.readAsDataURL(file);
     } else {
@@ -140,9 +137,9 @@ export default function UpdateProfileForm() {
 
   const handleSubmit = (formData: FormData) => {
     if (avatarFile) {
-      formData.set('avatarFile', avatarFile); // Ensure the file object is in FormData
+      formData.set('avatarFile', avatarFile); 
     } else {
-      formData.delete('avatarFile'); // Remove if no new file, so server uses existing
+      formData.delete('avatarFile'); 
     }
     dispatch(formData);
   };
@@ -174,12 +171,12 @@ export default function UpdateProfileForm() {
                     <UploadCloud className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                         id="avatarFile"
-                        name="avatarFile" // Name attribute is important for FormData
+                        name="avatarFile" 
                         type="file"
                         accept="image/jpeg,image/png,image/jpg"
                         onChange={handleFileChange}
                         className="pl-10 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
-                        aria-describedby="avatarFile-error" // Corrected from avatarUrl-error
+                        aria-describedby="avatarFile-error" 
                     />
                 </div>
                  {state?.errors?.avatarFile && <p id="avatarFile-error" className="text-sm text-destructive">{state.errors.avatarFile.join(', ')}</p>}
@@ -286,3 +283,4 @@ export default function UpdateProfileForm() {
     </Card>
   );
 }
+

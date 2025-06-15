@@ -115,7 +115,7 @@ export type UpdateAdminProfileFormState = {
   adminUser?: Omit<AdminUser, 'passwordHash' | 'twoFactorPinHash'> | null;
   errors?: {
     name?: string[];
-    avatarFile?: string[]; // Changed from avatarUrl
+    avatarFile?: string[];
     general?: string[];
   };
 };
@@ -270,7 +270,7 @@ export type UpdateProfileFormState = {
   user?: AuthUser | null;
   errors?: {
     name?: string[];
-    avatarFile?: string[]; // Changed from avatarUrl
+    avatarFile?: string[];
     githubUrl?: string[];
     linkedinUrl?: string[];
     figmaUrl?: string[];

@@ -39,7 +39,7 @@ const Header = () => {
 
   const handleLogoutAndRedirect = async () => {
     await logout();
-    window.location.href = '/';
+    window.location.href = '/'; // Force full page reload to home
   };
 
   return (

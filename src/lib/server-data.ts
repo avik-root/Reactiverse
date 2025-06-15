@@ -204,12 +204,12 @@ export async function saveUserToFile(newUser: StoredUser): Promise<void> {
         failedPinAttempts: newUser.failedPinAttempts || 0,
         isLocked: newUser.isLocked || false,
         twoFactorEnabled: newUser.twoFactorEnabled || false,
-        canSetPrice: newUser.canSetPrice || false,
+        canSetPrice: newUser.canSetPrice || false, // New users cannot set price by default
         githubUrl: newUser.githubUrl || "",
         linkedinUrl: newUser.linkedinUrl || "",
         figmaUrl: newUser.figmaUrl || "",
-        isEmailPublic: newUser.isEmailPublic || false,
-        isPhonePublic: newUser.isPhonePublic || false,
+        isEmailPublic: newUser.isEmailPublic === undefined ? false : newUser.isEmailPublic,
+        isPhonePublic: newUser.isPhonePublic === undefined ? false : newUser.isPhonePublic,
     });
     await fs.writeFile(USERS_FILE_PATH, JSON.stringify(users, null, 2), 'utf-8');
   } catch (error) {

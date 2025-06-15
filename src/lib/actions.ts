@@ -726,6 +726,7 @@ export async function submitDesignAction(prevState: AddDesignFormState, formData
     await addDesignToFile(newDesign);
     revalidatePath('/');
     revalidatePath('/dashboard/designs');
+    revalidatePath('/designers');
     return { message: 'Design submitted successfully!', success: true };
   } catch (error) {
     console.error("Error submitting design:", error);
@@ -821,6 +822,7 @@ export async function updateDesignAction(prevState: UpdateDesignFormState, formD
     revalidatePath('/');
     revalidatePath('/dashboard/designs');
     revalidatePath(`/dashboard/designs/edit/${designId}`);
+    revalidatePath('/designers');
     return { message: 'Design updated successfully!', success: true };
   } catch (error) {
     console.error("Error updating design:", error);
@@ -1191,6 +1193,7 @@ export async function updateSiteSettingsAction(
   try {
     await saveSiteSettingsToFile(newSettings);
     revalidatePath('/admin/settings');
+    revalidatePath('/'); // Site title and theme can affect all pages
     return { message: 'Site settings updated successfully!', success: true, settings: newSettings };
   } catch (error) {
     console.error('Error updating site settings:', error);

@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { z } from 'zod';
@@ -31,6 +30,7 @@ import {
   getNewsletterSubscribersFromFile,
   addSubscriberToFile,
   getForumTopicsFromFile,
+  getForumPostsFromFile,
 } from './server-data';
 import type {
   AdminUser,
@@ -68,6 +68,7 @@ import type {
   NewsletterSubscriber,
   SubscribeToNewsletterFormState,
   ForumTopic,
+  ForumPost,
 } from './types';
 import { revalidatePath } from 'next/cache';
 import { hashPassword, comparePassword, hashPin, comparePin } from './auth-utils';
@@ -154,7 +155,7 @@ const ValidImageFileSchema = z.instanceof(File, { message: "Image file is requir
   .refine(file => file.size > 0, "Image file cannot be empty.")
   .refine(file => file.size <= MAX_IMAGE_SIZE_BYTES, `Image must be ${MAX_IMAGE_SIZE_MB}MB or less.`)
   .refine(file => ALLOWED_IMAGE_TYPES.includes(file.type), 'Invalid file type. Must be JPG, JPEG, or PNG.')
-  .optional(); // Make it optional at the base, individual schemas can enforce `required` if needed
+  .optional(); 
 
 const AvatarFileSchema = ValidImageFileSchema;
 
@@ -390,7 +391,7 @@ const AddForumCategorySchema = z.object({
   name: z.string().min(3, "Category name must be at least 3 characters."),
   description: z.string().min(10, "Description must be at least 10 characters."),
   slug: z.string().min(3, "Slug must be at least 3 characters.").regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug can only contain lowercase letters, numbers, and hyphens."),
-  iconName: z.enum(['MessagesSquare', 'Palette', 'Code2', 'Lightbulb', 'Megaphone', 'HelpCircle', 'Users', 'Info'], {
+  iconName: z.enum(['MessagesSquare', 'Palette', 'Code2', 'Lightbulb', 'Megaphone', 'HelpCircle', 'Users', 'Info', 'Filter', 'LayoutList'], {
     errorMap: () => ({ message: "Please select a valid icon." })
   }),
 });
@@ -1066,7 +1067,7 @@ export async function disableTwoFactorAction(prevState: AdminTwoFactorAuthFormSt
 export async function getAllDesignsAction(): Promise<Design[]> {
   try {
     const designs = await getDesignsFromFile();
-    const users = await getUsersFromFile(); // Fetch latest user data
+    const users = await getUsersFromFile(); 
     const usersMap = new Map(users.map(u => [u.id, u]));
 
     const defaultDesigner: User = {
@@ -1088,7 +1089,7 @@ export async function getAllDesignsAction(): Promise<Design[]> {
     };
 
     return designs.map(design => {
-      const storedDesigner = usersMap.get(design.submittedByUserId || ''); // Use usersMap
+      const storedDesigner = usersMap.get(design.submittedByUserId || ''); 
       let finalDesigner: User;
 
       if (storedDesigner) {
@@ -1108,7 +1109,7 @@ export async function getAllDesignsAction(): Promise<Design[]> {
 
       return {
         ...design,
-        designer: finalDesigner, // Use the freshly fetched and sanitized designer info
+        designer: finalDesigner, 
         codeBlocks: design.codeBlocks || [],
         copyCount: design.copyCount || 0,
         likedBy: design.likedBy || [],
@@ -1126,7 +1127,7 @@ export async function getDesignByIdAction(id: string): Promise<Design | undefine
     const design = designs.find(d => d.id === id);
 
     if (design) {
-      const users = await getUsersFromFile(); // Fetch latest user data
+      const users = await getUsersFromFile(); 
       const storedDesigner = users.find(u => u.id === design.submittedByUserId);
       let finalDesigner: User;
 
@@ -1152,7 +1153,7 @@ export async function getDesignByIdAction(id: string): Promise<Design | undefine
       }
       return {
         ...design,
-        designer: finalDesigner, // Use the freshly fetched and sanitized designer info
+        designer: finalDesigner, 
         codeBlocks: design.codeBlocks || [],
         copyCount: design.copyCount || 0,
         likedBy: design.likedBy || [],
@@ -1553,7 +1554,6 @@ export async function updatePageContentAction<T extends PageContentKeys>(
   let rawData = Object.fromEntries(formData.entries());
   let dataToValidate = { ...rawData };
 
-  // Pre-processing for AboutUs offerItems
   if (pageKey === 'aboutUs') {
     const offerItems: { title: string; description: string }[] = [];
     let i = 0;
@@ -1562,18 +1562,17 @@ export async function updatePageContentAction<T extends PageContentKeys>(
         title: (dataToValidate[`offerItems[${i}].title`] as string) || '',
         description: (dataToValidate[`offerItems[${i}].description`] as string) || ''
       });
-      delete dataToValidate[`offerItems[${i}].title`]; // Clean up for Zod
-      delete dataToValidate[`offerItems[${i}].description`]; // Clean up for Zod
+      delete dataToValidate[`offerItems[${i}].title`]; 
+      delete dataToValidate[`offerItems[${i}].description`]; 
       i++;
     }
     if (offerItems.length > 0) {
       dataToValidate.offerItems = offerItems;
-    } else if (!dataToValidate.offerItems) { // Ensure it's an array if nothing was parsed
+    } else if (!dataToValidate.offerItems) { 
       dataToValidate.offerItems = [];
     }
   }
 
-  // Pre-processing for Guidelines keyAreas
   if (pageKey === 'guidelines' && dataToValidate.keyAreasJSON && typeof dataToValidate.keyAreasJSON === 'string') {
       try {
           const parsedKeyAreas = JSON.parse(dataToValidate.keyAreasJSON as string);
@@ -1589,7 +1588,6 @@ export async function updatePageContentAction<T extends PageContentKeys>(
     dataToValidate.keyAreas = [];
   }
 
-  // Pre-processing for image files (common logic for aboutUs and teamMembers)
   const imageFields: { formKey: string; contentKey: string; subfolder: string, baseName?: string, memberType?: 'founder' | 'coFounder' }[] = [];
   if (pageKey === 'aboutUs') {
     imageFields.push({ formKey: 'image1File', contentKey: 'image1Url', subfolder: 'about', baseName: 'mission_image' });
@@ -1604,15 +1602,14 @@ export async function updatePageContentAction<T extends PageContentKeys>(
     if (file && file.size > 0) {
       (dataToValidate as any)[imgField.formKey] = file;
     } else {
-      delete (dataToValidate as any)[imgField.formKey]; // Remove if no file to avoid Zod error on empty file
+      delete (dataToValidate as any)[imgField.formKey]; 
     }
   }
 
-  // For teamMembers, structure the data for Zod validation
   if (pageKey === 'teamMembers') {
     dataToValidate.founder = {
       name: rawData['founder.name'], title: rawData['founder.title'], bio: rawData['founder.bio'],
-      imageUrl: rawData['founder.existingImageUrl'], // Will be replaced by file if new one uploaded
+      imageUrl: rawData['founder.existingImageUrl'], 
       imageAlt: rawData['founder.imageAlt'], imageDataAiHint: rawData['founder.imageDataAiHint'],
       githubUrl: rawData['founder.githubUrl'], linkedinUrl: rawData['founder.linkedinUrl'], emailAddress: rawData['founder.emailAddress'],
     };
@@ -1637,7 +1634,6 @@ export async function updatePageContentAction<T extends PageContentKeys>(
 
   const contentToSave: any = { ...validatedFields.data };
 
-  // Handle image saving after validation
   try {
     for (const imgField of imageFields) {
         const file = (validatedFields.data as any)[imgField.formKey] as File | undefined;
@@ -1664,10 +1660,10 @@ export async function updatePageContentAction<T extends PageContentKeys>(
         if (pageKey === 'teamMembers' && imgField.memberType) {
             if (!(contentToSave as any)[imgField.memberType]) (contentToSave as any)[imgField.memberType] = {};
             (contentToSave as any)[imgField.memberType].imageUrl = finalImageUrl;
-            delete (contentToSave as any)[imgField.formKey]; // Clean up file field from content
+            delete (contentToSave as any)[imgField.formKey]; 
         } else {
             (contentToSave as any)[imgField.contentKey] = finalImageUrl;
-            delete (contentToSave as any)[imgField.formKey]; // Clean up file field from content
+            delete (contentToSave as any)[imgField.formKey]; 
         }
     }
      if (pageKey === 'teamMembers') {
@@ -1970,12 +1966,43 @@ export async function getTopicsByCategoryIdAction(categoryId: string): Promise<F
   try {
     const topics = await getForumTopicsFromFile();
     return topics.filter(topic => topic.categoryId === categoryId)
-                 .sort((a, b) => new Date(b.lastRepliedAt).getTime() - new Date(a.lastRepliedAt).getTime()); // Sort by most recent reply
+                 .sort((a, b) => new Date(b.lastRepliedAt).getTime() - new Date(a.lastRepliedAt).getTime()); 
   } catch (error) {
     console.error(`Error fetching topics for category ID "${categoryId}":`, error);
     return [];
   }
 }
+
+export async function getTopicDetailsAction(topicId: string): Promise<ForumTopic | undefined> {
+  try {
+    const topics = await getForumTopicsFromFile();
+    const topic = topics.find(t => t.id === topicId);
+
+    if (topic) {
+      // Potentially increment view count here, but be mindful of revalidation
+      // For simplicity, view count incrementation might be better handled
+      // with client-side triggers or more complex state management.
+      // For now, just return the topic.
+    }
+    return topic;
+
+  } catch (error) {
+    console.error(`Error fetching topic details for ID "${topicId}":`, error);
+    return undefined;
+  }
+}
+
+export async function getPostsByTopicIdAction(topicId: string): Promise<ForumPost[]> {
+  try {
+    const posts = await getForumPostsFromFile();
+    return posts.filter(post => post.topicId === topicId)
+                .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()); // Oldest first
+  } catch (error) {
+    console.error(`Error fetching posts for topic ID "${topicId}":`, error);
+    return [];
+  }
+}
+
 
 export async function subscribeToNewsletterAction(
   prevState: SubscribeToNewsletterFormState,
@@ -2011,7 +2038,7 @@ export async function subscribeToNewsletterAction(
 
   try {
     await addSubscriberToFile(newSubscriber);
-    revalidatePath('/community'); // In case we display subscriber count or something similar later
+    revalidatePath('/community'); 
     revalidatePath('/admin/subscribers');
     return { message: 'Successfully subscribed to the newsletter!', success: true };
   } catch (error) {
@@ -2027,7 +2054,6 @@ export async function subscribeToNewsletterAction(
 export async function getNewsletterSubscribersAction(): Promise<NewsletterSubscriber[]> {
   try {
     const subscribers = await getNewsletterSubscribersFromFile();
-    // Sort by most recent subscription first
     return subscribers.sort((a, b) => new Date(b.subscribedAt).getTime() - new Date(a.subscribedAt).getTime());
   } catch (error) {
     console.error("Error fetching newsletter subscribers:", error);

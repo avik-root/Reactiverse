@@ -231,7 +231,6 @@ export type PageContentData = {
 
 export type PageContentKeys = keyof PageContentData;
 
-// Updated to include potential file error fields
 export type UpdatePageContentFormState<T> = {
   message?: string | null;
   success?: boolean;
@@ -311,7 +310,7 @@ export interface ForumCategory {
   id: string;
   name: string;
   description: string;
-  iconName: 'MessagesSquare' | 'Palette' | 'Code2' | 'Lightbulb' | 'Megaphone' | 'HelpCircle' | 'Users' | 'Info';
+  iconName: 'MessagesSquare' | 'Palette' | 'Code2' | 'Lightbulb' | 'Megaphone' | 'HelpCircle' | 'Users' | 'Info' | 'Filter' | 'LayoutList';
   topicCount?: number;
   postCount?: number;
   slug: string;
@@ -334,15 +333,15 @@ export interface ForumTopic {
   id: string;
   categoryId: string;
   title: string;
-  content: string; // Initial post content
+  content: string; 
   createdByUserId: string;
-  authorName: string; // Denormalized for easy display
-  authorAvatarUrl?: string; // Denormalized
-  createdAt: string; // ISO Date string
-  lastRepliedAt: string; // ISO Date string
+  authorName: string; 
+  authorAvatarUrl?: string; 
+  createdAt: string; 
+  lastRepliedAt: string; 
   viewCount: number;
-  replyCount: number; // Number of posts excluding the initial one
-  postIds: string[]; // Array of post IDs associated with this topic
+  replyCount: number; 
+  postIds: string[]; 
 }
 
 export interface ForumPost {
@@ -350,10 +349,9 @@ export interface ForumPost {
   topicId: string;
   content: string;
   createdByUserId: string;
-  authorName: string; // Denormalized
-  authorAvatarUrl?: string; // Denormalized
-  createdAt: string; // ISO Date string
-  // Add likes, etc. later if needed
+  authorName: string; 
+  authorAvatarUrl?: string; 
+  createdAt: string; 
 }
 
 

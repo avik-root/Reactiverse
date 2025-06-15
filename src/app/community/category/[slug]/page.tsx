@@ -12,7 +12,7 @@ import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 
 
-export const dynamic = 'force-dynamic'; // Ensure fresh data on each request
+export const dynamic = 'force-dynamic'; 
 
 interface CategoryPageProps {
   params: { slug: string };
@@ -63,8 +63,8 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
         <CardContent>
           <div className="flex justify-between items-center mb-6">
             <p className="text-muted-foreground">{topics.length} topic(s) in this category.</p>
-            <Button asChild variant="default" disabled>
-              <Link href={`/community/category/${slug}/new-topic`} className="pointer-events-none opacity-60 cursor-not-allowed">
+            <Button asChild variant="default" className="pointer-events-none opacity-60 cursor-not-allowed">
+              <Link href={`/community/category/${slug}/new-topic`}>
                 <PlusCircle className="mr-2 h-5 w-5" />
                 Create New Topic (Soon)
               </Link>
@@ -80,9 +80,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
                       <h3 className="text-xl font-semibold mb-1">
                         <Link
                           href={`/community/topic/${topic.id}`}
-                          className="text-primary hover:underline pointer-events-none opacity-60 cursor-not-allowed"
-                          aria-disabled="true"
-                          tabIndex={-1}
+                          className="text-primary hover:underline"
                         >
                           {topic.title}
                         </Link>
@@ -114,11 +112,9 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
                    <div className="mt-3">
                         <Link
                           href={`/community/topic/${topic.id}`}
-                          className="text-primary text-sm font-medium hover:underline pointer-events-none opacity-60 cursor-not-allowed"
-                          aria-disabled="true"
-                          tabIndex={-1}
+                          className="text-primary text-sm font-medium hover:underline"
                         >
-                            Read More & Reply (Soon) &rarr;
+                            Read More & Reply &rarr;
                         </Link>
                    </div>
                 </li>
@@ -129,7 +125,10 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
               <FileText className="h-4 w-4" />
               <AlertTitle>No Topics Yet</AlertTitle>
               <AlertDescription>
-                There are no topics in this category yet. Be the first to create one!
+                There are no topics in this category yet.
+                 <Button asChild variant="link" className="p-0 h-auto ml-1 text-accent pointer-events-none opacity-60">
+                    <Link href={`/community/category/${slug}/new-topic`}>Be the first to create one (Soon)!</Link>
+                 </Button>
               </AlertDescription>
             </Alert>
           )}

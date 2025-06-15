@@ -32,7 +32,7 @@
     "githubUrl": "",
     "linkedinUrl": "",
     "figmaUrl": "",
-    "isEmailPublic": false,
+    "isEmailPublic": true,
     "isPhonePublic": false
   }
 ]

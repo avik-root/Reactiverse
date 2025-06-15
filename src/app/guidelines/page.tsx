@@ -17,25 +17,44 @@ export default async function DesignGuidelinesPage() {
         <CardHeader>
           <CardTitle className="flex items-center text-3xl font-headline text-primary">
             <ScrollText className="mr-3 h-8 w-8" />
-            {content.title}
+            {content.title || "Design Guidelines"}
           </CardTitle>
-          <CardDescription>{content.description}</CardDescription>
+          <CardDescription>{content.description || "Our principles and best practices for submitting designs."}</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex flex-col items-center justify-center text-center py-10 bg-muted/30 rounded-lg">
-            <Lightbulb className="h-16 w-16 text-primary/70 mb-4" />
-            <h3 className="text-xl font-semibold mb-2">{content.mainPlaceholderTitle}</h3>
-            <p className="text-muted-foreground max-w-md">
-              {content.mainPlaceholderContent}
-            </p>
-          </div>
-          <section className="space-y-4">
-            <h2 className="text-2xl font-semibold font-headline">{content.keyAreasTitle}</h2>
-            <ul className="list-disc list-inside space-y-2 text-muted-foreground">
-              {content.keyAreas && content.keyAreas.map((area, index) => (
-                <li key={index}>{area}</li>
-              ))}
-            </ul>
+        <CardContent className="space-y-8">
+          {/* Main Placeholder Section */}
+          {(content.mainPlaceholderTitle || content.mainPlaceholderContent) && (
+            <section className="p-6 bg-muted/30 rounded-lg">
+              <div className="flex flex-col items-center text-center">
+                <Lightbulb className="h-12 w-12 text-primary/70 mb-4" />
+                {content.mainPlaceholderTitle && (
+                  <h3 className="text-2xl font-semibold font-headline mb-2">{content.mainPlaceholderTitle}</h3>
+                )}
+                {content.mainPlaceholderContent && (
+                  <p className="text-muted-foreground max-w-prose mx-auto">
+                    {content.mainPlaceholderContent}
+                  </p>
+                )}
+              </div>
+            </section>
+          )}
+
+          {/* Key Areas Section */}
+          <section>
+            <h2 className="text-2xl font-semibold font-headline mb-4">
+              {content.keyAreasTitle || "Key Areas We'll Cover:"}
+            </h2>
+            {content.keyAreas && content.keyAreas.length > 0 ? (
+              <ul className="list-disc list-inside space-y-3 text-muted-foreground pl-5">
+                {content.keyAreas.map((area, index) => (
+                  <li key={index} className="leading-relaxed text-base">
+                    {area}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-muted-foreground">Details on key areas will be provided soon.</p>
+            )}
           </section>
         </CardContent>
       </Card>

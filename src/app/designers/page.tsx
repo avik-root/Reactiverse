@@ -1,6 +1,6 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Award, Info } from 'lucide-react';
+import { Users, Award, Info, Heart } from 'lucide-react';
 import { getPageContentAction, getAllUsersAdminAction, getAllDesignsAction } from '@/lib/actions';
 import type { TopDesignersPageContent, User, Design } from '@/lib/types';
 import DesignerCard from '@/components/designer/DesignerCard';
@@ -21,14 +21,15 @@ export default async function DesignersPage() {
     return <div className="container mx-auto py-12">Error loading page content. Please try again later.</div>;
   }
 
-  // Filter out admin users and calculate total like count for each designer
+  // Calculate total like count for each designer
   const designersWithLikeCount: DesignerWithLikeCount[] = users
-    .filter(user => !user.id.startsWith('admin-'))
+    .filter(user => !user.id.startsWith('admin-')) // Filter out admin users
     .map(designer => {
       const designerDesigns = allDesigns.filter(design => design.submittedByUserId === designer.id);
       const totalLikeCount = designerDesigns.reduce((sum, design) => sum + (design.likedBy?.length || 0), 0);
       return { ...designer, totalLikeCount };
     })
+    .filter(designer => designer.totalLikeCount > 0) // Only include designers with more than 0 likes
     .sort((a, b) => b.totalLikeCount - a.totalLikeCount); // Sort by total like count descending
 
   return (
@@ -51,9 +52,9 @@ export default async function DesignersPage() {
           ) : (
             <Alert>
               <Info className="h-4 w-4" />
-              <AlertTitle>{content.mainPlaceholderTitle || "No Designers Yet"}</AlertTitle>
+              <AlertTitle>{content.mainPlaceholderTitle || "No Top Designers Yet"}</AlertTitle>
               <AlertDescription>
-                {content.mainPlaceholderContent || "We're waiting for talented designers to join our community. Check back soon!"}
+                {content.mainPlaceholderContent || "We're waiting for talented designers to get some likes on their contributions. Check back soon!"}
               </AlertDescription>
             </Alert>
           )}
@@ -62,3 +63,4 @@ export default async function DesignersPage() {
     </div>
   );
 }
+

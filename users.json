@@ -14,7 +14,25 @@
     "githubUrl": "https://github.com/test",
     "linkedinUrl": "https://linkedin.com/in/test",
     "figmaUrl": "https://www.figma.com/",
-    "isEmailPublic": true,
+    "isEmailPublic": false,
+    "isPhonePublic": false
+  },
+  {
+    "id": "user-1749999002114",
+    "name": "DJ",
+    "username": "@djx",
+    "email": "dj@gmail.com",
+    "phone": "+919192939495",
+    "passwordHash": "$2a$10$2FqMe3XrBIHbKnnlI8mlYeec9BCyTW.X/j8.ts2xpE7US5VImaw4y",
+    "avatarUrl": "https://placehold.co/100x100.png?text=D",
+    "twoFactorEnabled": false,
+    "failedPinAttempts": 0,
+    "isLocked": false,
+    "canSetPrice": false,
+    "githubUrl": "",
+    "linkedinUrl": "",
+    "figmaUrl": "",
+    "isEmailPublic": false,
     "isPhonePublic": false
   }
 ]

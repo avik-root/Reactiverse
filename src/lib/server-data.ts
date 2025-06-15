@@ -47,7 +47,7 @@ const DEFAULT_TEAM_MEMBERS_CONTENT: TeamMembersContent = {
     title: "Founder & CEO",
     bio: "Visionary leader with a passion for innovative design and community building. Alex drives the strategic direction of Reactiverse, ensuring it remains a leading platform for UI/UX enthusiasts worldwide.",
     ...DEFAULT_TEAM_MEMBER_DATA,
-    imageUrl: "/team_images/founder_image.png", 
+    imageUrl: "/team_images/founder_image.png",
     imageAlt: "Founder Alex Johnson",
   },
   coFounder: {
@@ -55,7 +55,7 @@ const DEFAULT_TEAM_MEMBERS_CONTENT: TeamMembersContent = {
     title: "Co-Founder & CTO",
     bio: "Expert technologist driving the platform's architecture and development. Maria focuses on creating a seamless and powerful experience for all Reactiverse users.",
     ...DEFAULT_TEAM_MEMBER_DATA,
-    imageUrl: "/team_images/cofounder_image.png", 
+    imageUrl: "/team_images/cofounder_image.png",
     imageAlt: "Co-Founder Maria Garcia",
   }
 };
@@ -272,7 +272,7 @@ export async function saveUserToFile(newUser: StoredUser): Promise<void> {
         failedPinAttempts: newUser.failedPinAttempts || 0,
         isLocked: newUser.isLocked || false,
         twoFactorEnabled: newUser.twoFactorEnabled || false,
-        canSetPrice: newUser.canSetPrice || false, 
+        canSetPrice: newUser.canSetPrice || false,
         githubUrl: newUser.githubUrl || "",
         linkedinUrl: newUser.linkedinUrl || "",
         figmaUrl: newUser.figmaUrl || "",
@@ -548,8 +548,8 @@ export async function getForumCategoriesFromFile(): Promise<ForumCategory[]> {
   try {
     if (!(await fileExists(FORUM_CATEGORIES_FILE_PATH))) {
       const defaultCategories: ForumCategory[] = [
-        { id: "cat-001", name: "General Discussion", description: "Talk about anything UI/UX.", iconName: "MessagesSquare", slug:"general", topicCount: 0, postCount: 0 },
-        { id: "cat-002", name: "Showcase & Feedback", description: "Share your work.", iconName: "Palette", slug:"showcase", topicCount: 0, postCount: 0 },
+        { id: "cat-001", name: "General Discussion", description: "Talk about anything UI/UX.", iconName: "MessagesSquare", slug:"general-discussion", topicCount: 0, postCount: 0 },
+        { id: "cat-002", name: "Showcase & Feedback", description: "Share your work.", iconName: "Palette", slug:"showcase-feedback", topicCount: 0, postCount: 0 },
       ];
       await fs.writeFile(FORUM_CATEGORIES_FILE_PATH, JSON.stringify(defaultCategories, null, 2));
       return defaultCategories;
@@ -561,6 +561,27 @@ export async function getForumCategoriesFromFile(): Promise<ForumCategory[]> {
     return [];
   }
 }
+
+export async function saveForumCategoriesToFile(categories: ForumCategory[]): Promise<void> {
+  try {
+    await fs.writeFile(FORUM_CATEGORIES_FILE_PATH, JSON.stringify(categories, null, 2), 'utf-8');
+  } catch (error) {
+    console.error('Failed to save forum_categories.json:', error);
+    throw error;
+  }
+}
+
+export async function addForumCategoryToFile(newCategory: ForumCategory): Promise<void> {
+  try {
+    const categories = await getForumCategoriesFromFile();
+    categories.push(newCategory);
+    await saveForumCategoriesToFile(categories);
+  } catch (error) {
+    console.error('Failed to add category to forum_categories.json:', error);
+    throw error;
+  }
+}
+
 
 export async function getForumTopicsFromFile(): Promise<ForumTopic[]> {
   try {

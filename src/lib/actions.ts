@@ -27,6 +27,7 @@ import {
   saveAdminAvatar,
   savePageContentImage,
   getForumCategoriesFromFile,
+  addForumCategoryToFile,
   getNewsletterSubscribersFromFile,
   addSubscriberToFile,
   getForumTopicsFromFile,
@@ -63,6 +64,7 @@ import type {
   ToggleLikeDesignResult,
   FAQItem,
   ForumCategory,
+  AddForumCategoryFormState,
   NewsletterSubscriber,
   SubscribeToNewsletterFormState,
   ForumTopic,
@@ -357,7 +359,7 @@ const TeamMemberSchemaClient = z.object({
   name: z.string().min(1, "Name is required"),
   title: z.string().min(1, "Title is required"),
   bio: z.string().min(10, "Bio must be at least 10 characters"),
-  imageUrl: z.string().optional(), 
+  imageUrl: z.string().optional(),
   imageAlt: z.string().optional(),
   imageDataAiHint: z.string().max(30, "AI hint too long").optional(),
   githubUrl: z.string().url("Invalid GitHub URL").or(z.literal("")).optional(),
@@ -382,6 +384,15 @@ const SiteLogoSchema = z.object({
 
 const NewsletterSubscriptionSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address.' }),
+});
+
+const AddForumCategorySchema = z.object({
+  name: z.string().min(3, "Category name must be at least 3 characters."),
+  description: z.string().min(10, "Description must be at least 10 characters."),
+  slug: z.string().min(3, "Slug must be at least 3 characters.").regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug can only contain lowercase letters, numbers, and hyphens."),
+  iconName: z.enum(['MessagesSquare', 'Palette', 'Code2', 'Lightbulb', 'Megaphone', 'HelpCircle', 'Users', 'Info'], {
+    errorMap: () => ({ message: "Please select a valid icon." })
+  }),
 });
 
 
@@ -660,7 +671,7 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     path: '/admin',
-    maxAge: 0, 
+    maxAge: 0,
     sameSite: 'lax',
   });
 
@@ -673,7 +684,7 @@ export async function logoutAdminAction(): Promise<{ success: boolean }> {
   try {
     cookies().set(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS, '', {
       path: '/admin',
-      maxAge: 0, 
+      maxAge: 0,
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -852,7 +863,7 @@ export async function updateDesignAction(prevState: UpdateDesignFormState, formD
     designer: designerInfo as User,
     tags: tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
     price: finalPrice,
-    likedBy: existingDesign.likedBy || [], 
+    likedBy: existingDesign.likedBy || [],
   };
 
   try {
@@ -872,7 +883,7 @@ export async function updateDesignAction(prevState: UpdateDesignFormState, formD
 export async function updateProfileAction(prevState: UserUpdateProfileFormState, formData: FormData): Promise<UserUpdateProfileFormState> {
   const rawData = Object.fromEntries(formData.entries());
   const avatarFile = formData.get('avatarFile') as File | null;
-  
+
   const dataToValidate = {
     ...rawData,
     avatarFile: avatarFile && avatarFile.size > 0 ? avatarFile : undefined,
@@ -1311,7 +1322,7 @@ export async function updateSiteSettingsAction(
   try {
     await saveSiteSettingsToFile(newSettings);
     revalidatePath('/admin/settings');
-    revalidatePath('/'); 
+    revalidatePath('/');
     return { message: 'Site settings updated successfully!', success: true, settings: newSettings };
   } catch (error) {
     console.error('Error updating site settings:', error);
@@ -1561,7 +1572,7 @@ export async function updatePageContentAction<T extends PageContentKeys>(
       dataToValidate.offerItems = [];
     }
   }
-  
+
   // Pre-processing for Guidelines keyAreas
   if (pageKey === 'guidelines' && dataToValidate.keyAreasJSON && typeof dataToValidate.keyAreasJSON === 'string') {
       try {
@@ -1596,7 +1607,7 @@ export async function updatePageContentAction<T extends PageContentKeys>(
       delete (dataToValidate as any)[imgField.formKey]; // Remove if no file to avoid Zod error on empty file
     }
   }
-  
+
   // For teamMembers, structure the data for Zod validation
   if (pageKey === 'teamMembers') {
     dataToValidate.founder = {
@@ -1623,15 +1634,15 @@ export async function updatePageContentAction<T extends PageContentKeys>(
       success: false,
     };
   }
-  
+
   const contentToSave: any = { ...validatedFields.data };
 
   // Handle image saving after validation
   try {
     for (const imgField of imageFields) {
         const file = (validatedFields.data as any)[imgField.formKey] as File | undefined;
-        const existingUrlKey = pageKey === 'teamMembers' && imgField.memberType 
-                                ? `${imgField.memberType}.existingImageUrl` 
+        const existingUrlKey = pageKey === 'teamMembers' && imgField.memberType
+                                ? `${imgField.memberType}.existingImageUrl`
                                 : `existing${imgField.contentKey.charAt(0).toUpperCase() + imgField.contentKey.slice(1)}`;
         const existingUrl = formData.get(existingUrlKey) as string | null;
 
@@ -1794,8 +1805,8 @@ export async function adminSetUserCanSetPriceAction(
   try {
     await updateUserInFile(userToUpdate);
     revalidatePath('/admin/users');
-    revalidatePath('/dashboard/designs/submit'); 
-    revalidatePath(`/dashboard/designs/edit/[designId]`); 
+    revalidatePath('/dashboard/designs/submit');
+    revalidatePath(`/dashboard/designs/edit/[designId]`);
     const { passwordHash, twoFactorPinHash, ...userToReturn } = userToUpdate;
     return { message: `User's ability to set prices ${canSetPrice ? 'enabled' : 'disabled'} successfully.`, success: true, updatedUser: {...userToReturn, canSetPrice: userToReturn.canSetPrice || false} };
   } catch (error) {
@@ -1823,7 +1834,7 @@ export async function incrementDesignCopyCountAction(designId: string): Promise<
     await saveDesignsToFile(designs);
     revalidatePath('/');
     revalidatePath('/designers');
-    
+
     return { success: true, newCount: designToUpdate.copyCount };
   } catch (error) {
     console.error(`Error incrementing copy count for design ${designId}:`, error);
@@ -1862,9 +1873,9 @@ export async function toggleLikeDesignAction(designId: string, userId: string): 
     }
 
     await saveDesignsToFile(designs);
-    revalidatePath('/'); 
-    revalidatePath(`/designers`); 
-    revalidatePath(`/dashboard/designs`); 
+    revalidatePath('/');
+    revalidatePath(`/designers`);
+    revalidatePath(`/dashboard/designs`);
 
     return {
       success: true,
@@ -1886,6 +1897,64 @@ export async function getForumCategoriesAction(): Promise<ForumCategory[]> {
     return [];
   }
 }
+
+export async function addForumCategoryAction(
+  prevState: AddForumCategoryFormState,
+  formData: FormData
+): Promise<AddForumCategoryFormState> {
+  const validatedFields = AddForumCategorySchema.safeParse(Object.fromEntries(formData.entries()));
+
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: 'Invalid fields. Please check your input.',
+      success: false,
+    };
+  }
+
+  const { name, description, slug, iconName } = validatedFields.data;
+  const categories = await getForumCategoriesFromFile();
+
+  if (categories.some(cat => cat.slug === slug)) {
+    return {
+      message: 'This slug is already in use. Please choose a unique slug.',
+      success: false,
+      errors: { slug: ['Slug already exists.'] }
+    };
+  }
+  if (categories.some(cat => cat.name.toLowerCase() === name.toLowerCase())) {
+    return {
+      message: 'A category with this name already exists.',
+      success: false,
+      errors: { name: ['Category name already exists.'] }
+    };
+  }
+
+  const newCategory: ForumCategory = {
+    id: `cat-${Date.now()}`,
+    name,
+    description,
+    slug,
+    iconName,
+    topicCount: 0,
+    postCount: 0,
+  };
+
+  try {
+    await addForumCategoryToFile(newCategory);
+    revalidatePath('/admin/forum-categories');
+    revalidatePath('/community');
+    return { message: 'Forum category added successfully!', success: true, category: newCategory };
+  } catch (error) {
+    console.error('Error adding forum category:', error);
+    return {
+      message: 'Failed to add category. Please try again.',
+      success: false,
+      errors: { general: ['Server error.'] }
+    };
+  }
+}
+
 
 export async function getCategoryBySlugAction(slug: string): Promise<ForumCategory | undefined> {
   try {

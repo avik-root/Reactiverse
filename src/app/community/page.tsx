@@ -4,7 +4,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { MessagesSquare, Search, Lightbulb, Users, Palette, HelpCircle, Megaphone, Code2, Mail } from 'lucide-react';
+import { MessagesSquare, Search, Lightbulb, Users, Palette, HelpCircle, Megaphone, Code2, Mail, Info, Filter, LayoutList } from 'lucide-react';
 import Link from 'next/link';
 import { getForumCategoriesAction, subscribeToNewsletterAction, type SubscribeToNewsletterFormState } from '@/lib/actions';
 import type { ForumCategory } from '@/lib/types';
@@ -20,7 +20,10 @@ const LucideIcons = {
   Lightbulb,
   Megaphone,
   HelpCircle,
-  Users
+  Users,
+  Info,
+  Filter,
+  LayoutList,
 };
 
 type IconName = keyof typeof LucideIcons;
@@ -118,7 +121,7 @@ export default function CommunityForumPage() {
           <CardDescription>Connect, share, and learn with fellow designers and developers in the Reactiverse.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-10">
-          
+
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
@@ -175,16 +178,16 @@ export default function CommunityForumPage() {
             </p>
             <p className="text-sm text-accent">Thank you for your patience and stay tuned for exciting updates!</p>
           </section>
-          
+
            <div className="border-t pt-8">
                 <h3 className="text-lg font-semibold mb-3 text-center">Want to be notified when full features launch?</h3>
                 <form id="newsletterForm" action={formAction} className="flex flex-col sm:flex-row gap-2 max-w-md mx-auto">
                     <div className="relative flex-grow">
                         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input 
-                            type="email" 
+                        <Input
+                            type="email"
                             name="email"
-                            placeholder="Enter your email" 
+                            placeholder="Enter your email"
                             className="pl-10 flex-grow"
                             required
                             aria-describedby="newsletter-email-error"

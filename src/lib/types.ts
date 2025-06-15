@@ -311,11 +311,24 @@ export interface ForumCategory {
   id: string;
   name: string;
   description: string;
-  iconName: 'MessagesSquare' | 'Palette' | 'Code2' | 'Lightbulb' | 'Megaphone' | 'HelpCircle' | 'Users'; // Add more as needed
-  topicCount?: number; 
-  postCount?: number; 
+  iconName: 'MessagesSquare' | 'Palette' | 'Code2' | 'Lightbulb' | 'Megaphone' | 'HelpCircle' | 'Users' | 'Info';
+  topicCount?: number;
+  postCount?: number;
   slug: string;
 }
+
+export type AddForumCategoryFormState = {
+  message?: string | null;
+  success?: boolean;
+  errors?: {
+    name?: string[];
+    description?: string[];
+    slug?: string[];
+    iconName?: string[];
+    general?: string[];
+  };
+  category?: ForumCategory | null;
+};
 
 export interface ForumTopic {
   id: string;

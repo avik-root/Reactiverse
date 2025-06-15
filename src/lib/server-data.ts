@@ -1,6 +1,7 @@
 
+
 // This file should only be imported by server-side code (e.g., server actions, API routes)
-import type { StoredAdminUser, StoredUser, Design, SiteSettings, PageContentData, PageContentKeys, TeamMembersContent, TeamMember, ForumCategory, NewsletterSubscriber } from './types';
+import type { StoredAdminUser, StoredUser, Design, SiteSettings, PageContentData, PageContentKeys, TeamMembersContent, TeamMember, ForumCategory, NewsletterSubscriber, ForumTopic, ForumPost } from './types';
 import fs from 'fs/promises';
 import path from 'path';
 import { constants } from 'fs';
@@ -15,6 +16,8 @@ const PUBLIC_DIR = path.join(process.cwd(), 'public');
 const AVATARS_DIR = path.join(PUBLIC_DIR, 'avatars');
 const CONTENT_IMAGES_DIR = path.join(PUBLIC_DIR, 'content_images');
 const FORUM_CATEGORIES_FILE_PATH = path.join(process.cwd(), 'forum_categories.json');
+const FORUM_TOPICS_FILE_PATH = path.join(process.cwd(), 'forum_topics.json');
+const FORUM_POSTS_FILE_PATH = path.join(process.cwd(), 'forum_posts.json');
 const NEWSLETTER_SUBSCRIBERS_FILE_PATH = path.join(process.cwd(), 'newsletter_subscribers.json');
 
 
@@ -559,6 +562,53 @@ export async function getForumCategoriesFromFile(): Promise<ForumCategory[]> {
   }
 }
 
+export async function getForumTopicsFromFile(): Promise<ForumTopic[]> {
+  try {
+    if (!(await fileExists(FORUM_TOPICS_FILE_PATH))) {
+      await fs.writeFile(FORUM_TOPICS_FILE_PATH, JSON.stringify([], null, 2));
+      return [];
+    }
+    const jsonData = await fs.readFile(FORUM_TOPICS_FILE_PATH, 'utf-8');
+    return JSON.parse(jsonData) as ForumTopic[];
+  } catch (error) {
+    console.error('Failed to read forum_topics.json:', error);
+    return [];
+  }
+}
+
+export async function saveForumTopicsToFile(topics: ForumTopic[]): Promise<void> {
+  try {
+    await fs.writeFile(FORUM_TOPICS_FILE_PATH, JSON.stringify(topics, null, 2), 'utf-8');
+  } catch (error) {
+    console.error('Failed to save forum topics to forum_topics.json:', error);
+    throw error;
+  }
+}
+
+export async function getForumPostsFromFile(): Promise<ForumPost[]> {
+  try {
+    if (!(await fileExists(FORUM_POSTS_FILE_PATH))) {
+      await fs.writeFile(FORUM_POSTS_FILE_PATH, JSON.stringify([], null, 2));
+      return [];
+    }
+    const jsonData = await fs.readFile(FORUM_POSTS_FILE_PATH, 'utf-8');
+    return JSON.parse(jsonData) as ForumPost[];
+  } catch (error) {
+    console.error('Failed to read forum_posts.json:', error);
+    return [];
+  }
+}
+
+export async function saveForumPostsToFile(posts: ForumPost[]): Promise<void> {
+  try {
+    await fs.writeFile(FORUM_POSTS_FILE_PATH, JSON.stringify(posts, null, 2), 'utf-8');
+  } catch (error) {
+    console.error('Failed to save forum posts to forum_posts.json:', error);
+    throw error;
+  }
+}
+
+
 export async function getNewsletterSubscribersFromFile(): Promise<NewsletterSubscriber[]> {
   try {
     if (!(await fileExists(NEWSLETTER_SUBSCRIBERS_FILE_PATH))) {
@@ -583,3 +633,4 @@ export async function addSubscriberToFile(newSubscriber: NewsletterSubscriber): 
     throw error;
   }
 }
+

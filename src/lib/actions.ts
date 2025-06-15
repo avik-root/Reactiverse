@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { z } from 'zod';
@@ -28,6 +29,7 @@ import {
   getForumCategoriesFromFile,
   getNewsletterSubscribersFromFile,
   addSubscriberToFile,
+  getForumTopicsFromFile,
 } from './server-data';
 import type {
   AdminUser,
@@ -63,6 +65,7 @@ import type {
   ForumCategory,
   NewsletterSubscriber,
   SubscribeToNewsletterFormState,
+  ForumTopic,
 } from './types';
 import { revalidatePath } from 'next/cache';
 import { hashPassword, comparePassword, hashPin, comparePin } from './auth-utils';
@@ -1052,7 +1055,7 @@ export async function disableTwoFactorAction(prevState: AdminTwoFactorAuthFormSt
 export async function getAllDesignsAction(): Promise<Design[]> {
   try {
     const designs = await getDesignsFromFile();
-    const users = await getUsersFromFile();
+    const users = await getUsersFromFile(); // Fetch latest user data
     const usersMap = new Map(users.map(u => [u.id, u]));
 
     const defaultDesigner: User = {
@@ -1074,19 +1077,27 @@ export async function getAllDesignsAction(): Promise<Design[]> {
     };
 
     return designs.map(design => {
-      const storedDesigner = usersMap.get(design.submittedByUserId || '');
+      const storedDesigner = usersMap.get(design.submittedByUserId || ''); // Use usersMap
       let finalDesigner: User;
 
       if (storedDesigner) {
         const { passwordHash, twoFactorPinHash, ...rest } = storedDesigner;
-        finalDesigner = rest as User;
+        finalDesigner = {
+            ...rest,
+            failedPinAttempts: rest.failedPinAttempts || 0,
+            isLocked: rest.isLocked || false,
+            canSetPrice: rest.canSetPrice || false,
+            twoFactorEnabled: rest.twoFactorEnabled || false,
+            isEmailPublic: rest.isEmailPublic === undefined ? false : rest.isEmailPublic,
+            isPhonePublic: rest.isPhonePublic === undefined ? false : rest.isPhonePublic,
+        } as User;
       } else {
         finalDesigner = defaultDesigner;
       }
 
       return {
         ...design,
-        designer: finalDesigner,
+        designer: finalDesigner, // Use the freshly fetched and sanitized designer info
         codeBlocks: design.codeBlocks || [],
         copyCount: design.copyCount || 0,
         likedBy: design.likedBy || [],
@@ -1104,13 +1115,21 @@ export async function getDesignByIdAction(id: string): Promise<Design | undefine
     const design = designs.find(d => d.id === id);
 
     if (design) {
-      const users = await getUsersFromFile();
+      const users = await getUsersFromFile(); // Fetch latest user data
       const storedDesigner = users.find(u => u.id === design.submittedByUserId);
       let finalDesigner: User;
 
       if (storedDesigner) {
         const { passwordHash, twoFactorPinHash, ...rest } = storedDesigner;
-        finalDesigner = rest as User;
+         finalDesigner = {
+            ...rest,
+            failedPinAttempts: rest.failedPinAttempts || 0,
+            isLocked: rest.isLocked || false,
+            canSetPrice: rest.canSetPrice || false,
+            twoFactorEnabled: rest.twoFactorEnabled || false,
+            isEmailPublic: rest.isEmailPublic === undefined ? false : rest.isEmailPublic,
+            isPhonePublic: rest.isPhonePublic === undefined ? false : rest.isPhonePublic,
+        } as User;
       } else {
         finalDesigner = {
           id: 'unknown', name: 'Unknown Designer', username: '@unknown', avatarUrl: '',
@@ -1122,7 +1141,7 @@ export async function getDesignByIdAction(id: string): Promise<Design | undefine
       }
       return {
         ...design,
-        designer: finalDesigner,
+        designer: finalDesigner, // Use the freshly fetched and sanitized designer info
         codeBlocks: design.codeBlocks || [],
         copyCount: design.copyCount || 0,
         likedBy: design.likedBy || [],
@@ -1868,6 +1887,27 @@ export async function getForumCategoriesAction(): Promise<ForumCategory[]> {
   }
 }
 
+export async function getCategoryBySlugAction(slug: string): Promise<ForumCategory | undefined> {
+  try {
+    const categories = await getForumCategoriesFromFile();
+    return categories.find(category => category.slug === slug);
+  } catch (error) {
+    console.error(`Error fetching category by slug "${slug}":`, error);
+    return undefined;
+  }
+}
+
+export async function getTopicsByCategoryIdAction(categoryId: string): Promise<ForumTopic[]> {
+  try {
+    const topics = await getForumTopicsFromFile();
+    return topics.filter(topic => topic.categoryId === categoryId)
+                 .sort((a, b) => new Date(b.lastRepliedAt).getTime() - new Date(a.lastRepliedAt).getTime()); // Sort by most recent reply
+  } catch (error) {
+    console.error(`Error fetching topics for category ID "${categoryId}":`, error);
+    return [];
+  }
+}
+
 export async function subscribeToNewsletterAction(
   prevState: SubscribeToNewsletterFormState,
   formData: FormData
@@ -1925,3 +1965,4 @@ export async function getNewsletterSubscribersAction(): Promise<NewsletterSubscr
     return [];
   }
 }
+

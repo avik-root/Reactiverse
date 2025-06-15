@@ -6,7 +6,7 @@
     "description": "Talk about anything related to UI/UX design, development, and Reactiverse.",
     "iconName": "MessagesSquare",
     "slug": "general-discussion",
-    "topicCount": 0,
+    "topicCount": 2,
     "postCount": 0
   },
   {
@@ -15,7 +15,7 @@
     "description": "Share your latest designs and get constructive feedback from the community.",
     "iconName": "Palette",
     "slug": "showcase-feedback",
-    "topicCount": 0,
+    "topicCount": 1,
     "postCount": 0
   },
   {
@@ -55,3 +55,4 @@
     "postCount": 0
   }
 ]
+

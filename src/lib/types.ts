@@ -1,4 +1,5 @@
 
+
 export interface User {
   id: string;
   name: string;
@@ -311,10 +312,37 @@ export interface ForumCategory {
   name: string;
   description: string;
   iconName: 'MessagesSquare' | 'Palette' | 'Code2' | 'Lightbulb' | 'Megaphone' | 'HelpCircle' | 'Users'; // Add more as needed
-  topicCount?: number; // Optional for now
-  postCount?: number; // Optional for now
+  topicCount?: number; 
+  postCount?: number; 
   slug: string;
 }
+
+export interface ForumTopic {
+  id: string;
+  categoryId: string;
+  title: string;
+  content: string; // Initial post content
+  createdByUserId: string;
+  authorName: string; // Denormalized for easy display
+  authorAvatarUrl?: string; // Denormalized
+  createdAt: string; // ISO Date string
+  lastRepliedAt: string; // ISO Date string
+  viewCount: number;
+  replyCount: number; // Number of posts excluding the initial one
+  postIds: string[]; // Array of post IDs associated with this topic
+}
+
+export interface ForumPost {
+  id: string;
+  topicId: string;
+  content: string;
+  createdByUserId: string;
+  authorName: string; // Denormalized
+  authorAvatarUrl?: string; // Denormalized
+  createdAt: string; // ISO Date string
+  // Add likes, etc. later if needed
+}
+
 
 export interface NewsletterSubscriber {
   email: string;
@@ -329,3 +357,4 @@ export type SubscribeToNewsletterFormState = {
     general?: string[];
   };
 };
+

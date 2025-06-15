@@ -28,10 +28,9 @@ type IconName = keyof typeof LucideIcons;
 
 interface ForumCategoryCardProps {
   category: ForumCategory;
-  disabled?: boolean;
 }
 
-function ForumCategoryCard({ category, disabled }: ForumCategoryCardProps) {
+function ForumCategoryCard({ category }: ForumCategoryCardProps) {
   const IconComponent = LucideIcons[category.iconName as IconName] || HelpCircle; // Fallback to HelpCircle
 
   return (
@@ -48,14 +47,10 @@ function ForumCategoryCard({ category, disabled }: ForumCategoryCardProps) {
           <span>Topics: {category.topicCount || 0}</span>
           <span>Posts: {category.postCount || 0}</span>
         </div>
-        <Button asChild variant="outline" className="w-full" disabled={disabled}>
-          {disabled ? (
-            <span>Coming Soon</span>
-          ) : (
+        <Button asChild variant="outline" className="w-full">
             <Link href={`/community/category/${category.slug}`}>
               View Topics
             </Link>
-          )}
         </Button>
       </CardContent>
     </Card>
@@ -162,7 +157,7 @@ export default function CommunityForumPage() {
             ) : categories.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {categories.map((category) => (
-                  <ForumCategoryCard key={category.id} category={category} disabled={true} />
+                  <ForumCategoryCard key={category.id} category={category} />
                 ))}
               </div>
             ) : (
@@ -206,3 +201,4 @@ export default function CommunityForumPage() {
     </div>
   );
 }
+

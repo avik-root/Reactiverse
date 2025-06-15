@@ -87,9 +87,11 @@ const DesignerDetailDialog: React.FC<DesignerDetailDialogProps> = ({ user, isOpe
         
         <div className="py-4 space-y-2 border-t mt-4">
           <div className="grid grid-cols-2 gap-x-4 gap-y-1 mb-3">
-            <Badge variant="secondary" className="justify-center py-1.5">
-                <Palette className="h-4 w-4 mr-1.5 text-primary"/> Designs Uploaded: {user.totalDesignsUploaded}
-            </Badge>
+            <Link href={`/?designerId=${user.id}#all-designs-section`} passHref>
+              <Badge variant="secondary" className="justify-center py-1.5 cursor-pointer hover:bg-muted w-full">
+                  <Palette className="h-4 w-4 mr-1.5 text-primary"/> Designs Uploaded: {user.totalDesignsUploaded}
+              </Badge>
+            </Link>
             <Badge variant="secondary" className="justify-center py-1.5">
                  <Star className="h-4 w-4 mr-1.5 text-primary fill-primary"/> Total Likes: {user.totalLikes}
             </Badge>
@@ -147,3 +149,4 @@ const DesignerDetailDialog: React.FC<DesignerDetailDialogProps> = ({ user, isOpe
 };
 
 export default DesignerDetailDialog;
+

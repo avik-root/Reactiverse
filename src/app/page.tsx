@@ -16,8 +16,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Card } from '@/components/ui/card'; // Card only, CardContent/Header/Title not directly used for category boxes
-import { Search, ListFilter, Palette, Loader2, Sparkles, Wand2, MousePointerClick, ToggleLeft, CheckSquare, Navigation, CreditCard, LayoutGrid } from 'lucide-react';
+import { Card } from '@/components/ui/card'; 
+import { Search, ListFilter, Palette, Loader2, Sparkles, Wand2, MousePointerClick, ToggleLeft, CheckSquare, Navigation, CreditCard, LayoutGrid, XCircle } from 'lucide-react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
 
 type SortOption = 'newest' | 'oldest' | 'price-asc' | 'price-desc' | 'title-asc' | 'title-desc';
 
@@ -43,6 +45,10 @@ export default function HomePage() {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
+  
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const designerIdParam = searchParams.get('designerId');
 
   useEffect(() => {
     async function fetchDesigns() {
@@ -66,12 +72,17 @@ export default function HomePage() {
   const filteredAndSortedDesigns = useMemo(() => {
     let result = [...designs];
 
+    if (designerIdParam) {
+      result = result.filter(design => design.submittedByUserId === designerIdParam);
+    }
+
     if (searchTerm) {
       const lowerSearchTerm = searchTerm.toLowerCase();
       result = result.filter(design =>
         design.title.toLowerCase().includes(lowerSearchTerm) ||
         design.description.toLowerCase().includes(lowerSearchTerm) ||
         design.filterCategory.toLowerCase().includes(lowerSearchTerm) ||
+        (!designerIdParam && design.designer.name.toLowerCase().includes(lowerSearchTerm)) ||
         design.tags.some(tag => tag.toLowerCase().includes(lowerSearchTerm))
       );
     }
@@ -97,13 +108,49 @@ export default function HomePage() {
         break;
     }
     return result;
-  }, [designs, searchTerm, sortBy]);
+  }, [designs, searchTerm, sortBy, designerIdParam]);
 
   const featuredDesigns = useMemo(() => {
-    if (isLoading) return [];
+    if (isLoading || designerIdParam) return []; // Don't show featured if filtering by designer
     return [...designs].sort((a,b) => b.id.localeCompare(a.id)).slice(0, 3);
-  }, [designs, isLoading]);
+  }, [designs, isLoading, designerIdParam]);
 
+  const pageSubTitle = useMemo(() => {
+    if (designerIdParam) {
+      const designer = designs.find(d => d.submittedByUserId === designerIdParam)?.designer;
+      if (designer) {
+        return `Browsing designs by ${designer.name}`;
+      }
+      return `Browsing designs by selected designer`;
+    }
+    return "Discover amazing components and designs shared by our talented community. Dive in and get inspired!";
+  }, [designerIdParam, designs]);
+  
+  const allDesignsSectionTitle = useMemo(() => {
+    if (designerIdParam) {
+      const designer = designs.find(d => d.submittedByUserId === designerIdParam)?.designer;
+      return designer ? `Designs by ${designer.name}` : `Designs by Selected Designer`;
+    }
+    return "All Designs";
+  }, [designerIdParam, designs]);
+
+  const noDesignsMessage = useMemo(() => {
+    if (designerIdParam) {
+      const designerName = designs.find(d => d.submittedByUserId === designerIdParam)?.designer.name;
+      if (searchTerm) {
+        return designerName ? `No designs by ${designerName} match your search "${searchTerm}".` : `No designs by this designer match your search "${searchTerm}".`;
+      }
+      return designerName ? `No designs found for ${designerName}. Consider submitting one!` : 'No designs found for this designer.';
+    }
+    if (searchTerm) {
+      return "No designs match your search criteria.";
+    }
+    return "No designs available at the moment. Check back soon!";
+  }, [designerIdParam, searchTerm, designs]);
+
+  const clearDesignerFilter = () => {
+    router.push('/#all-designs-section'); // Navigate to homepage root, effectively clearing query params
+  };
 
   return (
     <div className="space-y-12">
@@ -112,36 +159,70 @@ export default function HomePage() {
           Welcome to Reactiverse
         </h1>
         <ScrambledText className="text-lg md:text-xl text-muted-foreground mx-auto whitespace-nowrap">
-          Discover amazing components and designs shared by our talented community. Dive in and get inspired!
+          {pageSubTitle}
         </ScrambledText>
       </section>
 
-      <section>
-        <h2 className="text-3xl font-semibold font-headline mb-6 text-center">Featured Designs</h2>
-        {isLoading && featuredDesigns.length === 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="space-y-2 p-4 border rounded-lg bg-card">
-                <Skeleton className="h-[150px] w-full rounded-lg bg-muted/50" />
-                <Skeleton className="h-6 w-3/4 rounded-md" />
-                <Skeleton className="h-4 w-1/2 rounded-md" />
-                <Skeleton className="h-8 w-1/3 rounded-md mt-2" />
+      {!designerIdParam && (
+        <>
+          <section>
+            <h2 className="text-3xl font-semibold font-headline mb-6 text-center">Featured Designs</h2>
+            {isLoading && featuredDesigns.length === 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="space-y-2 p-4 border rounded-lg bg-card">
+                    <Skeleton className="h-[150px] w-full rounded-lg bg-muted/50" />
+                    <Skeleton className="h-6 w-3/4 rounded-md" />
+                    <Skeleton className="h-4 w-1/2 rounded-md" />
+                    <Skeleton className="h-8 w-1/3 rounded-md mt-2" />
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        ) : featuredDesigns.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {featuredDesigns.map((design) => (
-              <DesignCard key={design.id} design={design} onOpenDetail={handleOpenDetail} />
-            ))}
-          </div>
-        ) : (
-          !isLoading && <p className="text-center text-muted-foreground py-10">No featured designs available at the moment.</p>
-        )}
-      </section>
+            ) : featuredDesigns.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {featuredDesigns.map((design) => (
+                  <DesignCard key={design.id} design={design} onOpenDetail={handleOpenDetail} />
+                ))}
+              </div>
+            ) : (
+              !isLoading && <p className="text-center text-muted-foreground py-10">No featured designs available at the moment.</p>
+            )}
+          </section>
+
+          <section className="space-y-6 pt-8">
+            <h2 className="text-3xl font-semibold font-headline text-center">Explore Popular Categories</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {popularCategories.map((category) => (
+                <Card
+                  key={category.name}
+                  className="aspect-square flex flex-col items-center justify-center p-4 text-center hover:shadow-lg transition-shadow duration-300 ease-in-out cursor-pointer bg-card hover:bg-muted/50 rounded-lg"
+                  onClick={() => {
+                    setSearchTerm(category.name);
+                    document.querySelector('#all-designs-section')?.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setSearchTerm(category.name); document.querySelector('#all-designs-section')?.scrollIntoView({ behavior: 'smooth' }); }}}
+                  aria-label={`Filter by ${category.name}`}
+                >
+                  <category.icon className="h-10 w-10 mb-3 text-primary" strokeWidth={1.5}/>
+                  <p className="text-sm font-medium text-foreground">{category.name}</p>
+                </Card>
+              ))}
+            </div>
+          </section>
+        </>
+      )}
 
       <section className="space-y-6 pt-8" id="all-designs-section">
-        <h2 className="text-3xl font-semibold font-headline text-center">All Designs</h2>
+        <div className="text-center">
+            <h2 className="text-3xl font-semibold font-headline mb-2">{allDesignsSectionTitle}</h2>
+            {designerIdParam && (
+                <Button variant="link" onClick={clearDesignerFilter} className="text-accent hover:text-accent/80 text-sm">
+                    <XCircle className="mr-1.5 h-4 w-4" /> Clear filter and view all designs
+                </Button>
+            )}
+        </div>
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <div className="relative flex-grow">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -188,33 +269,11 @@ export default function HomePage() {
           </div>
         ) : (
           <p className="text-center text-muted-foreground py-10">
-            {searchTerm ? "No designs match your search criteria." : "No designs available at the moment. Check back soon!"}
+            {noDesignsMessage}
           </p>
         )}
       </section>
 
-      <section className="space-y-6 pt-8">
-        <h2 className="text-3xl font-semibold font-headline text-center">Explore Popular Categories</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          {popularCategories.map((category) => (
-            <Card
-              key={category.name}
-              className="aspect-square flex flex-col items-center justify-center p-4 text-center hover:shadow-lg transition-shadow duration-300 ease-in-out cursor-pointer bg-card hover:bg-muted/50 rounded-lg"
-              onClick={() => {
-                setSearchTerm(category.name);
-                document.querySelector('#all-designs-section')?.scrollIntoView({ behavior: 'smooth' });
-              }}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setSearchTerm(category.name); document.querySelector('#all-designs-section')?.scrollIntoView({ behavior: 'smooth' }); }}}
-              aria-label={`Filter by ${category.name}`}
-            >
-              <category.icon className="h-10 w-10 mb-3 text-primary" strokeWidth={1.5}/>
-              <p className="text-sm font-medium text-foreground">{category.name}</p>
-            </Card>
-          ))}
-        </div>
-      </section>
 
       {selectedDesign && (
         <DesignDetailDialog
@@ -226,3 +285,4 @@ export default function HomePage() {
     </div>
   );
 }
+

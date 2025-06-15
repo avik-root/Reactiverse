@@ -1030,14 +1030,41 @@ export async function disableTwoFactorAction(prevState: AdminTwoFactorAuthFormSt
 export async function getAllDesignsAction(): Promise<Design[]> {
   try {
     const designs = await getDesignsFromFile();
+    const users = await getUsersFromFile();
+    const usersMap = new Map(users.map(u => [u.id, u]));
+
+    const defaultDesigner: User = {
+      id: 'unknown',
+      name: 'Unknown Designer',
+      username: '@unknown',
+      avatarUrl: '',
+      email: 'unknown@example.com',
+      phone: '',
+      twoFactorEnabled: false,
+      failedPinAttempts: 0,
+      isLocked: false,
+      canSetPrice: false,
+      githubUrl: '',
+      linkedinUrl: '',
+      figmaUrl: '',
+      isEmailPublic: false,
+      isPhonePublic: false,
+    };
+
     return designs.map(design => {
-      const sanitizedDesigner = design.designer
-        ? (({ passwordHash, twoFactorPinHash, ...rest }: StoredUser) => rest)(design.designer as StoredUser) as User
-        : { id: 'unknown', name: 'Unknown Designer', username: '@unknown', avatarUrl: '', email: 'unknown@example.com', phone: '', twoFactorEnabled: false, failedPinAttempts: 0, isLocked: false, canSetPrice: false, githubUrl: '', linkedinUrl: '', figmaUrl: '', isEmailPublic: false, isPhonePublic: false };
+      const storedDesigner = usersMap.get(design.submittedByUserId || '');
+      let finalDesigner: User;
+
+      if (storedDesigner) {
+        const { passwordHash, twoFactorPinHash, ...rest } = storedDesigner;
+        finalDesigner = rest as User;
+      } else {
+        finalDesigner = defaultDesigner;
+      }
 
       return {
         ...design,
-        designer: sanitizedDesigner,
+        designer: finalDesigner,
         codeBlocks: design.codeBlocks || [],
         copyCount: design.copyCount || 0,
         likedBy: design.likedBy || [],
@@ -1053,13 +1080,27 @@ export async function getDesignByIdAction(id: string): Promise<Design | undefine
   try {
     const designs = await getDesignsFromFile();
     const design = designs.find(d => d.id === id);
+
     if (design) {
-      const sanitizedDesigner = design.designer
-        ? (({ passwordHash, twoFactorPinHash, ...rest }: StoredUser) => rest)(design.designer as StoredUser) as User
-        : { id: 'unknown', name: 'Unknown Designer', username: '@unknown', avatarUrl: '', email: 'unknown@example.com', phone: '', twoFactorEnabled: false, failedPinAttempts: 0, isLocked: false, canSetPrice: false, githubUrl: '', linkedinUrl: '', figmaUrl: '', isEmailPublic: false, isPhonePublic: false };
+      const users = await getUsersFromFile();
+      const storedDesigner = users.find(u => u.id === design.submittedByUserId);
+      let finalDesigner: User;
+
+      if (storedDesigner) {
+        const { passwordHash, twoFactorPinHash, ...rest } = storedDesigner;
+        finalDesigner = rest as User;
+      } else {
+        finalDesigner = {
+          id: 'unknown', name: 'Unknown Designer', username: '@unknown', avatarUrl: '',
+          email: 'unknown@example.com', phone: '', twoFactorEnabled: false,
+          failedPinAttempts: 0, isLocked: false, canSetPrice: false,
+          githubUrl: '', linkedinUrl: '', figmaUrl: '',
+          isEmailPublic: false, isPhonePublic: false,
+        };
+      }
       return {
         ...design,
-        designer: sanitizedDesigner,
+        designer: finalDesigner,
         codeBlocks: design.codeBlocks || [],
         copyCount: design.copyCount || 0,
         likedBy: design.likedBy || [],

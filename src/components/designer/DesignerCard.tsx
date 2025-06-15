@@ -4,15 +4,17 @@
 import type { User } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { AtSign, Github, Linkedin, Mail, Copy } from 'lucide-react';
+import { AtSign, Github, Linkedin, Mail, Copy, Award } from 'lucide-react';
 import FigmaIcon from '@/components/icons/FigmaIcon';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface DesignerCardProps {
   user: User;
   totalCopyCount?: number;
+  rank?: number;
 }
 
 const getInitials = (name?: string) => {
@@ -20,7 +22,7 @@ const getInitials = (name?: string) => {
   return name.split(' ').map(n => n[0]).join('').toUpperCase();
 };
 
-const DesignerCard: React.FC<DesignerCardProps> = ({ user, totalCopyCount }) => {
+const DesignerCard: React.FC<DesignerCardProps> = ({ user, totalCopyCount, rank }) => {
   const { toast } = useToast();
 
   const handleCopyEmail = () => {
@@ -37,8 +39,13 @@ const DesignerCard: React.FC<DesignerCardProps> = ({ user, totalCopyCount }) => 
   };
 
   return (
-    <Card className="shadow-md hover:shadow-lg transition-shadow duration-300 ease-in-out flex flex-col items-center text-center p-6 bg-card h-full">
-      <Avatar className="w-24 h-24 mb-4 border-2 border-primary shadow-sm">
+    <Card className="shadow-md hover:shadow-lg transition-shadow duration-300 ease-in-out flex flex-col items-center text-center p-6 bg-card h-full relative">
+      {rank && (
+        <div className="absolute top-3 left-3 bg-primary text-primary-foreground rounded-full h-8 w-8 flex items-center justify-center text-sm font-bold shadow-md">
+          #{rank}
+        </div>
+      )}
+      <Avatar className="w-24 h-24 mt-8 mb-4 border-2 border-primary shadow-sm">
         <AvatarImage src={user.avatarUrl || `https://placehold.co/100x100.png?text=${getInitials(user.name)}`} alt={user.name} data-ai-hint="designer avatar" />
         <AvatarFallback className="text-3xl">{getInitials(user.name)}</AvatarFallback>
       </Avatar>
@@ -54,25 +61,46 @@ const DesignerCard: React.FC<DesignerCardProps> = ({ user, totalCopyCount }) => 
       )}
       <div className="flex flex-wrap justify-center gap-2 mt-auto pt-3 border-t w-full">
         {user.githubUrl && (
-          <Button variant="ghost" size="icon" asChild>
-            <Link href={user.githubUrl} target="_blank" rel="noopener noreferrer" aria-label={`${user.name}'s Github`}>
-              <Github className="h-5 w-5 text-muted-foreground hover:text-primary" />
-            </Link>
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" asChild>
+                  <Link href={user.githubUrl} target="_blank" rel="noopener noreferrer" aria-label={`${user.name}'s Github`}>
+                    <Github className="h-5 w-5 text-muted-foreground hover:text-primary" />
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent><p>GitHub</p></TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
         {user.linkedinUrl && (
-          <Button variant="ghost" size="icon" asChild>
-            <Link href={user.linkedinUrl} target="_blank" rel="noopener noreferrer" aria-label={`${user.name}'s LinkedIn`}>
-              <Linkedin className="h-5 w-5 text-muted-foreground hover:text-primary" />
-            </Link>
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" asChild>
+                  <Link href={user.linkedinUrl} target="_blank" rel="noopener noreferrer" aria-label={`${user.name}'s LinkedIn`}>
+                    <Linkedin className="h-5 w-5 text-muted-foreground hover:text-primary" />
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent><p>LinkedIn</p></TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
         {user.figmaUrl && (
-          <Button variant="ghost" size="icon" asChild>
-            <Link href={user.figmaUrl} target="_blank" rel="noopener noreferrer" aria-label={`${user.name}'s Figma`}>
-              <FigmaIcon className="h-5 w-5 text-muted-foreground hover:text-primary" />
-            </Link>
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" asChild>
+                  <Link href={user.figmaUrl} target="_blank" rel="noopener noreferrer" aria-label={`${user.name}'s Figma`}>
+                    <FigmaIcon className="h-5 w-5 text-muted-foreground hover:text-primary" />
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent><p>Figma</p></TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         )}
         {user.email && user.isEmailPublic && (
           <TooltipProvider>
@@ -92,8 +120,5 @@ const DesignerCard: React.FC<DesignerCardProps> = ({ user, totalCopyCount }) => 
     </Card>
   );
 };
-
-// For Tooltip to work, we need to import its provider components
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export default DesignerCard;

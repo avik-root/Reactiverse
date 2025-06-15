@@ -1,4 +1,3 @@
-
 [
   {
     "id": "user-1749918806145",
@@ -14,7 +13,7 @@
     "canSetPrice": true,
     "githubUrl": "https://github.com/test",
     "linkedinUrl": "https://linkedin.com/in/test",
-    "figmaUrl": "",
+    "figmaUrl": "https://www.figma.com/",
     "isEmailPublic": true,
     "isPhonePublic": false
   }

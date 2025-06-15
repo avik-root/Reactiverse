@@ -44,8 +44,8 @@ export default async function DesignersPage() {
         <CardContent className="space-y-6">
           {designersWithCopyCount && designersWithCopyCount.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {designersWithCopyCount.map((designer) => (
-                <DesignerCard key={designer.id} user={designer} totalCopyCount={designer.totalCopyCount} />
+              {designersWithCopyCount.map((designer, index) => (
+                <DesignerCard key={designer.id} user={designer} totalCopyCount={designer.totalCopyCount} rank={index + 1} />
               ))}
             </div>
           ) : (

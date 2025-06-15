@@ -1,3 +1,4 @@
+
 // src/app/community/category/[slug]/page.tsx
 'use client';
 
@@ -14,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useParams } from 'next/navigation';
 
 
 const getInitials = (name?: string) => {
@@ -25,12 +27,10 @@ const getInitials = (name?: string) => {
     return name.substring(0, 2);
 };
 
-interface CategoryPageProps {
-  params: { slug: string };
-}
+export default function CategoryPage() {
+  const params = useParams();
+  const slug = typeof params.slug === 'string' ? params.slug : null;
 
-export default function CategoryPage({ params }: CategoryPageProps) {
-  const { slug } = params;
   const { user, isAdmin, isLoading: authIsLoading } = useAuth();
   const [category, setCategory] = useState<ForumCategory | null>(null);
   const [topics, setTopics] = useState<ForumTopic[]>([]);
@@ -39,6 +39,11 @@ export default function CategoryPage({ params }: CategoryPageProps) {
 
   useEffect(() => {
     async function fetchData() {
+      if (!slug) {
+        setError("Category slug is missing.");
+        setIsLoadingPageData(false);
+        return;
+      }
       setIsLoadingPageData(true);
       setError(null);
       try {
@@ -67,10 +72,10 @@ export default function CategoryPage({ params }: CategoryPageProps) {
     return !!user; // Any logged-in user for other categories
   };
 
-  const getCreateTopicButtonTextAndState = () => {
-    if (!category) return { text: "Loading...", disabled: true, href: "#" };
+  const getCreateTopicButtonInfo = () => {
+    if (!category || !slug) return { text: "Loading...", disabled: true, href: "#" };
 
-    const baseHref = `/community/category/${slug}/new-topic`; // Target page for new topic creation
+    const baseHref = `/community/category/${slug}/new-topic`;
 
     if (category.slug === 'announcements') {
       if (user && isAdmin) {
@@ -82,10 +87,12 @@ export default function CategoryPage({ params }: CategoryPageProps) {
     if (user) {
       return { text: "Create New Topic", disabled: false, href: baseHref };
     }
-    return { text: "Login to Create Topic", disabled: true, href: "/auth/login", icon: <LogIn className="mr-2 h-5 w-5" /> };
+    // Determine redirect URL for login, including the current page
+    const redirectUrl = `/community/category/${slug}`;
+    return { text: "Login to Create Topic", disabled: false, href: `/auth/login?redirect=${encodeURIComponent(redirectUrl)}`, icon: <LogIn className="mr-2 h-5 w-5" /> };
   };
 
-  const createTopicButtonInfo = getCreateTopicButtonTextAndState();
+  const createTopicButtonInfo = getCreateTopicButtonInfo();
 
 
   if (authIsLoading || isLoadingPageData) {
@@ -169,7 +176,7 @@ export default function CategoryPage({ params }: CategoryPageProps) {
         <CardContent>
           <div className="flex justify-between items-center mb-6">
             <p className="text-muted-foreground">{topics.length} topic(s) in this category.</p>
-             <Button asChild variant="default" disabled={createTopicButtonInfo.disabled} className={createTopicButtonInfo.disabled ? "opacity-70 cursor-not-allowed" : ""}>
+             <Button asChild variant="default" disabled={createTopicButtonInfo.disabled && createTopicButtonInfo.text !== "Login to Create Topic"} className={(createTopicButtonInfo.disabled && createTopicButtonInfo.text !== "Login to Create Topic") ? "opacity-70 cursor-not-allowed" : ""}>
               <Link href={createTopicButtonInfo.href}>
                 {createTopicButtonInfo.icon || <PlusCircle className="mr-2 h-5 w-5" />}
                 {createTopicButtonInfo.text}
@@ -232,7 +239,7 @@ export default function CategoryPage({ params }: CategoryPageProps) {
               <AlertTitle>No Topics Yet</AlertTitle>
               <AlertDescription>
                 There are no topics in this category yet.
-                 <Button asChild variant="link" className={createTopicButtonInfo.disabled ? "p-0 h-auto ml-1 text-accent opacity-70 cursor-not-allowed" : "p-0 h-auto ml-1 text-accent"} disabled={createTopicButtonInfo.disabled}>
+                 <Button asChild variant="link" className={(createTopicButtonInfo.disabled && createTopicButtonInfo.text !== "Login to Create Topic") ? "p-0 h-auto ml-1 text-accent opacity-70 cursor-not-allowed" : "p-0 h-auto ml-1 text-accent"} disabled={createTopicButtonInfo.disabled && createTopicButtonInfo.text !== "Login to Create Topic"}>
                     <Link href={createTopicButtonInfo.href}>{canCreateTopic() ? "Be the first to create one!" : (category.slug === 'announcements' ? "Only admins can post here." : "Login to create one.")}</Link>
                  </Button>
               </AlertDescription>

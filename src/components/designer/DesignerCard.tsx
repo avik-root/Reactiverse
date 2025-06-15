@@ -2,9 +2,9 @@
 'use client';
 
 import type { User } from '@/lib/types';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'; // Removed CardContent as it's not directly used
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { AtSign, Github, Linkedin, Mail, Copy, Award } from 'lucide-react';
+import { AtSign, Github, Linkedin, Mail, Award, Heart } from 'lucide-react'; // Added Heart
 import FigmaIcon from '@/components/icons/FigmaIcon';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 
 interface DesignerCardProps {
   user: User;
-  totalCopyCount?: number;
+  totalLikeCount?: number; // Changed from totalCopyCount
   rank?: number;
 }
 
@@ -22,7 +22,7 @@ const getInitials = (name?: string) => {
   return name.split(' ').map(n => n[0]).join('').toUpperCase();
 };
 
-const DesignerCard: React.FC<DesignerCardProps> = ({ user, totalCopyCount, rank }) => {
+const DesignerCard: React.FC<DesignerCardProps> = ({ user, totalLikeCount, rank }) => {
   const { toast } = useToast();
 
   const handleCopyEmail = () => {
@@ -42,7 +42,7 @@ const DesignerCard: React.FC<DesignerCardProps> = ({ user, totalCopyCount, rank 
     <Card className="shadow-md hover:shadow-lg transition-shadow duration-300 ease-in-out flex flex-col items-center text-center p-6 bg-card h-full relative">
       {rank && (
         <div className="absolute top-3 left-3 bg-primary text-primary-foreground rounded-full h-8 w-8 flex items-center justify-center text-sm font-bold shadow-md">
-          #{rank}
+          <Award className="h-4 w-4 mr-0.5"/> #{rank}
         </div>
       )}
       <Avatar className="w-24 h-24 mt-8 mb-4 border-2 border-primary shadow-sm">
@@ -54,9 +54,10 @@ const DesignerCard: React.FC<DesignerCardProps> = ({ user, totalCopyCount, rank 
         <AtSign className="h-4 w-4 mr-1" />
         {user.username.startsWith('@') ? user.username.substring(1) : user.username}
       </CardDescription>
-      {totalCopyCount !== undefined && (
-        <p className="text-xs text-muted-foreground mb-3">
-          Total Design Copies: <span className="font-semibold text-foreground">{totalCopyCount}</span>
+      {totalLikeCount !== undefined && (
+        <p className="text-xs text-muted-foreground mb-3 flex items-center">
+          <Heart className="h-3.5 w-3.5 mr-1 text-red-500 fill-current" />
+          Total Likes: <span className="font-semibold text-foreground ml-1">{totalLikeCount}</span>
         </p>
       )}
       <div className="flex flex-wrap justify-center gap-2 mt-auto pt-3 border-t w-full">

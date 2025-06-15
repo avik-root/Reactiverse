@@ -283,6 +283,7 @@ export async function getDesignsFromFile(): Promise<Design[]> {
     return designs.map(design => ({
       ...design,
       copyCount: design.copyCount === undefined ? 0 : design.copyCount,
+      likedBy: design.likedBy === undefined ? [] : design.likedBy,
     }));
   } catch (error) {
     console.error('Failed to read designs.json:', error);
@@ -305,6 +306,7 @@ export async function addDesignToFile(newDesign: Design): Promise<void> {
     designs.push({
       ...newDesign,
       copyCount: newDesign.copyCount || 0,
+      likedBy: newDesign.likedBy || [],
     });
     await saveDesignsToFile(designs);
   } catch (error) {
@@ -325,6 +327,7 @@ export async function updateDesignInFile(updatedDesign: Design): Promise<boolean
       ...designs[designIndex],
       ...updatedDesign,
       copyCount: updatedDesign.copyCount === undefined ? designs[designIndex].copyCount : updatedDesign.copyCount,
+      likedBy: updatedDesign.likedBy === undefined ? designs[designIndex].likedBy : updatedDesign.likedBy,
     };
     await saveDesignsToFile(designs);
     return true;

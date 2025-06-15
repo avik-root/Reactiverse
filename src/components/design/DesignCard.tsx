@@ -5,8 +5,10 @@ import type { Design } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { IndianRupee, Filter, Code2 } from 'lucide-react'; 
+import { IndianRupee, Filter, Code2, Heart } from 'lucide-react'; 
 import { useMemo } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import LikeButton from './LikeButton'; // Import LikeButton
 
 interface DesignCardProps {
   design: Design;
@@ -14,6 +16,7 @@ interface DesignCardProps {
 }
 
 const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
+  const { user: currentUser } = useAuth();
 
   const getInitials = (name?: string) => {
     if (!name) return 'D'; 
@@ -21,28 +24,26 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
   }
 
   const isPriced = design.price && design.price > 0;
+  const currentUserId = currentUser && 'id' in currentUser ? currentUser.id : undefined;
+  const initialIsLiked = currentUserId ? design.likedBy.includes(currentUserId) : false;
+  const initialLikeCount = design.likedBy.length;
+
 
   const previewSrcDoc = useMemo(() => {
-    // Attempt to generate preview if there are code blocks
     if (!design.codeBlocks || design.codeBlocks.length === 0) {
       return null;
     }
-
     const htmlBlock = design.codeBlocks.find(block => block.language.toLowerCase() === 'html');
-    // If no HTML block, no preview can be generated for the card
     if (!htmlBlock) {
       return null; 
     }
-
     const cssBlocks = design.codeBlocks.filter(block => 
       block.language.toLowerCase() === 'css' || 
       block.language.toLowerCase() === 'scss' ||
-      block.language.toLowerCase() === 'tailwind css' // Tailwind might not work well without processing
+      block.language.toLowerCase() === 'tailwind css'
     );
-    
     const htmlContent = htmlBlock.code;
     const cssContent = cssBlocks.map(block => block.code).join('\n');
-
     return `
       <html>
         <head>
@@ -54,7 +55,7 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
               align-items: center; 
               height: 100vh; 
               overflow: hidden; 
-              background-color: transparent; /* Ensures transparency for card background */
+              background-color: transparent;
             }
             ${cssContent}
           </style>
@@ -68,31 +69,29 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
 
   return (
     <Card 
-      className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 ease-in-out cursor-pointer h-full flex flex-col rounded-lg"
-      onClick={() => onOpenDetail(design)}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onOpenDetail(design)}}
-      aria-label={`View details for ${design.title}`}
+      className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 ease-in-out h-full flex flex-col rounded-lg"
     >
-      <CardHeader className="p-0 relative bg-muted/30 flex items-center justify-center aspect-[16/9] min-h-[150px] overflow-hidden">
-        {/* Show preview if srcDoc is available, regardless of price */}
+      <CardHeader 
+        className="p-0 relative bg-muted/30 flex items-center justify-center aspect-[16/9] min-h-[150px] overflow-hidden cursor-pointer"
+        onClick={() => onOpenDetail(design)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onOpenDetail(design)}}
+        aria-label={`View details for ${design.title}`}
+      >
         {previewSrcDoc ? (
           <div className="w-full h-full transform scale-[0.35] origin-center flex items-center justify-center pointer-events-none">
             <iframe
               srcDoc={previewSrcDoc}
               title={`${design.title} card preview`}
-              sandbox="allow-same-origin" // Basic sandboxing
+              sandbox="allow-same-origin"
               className="w-[calc(100%/0.35)] h-[calc(100%/0.35)] border-0 overflow-hidden bg-transparent"
               scrolling="no"
             />
           </div>
         ) : ( 
-          // Fallback to Code2 icon if no previewSrcDoc (e.g., no HTML block)
           <Code2 className="h-16 w-16 text-primary/70" />
         )}
-
-        {/* Badge for price or "Free" */}
         {isPriced ? (
           <Badge variant="secondary" className="absolute top-2 right-2 text-xs px-2 py-1 flex items-center z-10">
             <IndianRupee className="h-3 w-3 mr-1" />
@@ -104,7 +103,12 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
           </Badge>
         )}
       </CardHeader>
-      <CardContent className="p-4 flex-grow">
+      <CardContent 
+        className="p-4 flex-grow cursor-pointer"
+        onClick={() => onOpenDetail(design)}
+        role="button"
+        tabIndex={-1} // To avoid double tabbing with header
+      >
         <CardTitle className="font-headline text-xl mb-1 text-primary">{design.title}</CardTitle>
         {design.filterCategory && (
             <div className="flex items-center text-xs text-muted-foreground mb-1">
@@ -119,14 +123,21 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
           ))}
         </div>
       </CardContent>
-      <CardFooter className="p-4 border-t">
-        <div className="flex items-center gap-2 w-full">
+      <CardFooter className="p-4 border-t flex items-center justify-between">
+        <div className="flex items-center gap-2">
           <Avatar className="h-8 w-8">
             <AvatarImage src={design.designer.avatarUrl || `https://placehold.co/40x40.png?text=${getInitials(design.designer.name)}`} alt={design.designer.name} data-ai-hint="designer avatar" />
             <AvatarFallback>{getInitials(design.designer.name)}</AvatarFallback>
           </Avatar>
           <span className="text-xs text-muted-foreground">{design.designer.name}</span>
         </div>
+        <LikeButton 
+            designId={design.id}
+            initialLikeCount={initialLikeCount}
+            initialIsLiked={initialIsLiked}
+            currentUserId={currentUserId}
+            // onLikeToggle is optional for card view if we don't update locally, or can pass a no-op
+        />
       </CardFooter>
     </Card>
   );

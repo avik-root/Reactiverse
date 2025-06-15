@@ -53,6 +53,7 @@ import type {
   TeamMember,
   UpdateProfileFormState as UserUpdateProfileFormState,
   IncrementCopyCountResult,
+  ToggleLikeDesignResult,
 } from './types';
 import { revalidatePath } from 'next/cache';
 import { hashPassword, comparePassword, hashPin, comparePin } from './auth-utils';
@@ -634,14 +635,14 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
 
 export async function logoutAdminAction(): Promise<{ success: boolean }> {
   try {
-    cookies().set(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS, '', { 
-      path: '/admin', 
+    cookies().set(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS, '', {
+      path: '/admin',
       maxAge: 0, // Explicitly expire the cookie
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
     });
-    cookies().delete(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS);
+    // cookies().delete(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS); // The set with maxAge: 0 should be sufficient
     return { success: true };
   } catch (error) {
     console.error('Error during admin logout action:', error);
@@ -720,6 +721,7 @@ export async function submitDesignAction(prevState: AddDesignFormState, formData
     price: finalPrice,
     submittedByUserId,
     copyCount: 0,
+    likedBy: [],
   };
 
   try {
@@ -815,6 +817,7 @@ export async function updateDesignAction(prevState: UpdateDesignFormState, formD
     designer: designerInfo as User,
     tags: tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
     price: finalPrice,
+    likedBy: existingDesign.likedBy || [], // Preserve existing likes
   };
 
   try {
@@ -1006,6 +1009,7 @@ export async function getAllDesignsAction(): Promise<Design[]> {
         designer: sanitizedDesigner,
         codeBlocks: design.codeBlocks || [],
         copyCount: design.copyCount || 0,
+        likedBy: design.likedBy || [],
       };
     });
   } catch (error) {
@@ -1027,6 +1031,7 @@ export async function getDesignByIdAction(id: string): Promise<Design | undefine
         designer: sanitizedDesigner,
         codeBlocks: design.codeBlocks || [],
         copyCount: design.copyCount || 0,
+        likedBy: design.likedBy || [],
       };
     }
     return undefined;
@@ -1649,5 +1654,54 @@ export async function incrementDesignCopyCountAction(designId: string): Promise<
   } catch (error) {
     console.error(`Error incrementing copy count for design ${designId}:`, error);
     return { success: false, message: 'Server error while incrementing copy count.' };
+  }
+}
+
+
+export async function toggleLikeDesignAction(designId: string, userId: string): Promise<ToggleLikeDesignResult> {
+  if (!designId || !userId) {
+    return { success: false, message: 'Design ID and User ID are required.' };
+  }
+
+  try {
+    const designs = await getDesignsFromFile();
+    const designIndex = designs.findIndex(d => d.id === designId);
+
+    if (designIndex === -1) {
+      return { success: false, message: 'Design not found.' };
+    }
+
+    const designToUpdate = designs[designIndex];
+    if (!designToUpdate.likedBy) {
+      designToUpdate.likedBy = [];
+    }
+
+    const userIndexInLikes = designToUpdate.likedBy.indexOf(userId);
+    let isLikedByCurrentUser;
+
+    if (userIndexInLikes > -1) {
+      // User has already liked, so unlike
+      designToUpdate.likedBy.splice(userIndexInLikes, 1);
+      isLikedByCurrentUser = false;
+    } else {
+      // User has not liked, so like
+      designToUpdate.likedBy.push(userId);
+      isLikedByCurrentUser = true;
+    }
+
+    await saveDesignsToFile(designs);
+    revalidatePath('/'); // Revalidate homepage if it shows likes
+    revalidatePath(`/designers`); // Revalidate designers page for ranking
+    revalidatePath(`/dashboard/designs`); // Revalidate user's designs
+    // Consider revalidating specific design detail pages if they show live like counts
+
+    return {
+      success: true,
+      newLikeCount: designToUpdate.likedBy.length,
+      isLikedByCurrentUser,
+    };
+  } catch (error) {
+    console.error(`Error toggling like for design ${designId} by user ${userId}:`, error);
+    return { success: false, message: 'Server error while toggling like.' };
   }
 }

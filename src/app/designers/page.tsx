@@ -6,8 +6,8 @@ import type { TopDesignersPageContent, User, Design } from '@/lib/types';
 import DesignerCard from '@/components/designer/DesignerCard';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
-interface DesignerWithCopyCount extends User {
-  totalCopyCount: number;
+interface DesignerWithLikeCount extends User {
+  totalLikeCount: number;
 }
 
 export default async function DesignersPage() {
@@ -21,15 +21,15 @@ export default async function DesignersPage() {
     return <div className="container mx-auto py-12">Error loading page content. Please try again later.</div>;
   }
 
-  // Filter out admin users and calculate total copy count for each designer
-  const designersWithCopyCount: DesignerWithCopyCount[] = users
+  // Filter out admin users and calculate total like count for each designer
+  const designersWithLikeCount: DesignerWithLikeCount[] = users
     .filter(user => !user.id.startsWith('admin-'))
     .map(designer => {
       const designerDesigns = allDesigns.filter(design => design.submittedByUserId === designer.id);
-      const totalCopyCount = designerDesigns.reduce((sum, design) => sum + (design.copyCount || 0), 0);
-      return { ...designer, totalCopyCount };
+      const totalLikeCount = designerDesigns.reduce((sum, design) => sum + (design.likedBy?.length || 0), 0);
+      return { ...designer, totalLikeCount };
     })
-    .sort((a, b) => b.totalCopyCount - a.totalCopyCount); // Sort by total copy count descending
+    .sort((a, b) => b.totalLikeCount - a.totalLikeCount); // Sort by total like count descending
 
   return (
     <div className="container mx-auto py-12">
@@ -42,10 +42,10 @@ export default async function DesignersPage() {
           <CardDescription>{content.description}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {designersWithCopyCount && designersWithCopyCount.length > 0 ? (
+          {designersWithLikeCount && designersWithLikeCount.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {designersWithCopyCount.map((designer, index) => (
-                <DesignerCard key={designer.id} user={designer} totalCopyCount={designer.totalCopyCount} rank={index + 1} />
+              {designersWithLikeCount.map((designer, index) => (
+                <DesignerCard key={designer.id} user={designer} totalLikeCount={designer.totalLikeCount} rank={index + 1} />
               ))}
             </div>
           ) : (

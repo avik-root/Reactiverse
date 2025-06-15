@@ -1,16 +1,17 @@
 
 'use client';
 
-import type { Design, CodeBlockItem } from '@/lib/types';
+import type { Design } from '@/lib/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import CodeBlock from './CodeBlock';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { IndianRupee, Filter, Code2, Eye, Info } from 'lucide-react';
+import { IndianRupee, Filter, Code2, Eye, Info, ThumbsUp, Heart } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-
+import LikeButton from './LikeButton'; // Import the new LikeButton
+import { useAuth } from '@/contexts/AuthContext';
 
 interface DesignDetailDialogProps {
   design: Design | null;
@@ -18,7 +19,14 @@ interface DesignDetailDialogProps {
   onOpenChange: (isOpen: boolean) => void;
 }
 
-const DesignDetailDialog: React.FC<DesignDetailDialogProps> = ({ design, isOpen, onOpenChange }) => {
+const DesignDetailDialog: React.FC<DesignDetailDialogProps> = ({ design: initialDesign, isOpen, onOpenChange }) => {
+  const { user: currentUser } = useAuth();
+  const [design, setDesign] = useState(initialDesign);
+
+  useEffect(() => {
+    setDesign(initialDesign);
+  }, [initialDesign]);
+
   if (!design) return null;
 
   const getInitials = (name?: string) => {
@@ -27,6 +35,26 @@ const DesignDetailDialog: React.FC<DesignDetailDialogProps> = ({ design, isOpen,
   }
 
   const isPriced = design.price && design.price > 0;
+  const currentUserId = currentUser && 'id' in currentUser ? currentUser.id : undefined;
+  const initialIsLiked = currentUserId ? design.likedBy.includes(currentUserId) : false;
+  const initialLikeCount = design.likedBy.length;
+
+  const handleLikeChange = (newLikeCount: number, newIsLiked: boolean) => {
+    setDesign(prevDesign => {
+      if (!prevDesign) return null;
+      const newLikedBy = [...prevDesign.likedBy];
+      if (newIsLiked && currentUserId && !newLikedBy.includes(currentUserId)) {
+        newLikedBy.push(currentUserId);
+      } else if (!newIsLiked && currentUserId) {
+        const index = newLikedBy.indexOf(currentUserId);
+        if (index > -1) {
+          newLikedBy.splice(index, 1);
+        }
+      }
+      return { ...prevDesign, likedBy: newLikedBy };
+    });
+  };
+
 
   const previewDoc = useMemo(() => {
     if (!design || !design.codeBlocks || design.codeBlocks.length === 0) {
@@ -36,20 +64,17 @@ const DesignDetailDialog: React.FC<DesignDetailDialogProps> = ({ design, isOpen,
     const htmlBlock = design.codeBlocks.find(block => block.language.toLowerCase() === 'html');
     const cssBlocks = design.codeBlocks.filter(block => block.language.toLowerCase() === 'css' || block.language.toLowerCase() === 'scss');
     const jsBlocks = design.codeBlocks.filter(block => block.language.toLowerCase() === 'javascript');
-    // Basic check: if it's likely a framework component, don't attempt simple preview
     const isFramework = design.codeBlocks.some(block => ['react', 'vue', 'angular', 'tailwind css'].includes(block.language.toLowerCase()));
 
-
-    if (isFramework && !htmlBlock) { // No simple HTML entry point for framework code
-        return null; // Indicates framework and no simple HTML to render
+    if (isFramework && !htmlBlock) {
+        return null; 
     }
 
-    // For non-framework or if HTML is present, try to build a simple preview
     const htmlContent = htmlBlock ? htmlBlock.code : '';
     const cssContent = cssBlocks.map(block => block.code).join('\n');
     const jsContent = jsBlocks.map(block => block.code).join('\n');
 
-    if (!htmlContent && !cssContent && !jsContent) return ''; // Nothing to preview
+    if (!htmlContent && !cssContent && !jsContent) return ''; 
 
     return `
       <html>
@@ -87,17 +112,27 @@ const DesignDetailDialog: React.FC<DesignDetailDialogProps> = ({ design, isOpen,
               <AvatarFallback>{getInitials(design.designer.name)}</AvatarFallback>
             </Avatar>
             <span className="text-sm text-muted-foreground">By {design.designer.name}</span>
-            {isPriced ? (
-                <Badge variant="secondary" className="ml-auto">
-                  <IndianRupee className="h-4 w-4 mr-1 text-primary" />
-                  Price: ₹{design.price.toFixed(2)}
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="ml-auto text-primary border-primary">
-                  Free
-                </Badge>
-              )
-            }
+            
+            <div className="ml-auto flex items-center gap-4">
+                <LikeButton
+                    designId={design.id}
+                    initialLikeCount={initialLikeCount}
+                    initialIsLiked={initialIsLiked}
+                    currentUserId={currentUserId}
+                    onLikeToggle={handleLikeChange}
+                />
+                {isPriced ? (
+                    <Badge variant="secondary">
+                    <IndianRupee className="h-4 w-4 mr-1 text-primary" />
+                    Price: ₹{design.price.toFixed(2)}
+                    </Badge>
+                ) : (
+                    <Badge variant="outline" className="text-primary border-primary">
+                    Free
+                    </Badge>
+                )
+                }
+            </div>
           </div>
           <DialogDescription className="pt-1 text-left">
             {design.description}
@@ -161,7 +196,7 @@ const DesignDetailDialog: React.FC<DesignDetailDialogProps> = ({ design, isOpen,
                     codeSnippet={block.code}
                     language={block.language}
                     isLocked={isPriced}
-                    designId={design.id} // Pass designId here
+                    designId={design.id} 
                   />
                 </TabsContent>
               ))}

@@ -36,6 +36,7 @@ export interface Design {
   price?: number;
   submittedByUserId?: string;
   copyCount?: number;
+  likedBy: string[]; // New field for storing user IDs who liked the design
 }
 
 export interface AdminUser {
@@ -283,4 +284,11 @@ export type IncrementCopyCountResult = {
     success: boolean;
     message?: string;
     newCount?: number;
+};
+
+export type ToggleLikeDesignResult = {
+  success: boolean;
+  message?: string;
+  newLikeCount?: number;
+  isLikedByCurrentUser?: boolean;
 };

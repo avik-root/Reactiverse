@@ -78,7 +78,12 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
                     <div>
                       <h3 className="text-xl font-semibold mb-1">
-                        <Link href={`/community/topic/${topic.id}`} className="text-primary hover:underline disabled-link" aria-disabled="true" tabIndex={-1}>
+                        <Link
+                          href={`/community/topic/${topic.id}`}
+                          className="text-primary hover:underline pointer-events-none opacity-60 cursor-not-allowed"
+                          aria-disabled="true"
+                          tabIndex={-1}
+                        >
                           {topic.title}
                         </Link>
                       </h3>
@@ -107,7 +112,12 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
                   </div>
                    <p className="text-sm text-muted-foreground mt-2 line-clamp-2">{topic.content}</p>
                    <div className="mt-3">
-                        <Link href={`/community/topic/${topic.id}`} className="text-primary text-sm font-medium hover:underline disabled-link" aria-disabled="true" tabIndex={-1}>
+                        <Link
+                          href={`/community/topic/${topic.id}`}
+                          className="text-primary text-sm font-medium hover:underline pointer-events-none opacity-60 cursor-not-allowed"
+                          aria-disabled="true"
+                          tabIndex={-1}
+                        >
                             Read More & Reply (Soon) &rarr;
                         </Link>
                    </div>
@@ -125,13 +135,6 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
           )}
         </CardContent>
       </Card>
-       <style jsx global>{`
-        .disabled-link {
-          pointer-events: none;
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
-      `}</style>
     </div>
   );
 }

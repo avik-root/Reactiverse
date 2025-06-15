@@ -64,7 +64,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
           <div className="flex justify-between items-center mb-6">
             <p className="text-muted-foreground">{topics.length} topic(s) in this category.</p>
             <Button asChild variant="default" disabled>
-              <Link href={`/community/category/${slug}/new-topic`}>
+              <Link href={`/community/category/${slug}/new-topic`} className="pointer-events-none opacity-60 cursor-not-allowed">
                 <PlusCircle className="mr-2 h-5 w-5" />
                 Create New Topic (Soon)
               </Link>

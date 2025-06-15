@@ -55,7 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = useCallback(async () => {
     setIsLoading(true);
-    const currentIsAdminStatus = isAdmin;
+    const currentIsAdminStatus = isAdmin; // Capture status before clearing
 
     setUser(null);
     setIsAdmin(false);
@@ -69,9 +69,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error) {
       console.error("Error during logout process:", error);
+      // Even if server action fails, client state is cleared.
     }
     setIsLoading(false);
-  }, [isAdmin]);
+  }, [isAdmin]); // isAdmin is a dependency here
 
   const updateAuthUser = useCallback((updatedUserDataOrFn: Partial<AuthUser> | ((currentUser: AuthUser | null) => AuthUser | null) ) => {
     setUser(prevUser => {
@@ -79,18 +80,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (typeof updatedUserDataOrFn === 'function') {
         newUser = updatedUserDataOrFn(prevUser);
       } else {
-        if (!prevUser) return null;
+        if (!prevUser) return null; // Or handle as needed if prevUser is null
         newUser = { ...prevUser, ...updatedUserDataOrFn } as AuthUser;
       }
 
       if (newUser) {
         try {
           localStorage.setItem('reactiverseUser', JSON.stringify(newUser));
+          // Note: We don't update 'reactiverseIsAdmin' here, as this function is for user data, not admin status.
         } catch (error) {
           console.error("Failed to update user in localStorage", error);
         }
       } else {
-         localStorage.removeItem('reactiverseUser');
+         localStorage.removeItem('reactiverseUser'); // If newUser becomes null
       }
       return newUser;
     });

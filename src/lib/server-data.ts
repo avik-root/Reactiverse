@@ -184,6 +184,11 @@ export async function getUsersFromFile(): Promise<StoredUser[]> {
       isLocked: user.isLocked === undefined ? false : user.isLocked,
       twoFactorEnabled: user.twoFactorEnabled === undefined ? false : user.twoFactorEnabled,
       canSetPrice: user.canSetPrice === undefined ? false : user.canSetPrice,
+      githubUrl: user.githubUrl || "",
+      linkedinUrl: user.linkedinUrl || "",
+      figmaUrl: user.figmaUrl || "",
+      isEmailPublic: user.isEmailPublic === undefined ? false : user.isEmailPublic,
+      isPhonePublic: user.isPhonePublic === undefined ? false : user.isPhonePublic,
     }));
   } catch (error) {
     console.error('Failed to read users.json:', error);
@@ -200,6 +205,11 @@ export async function saveUserToFile(newUser: StoredUser): Promise<void> {
         isLocked: newUser.isLocked || false,
         twoFactorEnabled: newUser.twoFactorEnabled || false,
         canSetPrice: newUser.canSetPrice || false,
+        githubUrl: newUser.githubUrl || "",
+        linkedinUrl: newUser.linkedinUrl || "",
+        figmaUrl: newUser.figmaUrl || "",
+        isEmailPublic: newUser.isEmailPublic || false,
+        isPhonePublic: newUser.isPhonePublic || false,
     });
     await fs.writeFile(USERS_FILE_PATH, JSON.stringify(users, null, 2), 'utf-8');
   } catch (error) {
@@ -222,6 +232,11 @@ export async function updateUserInFile(updatedUser: StoredUser): Promise<boolean
         failedPinAttempts: updatedUser.failedPinAttempts === undefined ? users[userIndex].failedPinAttempts : updatedUser.failedPinAttempts,
         isLocked: updatedUser.isLocked === undefined ? users[userIndex].isLocked : updatedUser.isLocked,
         canSetPrice: updatedUser.canSetPrice === undefined ? users[userIndex].canSetPrice : updatedUser.canSetPrice,
+        githubUrl: updatedUser.githubUrl === undefined ? users[userIndex].githubUrl : updatedUser.githubUrl,
+        linkedinUrl: updatedUser.linkedinUrl === undefined ? users[userIndex].linkedinUrl : updatedUser.linkedinUrl,
+        figmaUrl: updatedUser.figmaUrl === undefined ? users[userIndex].figmaUrl : updatedUser.figmaUrl,
+        isEmailPublic: updatedUser.isEmailPublic === undefined ? users[userIndex].isEmailPublic : updatedUser.isEmailPublic,
+        isPhonePublic: updatedUser.isPhonePublic === undefined ? users[userIndex].isPhonePublic : updatedUser.isPhonePublic,
     };
     await fs.writeFile(USERS_FILE_PATH, JSON.stringify(users, null, 2), 'utf-8');
     return true;
@@ -265,7 +280,10 @@ export async function getDesignsFromFile(): Promise<Design[]> {
     }
     const jsonData = await fs.readFile(DESIGNS_FILE_PATH, 'utf-8');
     const designs = JSON.parse(jsonData) as Design[];
-    return designs;
+    return designs.map(design => ({
+      ...design,
+      copyCount: design.copyCount === undefined ? 0 : design.copyCount,
+    }));
   } catch (error) {
     console.error('Failed to read designs.json:', error);
     return [];
@@ -284,7 +302,10 @@ export async function saveDesignsToFile(designs: Design[]): Promise<void> {
 export async function addDesignToFile(newDesign: Design): Promise<void> {
   try {
     const designs = await getDesignsFromFile();
-    designs.push(newDesign);
+    designs.push({
+      ...newDesign,
+      copyCount: newDesign.copyCount || 0,
+    });
     await saveDesignsToFile(designs);
   } catch (error) {
     console.error('Failed to add design to designs.json:', error);
@@ -300,7 +321,11 @@ export async function updateDesignInFile(updatedDesign: Design): Promise<boolean
       console.error('Design not found for update:', updatedDesign.id);
       return false;
     }
-    designs[designIndex] = { ...designs[designIndex], ...updatedDesign };
+    designs[designIndex] = {
+      ...designs[designIndex],
+      ...updatedDesign,
+      copyCount: updatedDesign.copyCount === undefined ? designs[designIndex].copyCount : updatedDesign.copyCount,
+    };
     await saveDesignsToFile(designs);
     return true;
   } catch (error) {
@@ -364,8 +389,8 @@ export async function getPageContent(): Promise<PageContentData> {
       support: { ...DEFAULT_PAGE_CONTENT.support, ...parsedContent.support },
       guidelines: { ...DEFAULT_PAGE_CONTENT.guidelines, ...parsedContent.guidelines },
       topDesigners: { ...DEFAULT_PAGE_CONTENT.topDesigners, ...parsedContent.topDesigners },
-      teamMembers: { 
-        ...DEFAULT_PAGE_CONTENT.teamMembers, 
+      teamMembers: {
+        ...DEFAULT_PAGE_CONTENT.teamMembers,
         ...(parsedContent.teamMembers || {}),
         founder: {
           ...DEFAULT_PAGE_CONTENT.teamMembers.founder,
@@ -419,7 +444,7 @@ export async function saveTeamMemberImage(fileBuffer: Buffer, memberType: 'found
     } catch {
       await fs.mkdir(TEAM_IMAGES_DIR, { recursive: true });
     }
-    
+
     const fileName = `${memberType}_image${fileExtension}`; // e.g., founder_image.png
     const filePath = path.join(TEAM_IMAGES_DIR, fileName);
     await fs.writeFile(filePath, fileBuffer);

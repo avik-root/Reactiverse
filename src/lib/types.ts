@@ -12,6 +12,11 @@ export interface User {
   failedPinAttempts?: number;
   isLocked?: boolean;
   canSetPrice?: boolean;
+  githubUrl?: string;
+  linkedinUrl?: string;
+  figmaUrl?: string;
+  isEmailPublic?: boolean;
+  isPhonePublic?: boolean;
 }
 
 export interface CodeBlockItem {
@@ -21,7 +26,7 @@ export interface CodeBlockItem {
 }
 
 export interface Design {
-  id: string;
+  id:string;
   title: string;
   filterCategory: string;
   description: string;
@@ -30,6 +35,7 @@ export interface Design {
   tags: string[];
   price?: number;
   submittedByUserId?: string;
+  copyCount?: number;
 }
 
 export interface AdminUser {
@@ -45,7 +51,15 @@ export interface AdminUser {
 }
 
 export type AuthUser =
-  | (Omit<User, 'passwordHash' | 'twoFactorPinHash'> & { isAdmin?: false; canSetPrice?: boolean; })
+  | (Omit<User, 'passwordHash' | 'twoFactorPinHash'> & {
+      isAdmin?: false;
+      canSetPrice?: boolean;
+      githubUrl?: string;
+      linkedinUrl?: string;
+      figmaUrl?: string;
+      isEmailPublic?: boolean;
+      isPhonePublic?: boolean;
+    })
   | (Omit<AdminUser, 'passwordHash' | 'twoFactorPinHash'> & { isAdmin: true });
 
 export type StoredUser = User;
@@ -132,7 +146,7 @@ export interface TeamMember {
   name: string;
   title: string;
   bio: string;
-  imageUrl?: string; // Will store relative path like /team_images/founder.png
+  imageUrl?: string;
   imageAlt?: string;
   imageDataAiHint?: string;
   githubUrl?: string;
@@ -249,3 +263,24 @@ export type AdminSetUserCanSetPriceFormState = {
   updatedUser?: User | null;
 };
 
+export type UpdateProfileFormState = {
+  message?: string | null;
+  success?: boolean;
+  user?: AuthUser | null;
+  errors?: {
+    name?: string[];
+    avatarUrl?: string[];
+    githubUrl?: string[];
+    linkedinUrl?: string[];
+    figmaUrl?: string[];
+    isEmailPublic?: string[];
+    isPhonePublic?: string[];
+    general?: string[];
+  };
+};
+
+export type IncrementCopyCountResult = {
+    success: boolean;
+    message?: string;
+    newCount?: number;
+};

@@ -12,7 +12,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { Users, Trash2, Eye, ShieldCheck, ShieldOff, Phone, Mail, UserSquare2, User as UserIcon, AlertTriangle, LockIcon, UnlockIcon, IndianRupee, XCircle } from 'lucide-react';
+import { Users, Trash2, Eye, ShieldCheck, ShieldOff, Phone, Mail, UserSquare2, User as UserIcon, AlertTriangle, LockIcon, UnlockIcon, IndianRupee, XCircle, Github, Linkedin } from 'lucide-react';
+import FigmaIcon from '@/components/icons/FigmaIcon';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Label } from '@/components/ui/label';
@@ -26,6 +27,11 @@ const sanitizeUser = (user: StoredUser): User => {
     isLocked: user.isLocked || false,
     twoFactorEnabled: user.twoFactorEnabled || false,
     canSetPrice: user.canSetPrice || false,
+    githubUrl: user.githubUrl || "",
+    linkedinUrl: user.linkedinUrl || "",
+    figmaUrl: user.figmaUrl || "",
+    isEmailPublic: user.isEmailPublic === undefined ? false : user.isEmailPublic,
+    isPhonePublic: user.isPhonePublic === undefined ? false : user.isPhonePublic,
   };
 };
 
@@ -95,7 +101,7 @@ export default function ManageUsersPage() {
       }
     }
   };
-  
+
   useEffect(() => {
     processFormStateUpdate(set2FAFormState, () => {
         setIs2FADialogOpen(false);
@@ -312,21 +318,34 @@ export default function ManageUsersPage() {
                 <InfoItem icon={<UserIcon />} label="Username" value={selectedUserForView.username} />
                 <InfoItem icon={<Mail />} label="Email" value={selectedUserForView.email || 'N/A'} />
                 <InfoItem icon={<Phone />} label="Phone" value={selectedUserForView.phone || 'N/A'} />
-                <InfoItem
-                    icon={selectedUserForView.twoFactorEnabled ? <ShieldCheck className="text-green-500"/> : <ShieldOff />}
-                    label="2FA Status"
-                    value={selectedUserForView.twoFactorEnabled ? "Enabled" : "Disabled"}
-                />
-                <InfoItem
-                    icon={selectedUserForView.canSetPrice ? <IndianRupee className="text-green-500"/> : <XCircle className="text-muted-foreground"/>}
-                    label="Can Set Prices"
-                    value={selectedUserForView.canSetPrice ? "Allowed" : "Restricted"}
-                />
-                <InfoItem
-                    icon={selectedUserForView.isLocked ? <LockIcon className="text-destructive"/> : <UnlockIcon className="text-green-500"/>}
-                    label="Account Status"
-                    value={selectedUserForView.isLocked ? `Locked (Attempts: ${selectedUserForView.failedPinAttempts || 0})` : "Active"}
-                />
+
+                <div className="border-t pt-3 mt-3">
+                    <h4 className="text-sm font-semibold mb-2">Social Links:</h4>
+                    <InfoItem icon={<Github />} label="GitHub" value={selectedUserForView.githubUrl || 'N/A'} isLink={!!selectedUserForView.githubUrl} />
+                    <InfoItem icon={<Linkedin />} label="LinkedIn" value={selectedUserForView.linkedinUrl || 'N/A'} isLink={!!selectedUserForView.linkedinUrl} />
+                    <InfoItem icon={<FigmaIcon />} label="Figma" value={selectedUserForView.figmaUrl || 'N/A'} isLink={!!selectedUserForView.figmaUrl} />
+                </div>
+
+                <div className="border-t pt-3 mt-3">
+                    <h4 className="text-sm font-semibold mb-2">Privacy & Status:</h4>
+                    <InfoItem icon={selectedUserForView.isEmailPublic ? <Eye /> : <EyeOff />} label="Email Public" value={selectedUserForView.isEmailPublic ? "Yes" : "No"} />
+                    <InfoItem icon={selectedUserForView.isPhonePublic ? <Eye /> : <EyeOff />} label="Phone Public" value={selectedUserForView.isPhonePublic ? "Yes" : "No"} />
+                    <InfoItem
+                        icon={selectedUserForView.twoFactorEnabled ? <ShieldCheck className="text-green-500"/> : <ShieldOff />}
+                        label="2FA Status"
+                        value={selectedUserForView.twoFactorEnabled ? "Enabled" : "Disabled"}
+                    />
+                    <InfoItem
+                        icon={selectedUserForView.canSetPrice ? <IndianRupee className="text-green-500"/> : <XCircle className="text-muted-foreground"/>}
+                        label="Can Set Prices"
+                        value={selectedUserForView.canSetPrice ? "Allowed" : "Restricted"}
+                    />
+                    <InfoItem
+                        icon={selectedUserForView.isLocked ? <LockIcon className="text-destructive"/> : <UnlockIcon className="text-green-500"/>}
+                        label="Account Status"
+                        value={selectedUserForView.isLocked ? `Locked (Attempts: ${selectedUserForView.failedPinAttempts || 0})` : "Active"}
+                    />
+                </div>
                 <p className="text-xs text-muted-foreground pt-2">User ID: {selectedUserForView.id}</p>
 
                 <div className="border-t pt-4 mt-4 space-y-3">
@@ -346,7 +365,7 @@ export default function ManageUsersPage() {
                     <div className="flex items-center justify-between">
                         <Label className="font-semibold">Manage Price Setting:</Label>
                         <Switch
-                            checked={selectedUserForView.canSetPrice}
+                            checked={!!selectedUserForView.canSetPrice}
                             onCheckedChange={(checked) => handleManagePriceSettingClick(selectedUserForView, checked ? 'enable' : 'disable')}
                             aria-label="Toggle user ability to set prices"
                         />
@@ -431,14 +450,24 @@ export default function ManageUsersPage() {
   );
 }
 
-interface InfoItemProps { icon: React.ReactNode; label: string; value: string; }
-const InfoItem: React.FC<InfoItemProps> = ({ icon, label, value}) => (
+interface InfoItemProps {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  isLink?: boolean;
+}
+const InfoItem: React.FC<InfoItemProps> = ({ icon, label, value, isLink }) => (
     <div className="flex items-start">
-        <span className="text-primary mr-3 mt-0.5">{icon}</span>
-        <div>
+        <span className="text-primary mr-3 mt-0.5 shrink-0">{icon}</span>
+        <div className="min-w-0"> {/* Ensure child text can wrap */}
             <p className="text-xs text-muted-foreground">{label}</p>
-            <p className="font-medium">{value}</p>
+            {isLink && value !== 'N/A' ? (
+                <a href={value} target="_blank" rel="noopener noreferrer" className="font-medium text-accent hover:underline break-all">
+                    {value}
+                </a>
+            ) : (
+                <p className="font-medium break-all">{value}</p>
+            )}
         </div>
     </div>
 );
-

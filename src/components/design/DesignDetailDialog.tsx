@@ -43,7 +43,7 @@ const DesignDetailDialog: React.FC<DesignDetailDialogProps> = ({ design, isOpen,
     if (isFramework && !htmlBlock) { // No simple HTML entry point for framework code
         return null; // Indicates framework and no simple HTML to render
     }
-    
+
     // For non-framework or if HTML is present, try to build a simple preview
     const htmlContent = htmlBlock ? htmlBlock.code : '';
     const cssContent = cssBlocks.map(block => block.code).join('\n');
@@ -112,7 +112,7 @@ const DesignDetailDialog: React.FC<DesignDetailDialogProps> = ({ design, isOpen,
               ))}
             </div>
           </div>
-        
+
         <div className="flex-grow overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent border-t pt-4 mt-2">
           {design.codeBlocks && design.codeBlocks.length > 0 ? (
             <Tabs defaultValue="preview" className="w-full">
@@ -128,13 +128,12 @@ const DesignDetailDialog: React.FC<DesignDetailDialogProps> = ({ design, isOpen,
               </TabsList>
 
               <TabsContent value="preview" className="h-[400px] rounded-md border bg-muted/20 relative">
-                {/* Removed isPriced condition for locking the entire preview */}
                 {previewDoc === null ? (
                      <Alert variant="default" className="m-4">
                         <Info className="h-4 w-4" />
                         <AlertTitle>Preview Note</AlertTitle>
                         <AlertDescription>
-                          A live preview for this component type (e.g., React, Vue, Tailwind CSS) is not available. 
+                          A live preview for this component type (e.g., React, Vue, Tailwind CSS) is not available.
                           Please refer to the code snippets and description.
                         </AlertDescription>
                     </Alert>
@@ -161,7 +160,8 @@ const DesignDetailDialog: React.FC<DesignDetailDialogProps> = ({ design, isOpen,
                   <CodeBlock
                     codeSnippet={block.code}
                     language={block.language}
-                    isLocked={isPriced} // CodeBlocks still respect the lock for priced items
+                    isLocked={isPriced}
+                    designId={design.id} // Pass designId here
                   />
                 </TabsContent>
               ))}
@@ -174,14 +174,5 @@ const DesignDetailDialog: React.FC<DesignDetailDialogProps> = ({ design, isOpen,
     </Dialog>
   );
 };
-
-// Simple Lock component for locked preview (can be enhanced) - Not used in preview tab anymore directly
-// const Lock: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
-//   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-//     <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-//     <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-//   </svg>
-// );
-
 
 export default DesignDetailDialog;

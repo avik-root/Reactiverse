@@ -1,22 +1,35 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, Award, Info } from 'lucide-react';
-import { getPageContentAction, getAllUsersAdminAction } from '@/lib/actions';
-import type { TopDesignersPageContent, User } from '@/lib/types';
+import { getPageContentAction, getAllUsersAdminAction, getAllDesignsAction } from '@/lib/actions';
+import type { TopDesignersPageContent, User, Design } from '@/lib/types';
 import DesignerCard from '@/components/designer/DesignerCard';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
-export default async function TopDesignersPage() {
+interface DesignerWithCopyCount extends User {
+  totalCopyCount: number;
+}
+
+export default async function DesignersPage() {
   const contentPromise = getPageContentAction('topDesigners') as Promise<TopDesignersPageContent>;
   const usersPromise = getAllUsersAdminAction();
+  const designsPromise = getAllDesignsAction();
 
-  const [content, users] = await Promise.all([contentPromise, usersPromise]);
+  const [content, users, allDesigns] = await Promise.all([contentPromise, usersPromise, designsPromise]);
 
   if (!content) {
     return <div className="container mx-auto py-12">Error loading page content. Please try again later.</div>;
   }
-  
-  const designers = users.filter(user => !user.id.startsWith('admin-')); // Filter out any potential admin users if they were in users.json
+
+  // Filter out admin users and calculate total copy count for each designer
+  const designersWithCopyCount: DesignerWithCopyCount[] = users
+    .filter(user => !user.id.startsWith('admin-'))
+    .map(designer => {
+      const designerDesigns = allDesigns.filter(design => design.submittedByUserId === designer.id);
+      const totalCopyCount = designerDesigns.reduce((sum, design) => sum + (design.copyCount || 0), 0);
+      return { ...designer, totalCopyCount };
+    })
+    .sort((a, b) => b.totalCopyCount - a.totalCopyCount); // Sort by total copy count descending
 
   return (
     <div className="container mx-auto py-12">
@@ -29,10 +42,10 @@ export default async function TopDesignersPage() {
           <CardDescription>{content.description}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {designers && designers.length > 0 ? (
+          {designersWithCopyCount && designersWithCopyCount.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {designers.map((designer) => (
-                <DesignerCard key={designer.id} user={designer} />
+              {designersWithCopyCount.map((designer) => (
+                <DesignerCard key={designer.id} user={designer} totalCopyCount={designer.totalCopyCount} />
               ))}
             </div>
           ) : (

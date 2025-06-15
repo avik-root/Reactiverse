@@ -1,3 +1,4 @@
+
 [
   {
     "id": "design-1749926446026",
@@ -25,12 +26,19 @@
       "avatarUrl": "https://placehold.co/100x100.png?text=T",
       "twoFactorEnabled": false,
       "failedPinAttempts": 0,
-      "isLocked": false
+      "isLocked": false,
+      "canSetPrice": true,
+      "githubUrl": "https://github.com/test",
+      "linkedinUrl": "https://linkedin.com/in/test",
+      "figmaUrl": "",
+      "isEmailPublic": true,
+      "isPhonePublic": false
     },
     "tags": [
       "loading animation"
     ],
     "price": 0,
-    "submittedByUserId": "user-1749918806145"
+    "submittedByUserId": "user-1749918806145",
+    "copyCount": 0
   }
 ]

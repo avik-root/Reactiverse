@@ -1,3 +1,4 @@
+
 [
   {
     "id": "user-1749918806145",
@@ -10,6 +11,11 @@
     "twoFactorEnabled": false,
     "failedPinAttempts": 0,
     "isLocked": false,
-    "canSetPrice": true
+    "canSetPrice": true,
+    "githubUrl": "https://github.com/test",
+    "linkedinUrl": "https://linkedin.com/in/test",
+    "figmaUrl": "",
+    "isEmailPublic": true,
+    "isPhonePublic": false
   }
 ]

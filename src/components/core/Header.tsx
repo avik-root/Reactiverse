@@ -5,9 +5,9 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import Logo from './Logo';
 import { useAuth } from '@/contexts/AuthContext';
-import { UserCircle, LogOut, ShieldCheck, UserPlus, LogIn, LayoutDashboard, Home, Users, LifeBuoy, Info } from 'lucide-react'; 
+import { UserCircle, LogOut, ShieldCheck, UserPlus, LogIn, LayoutDashboard, Home, Users, LifeBuoy, Info, Palette } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useRouter } from 'next/navigation'; 
+import { useRouter } from 'next/navigation';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,27 +19,27 @@ import {
 
 const navLinks = [
   { href: "/", label: "Home", icon: Home },
-  { href: "/designers", label: "Top Designers", icon: Users },
+  { href: "/designers", label: "Designers", icon: Users }, // Changed "Top Designers" to "Designers"
   { href: "/about", label: "About Us", icon: Info },
   { href: "/support", label: "Support", icon: LifeBuoy },
 ];
 
 const Header = () => {
   const { user, isAdmin, logout, isLoading } = useAuth();
-  const router = useRouter(); 
+  const router = useRouter();
 
   const getInitials = (name?: string) => {
     if (!name) return 'U';
     const nameToProcess = typeof name === 'string' ? name : (user && 'username' in user ? user.username : 'U');
     return nameToProcess.split(' ').map(n => n[0]).join('').toUpperCase();
   }
-  
+
   const displayName = user ? (('name' in user && user.name) ? user.name : (('username' in user) ? user.username : 'User')) : 'User';
   const displayEmail = user && 'email' in user ? user.email : undefined;
 
   const handleLogoutAndRedirect = async () => {
-    await logout(); 
-    window.location.href = '/'; // Force a full page reload to the homepage
+    await logout();
+    window.location.href = '/';
   };
 
   return (
@@ -59,7 +59,7 @@ const Header = () => {
             ))}
           </nav>
         </div>
-        
+
         <div className="flex items-center gap-2">
           {/* Mobile Nav (Dropdown for main links) */}
           <div className="md:hidden">

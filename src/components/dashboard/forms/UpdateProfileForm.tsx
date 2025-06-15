@@ -1,3 +1,4 @@
+
 // src/components/dashboard/forms/UpdateProfileForm.tsx
 'use client';
 
@@ -9,9 +10,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
-import { User, UploadCloud, Save } from 'lucide-react';
+import { User, UploadCloud, Save, Github, Linkedin, Mail, Phone, Eye, EyeOff } from 'lucide-react';
+import FigmaIcon from '@/components/icons/FigmaIcon';
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -30,17 +33,25 @@ export default function UpdateProfileForm() {
   const [state, dispatch] = useActionState(updateProfileAction, initialState);
 
   const [name, setName] = useState('');
-  // currentAvatarSource will hold the URL or Data URL for the image
   const [currentAvatarSource, setCurrentAvatarSource] = useState('');
-  
+  const [githubUrl, setGithubUrl] = useState('');
+  const [linkedinUrl, setLinkedinUrl] = useState('');
+  const [figmaUrl, setFigmaUrl] = useState('');
+  const [isEmailPublic, setIsEmailPublic] = useState(false);
+  const [isPhonePublic, setIsPhonePublic] = useState(false);
+
   useEffect(() => {
     if (user) {
       if ('name' in user) setName(user.name || '');
-      // Initialize with existing avatar or placeholder
       const initialAvatar = (user && 'avatarUrl' in user && user.avatarUrl)
         ? user.avatarUrl
         : `https://placehold.co/128x128.png?text=${(user && 'name' in user ? user.name || 'U' : 'U').charAt(0)}`;
       setCurrentAvatarSource(initialAvatar);
+      if ('githubUrl' in user) setGithubUrl(user.githubUrl || '');
+      if ('linkedinUrl' in user) setLinkedinUrl(user.linkedinUrl || '');
+      if ('figmaUrl' in user) setFigmaUrl(user.figmaUrl || '');
+      if ('isEmailPublic' in user) setIsEmailPublic(user.isEmailPublic || false);
+      if ('isPhonePublic' in user) setIsPhonePublic(user.isPhonePublic || false);
     }
   }, [user]);
 
@@ -52,7 +63,7 @@ export default function UpdateProfileForm() {
         variant: state.success ? 'default' : 'destructive',
       });
       if (state.success && state.user) {
-        updateAuthUser(state.user); // Update user in AuthContext
+        updateAuthUser(state.user);
       }
     }
   }, [state, toast, updateAuthUser]);
@@ -67,20 +78,15 @@ export default function UpdateProfileForm() {
           description: 'Please upload a JPG, JPEG, or PNG image.',
           variant: 'destructive',
         });
-        e.target.value = ''; // Reset file input
+        e.target.value = '';
         return;
       }
-      // Optional: Add file size validation here
-      // const maxSize = 5 * 1024 * 1024; // 5MB
-      // if (file.size > maxSize) { ... }
-
       const reader = new FileReader();
       reader.onloadend = () => {
         setCurrentAvatarSource(reader.result as string);
       };
       reader.readAsDataURL(file);
     } else {
-      // If file selection is cleared, revert to original or placeholder
       const originalAvatar = (user && 'avatarUrl' in user && user.avatarUrl)
         ? user.avatarUrl
         : `https://placehold.co/128x128.png?text=${name.charAt(0) || 'U'}`;
@@ -96,52 +102,51 @@ export default function UpdateProfileForm() {
     <Card className="w-full shadow-xl">
       <CardHeader>
         <CardTitle className="text-2xl font-headline text-primary">Update Profile</CardTitle>
-        <CardDescription>Keep your personal information up to date.</CardDescription>
+        <CardDescription>Keep your personal information and social links up to date.</CardDescription>
       </CardHeader>
       <form action={dispatch}>
         <input type="hidden" name="userId" value={user.id} />
-        {/* Hidden input to send the avatar URL (or Data URL) to the server */}
         <input type="hidden" name="avatarUrl" value={currentAvatarSource} />
 
         <CardContent className="space-y-6">
           <div className="flex flex-col items-center space-y-4">
             <div className="relative w-32 h-32 rounded-full overflow-hidden border-2 border-primary">
-              <Image 
-                src={currentAvatarSource || `https://placehold.co/128x128.png?text=${name.charAt(0) || 'U'}`} 
-                alt="Avatar Preview" 
-                layout="fill" 
+              <Image
+                src={currentAvatarSource || `https://placehold.co/128x128.png?text=${name.charAt(0) || 'U'}`}
+                alt="Avatar Preview"
+                layout="fill"
                 objectFit="cover"
                 data-ai-hint="profile avatar preview"
-                key={currentAvatarSource} // Add key to force re-render on src change
+                key={currentAvatarSource}
               />
             </div>
             <div className="w-full space-y-2">
                 <Label htmlFor="avatarFile">Upload New Avatar (JPG, PNG)</Label>
                 <div className="relative">
                     <UploadCloud className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input 
+                    <Input
                         id="avatarFile"
-                        type="file" 
+                        type="file"
                         accept="image/jpeg,image/png,image/jpg"
                         onChange={handleFileChange}
                         className="pl-10 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
-                        aria-describedby="avatarUrl-error" // Keep for error display from schema if needed, though schema is simpler now
+                        aria-describedby="avatarUrl-error"
                     />
                 </div>
                  {state?.errors?.avatarUrl && <p id="avatarUrl-error" className="text-sm text-destructive">{state.errors.avatarUrl.join(', ')}</p>}
             </div>
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="name">Full Name</Label>
              <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                    id="name" 
-                    name="name" 
-                    type="text" 
-                    placeholder="Your Full Name" 
-                    required 
+                <Input
+                    id="name"
+                    name="name"
+                    type="text"
+                    placeholder="Your Full Name"
+                    required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="pl-10"
@@ -152,8 +157,75 @@ export default function UpdateProfileForm() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="email">Email (cannot be changed)</Label>
-            <Input id="email" name="email" type="email" value={user.email || ''} readOnly disabled className="bg-muted/50"/>
+            <Label htmlFor="githubUrl">GitHub Profile URL</Label>
+            <div className="relative">
+              <Github className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input id="githubUrl" name="githubUrl" type="url" placeholder="https://github.com/yourusername" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} className="pl-10" aria-describedby="githubUrl-error"/>
+            </div>
+            {state?.errors?.githubUrl && <p id="githubUrl-error" className="text-sm text-destructive">{state.errors.githubUrl.join(', ')}</p>}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="linkedinUrl">LinkedIn Profile URL</Label>
+            <div className="relative">
+              <Linkedin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input id="linkedinUrl" name="linkedinUrl" type="url" placeholder="https://linkedin.com/in/yourusername" value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} className="pl-10" aria-describedby="linkedinUrl-error"/>
+            </div>
+            {state?.errors?.linkedinUrl && <p id="linkedinUrl-error" className="text-sm text-destructive">{state.errors.linkedinUrl.join(', ')}</p>}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="figmaUrl">Figma Profile/Community URL</Label>
+            <div className="relative">
+              <FigmaIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input id="figmaUrl" name="figmaUrl" type="url" placeholder="https://figma.com/@yourusername" value={figmaUrl} onChange={(e) => setFigmaUrl(e.target.value)} className="pl-10" aria-describedby="figmaUrl-error"/>
+            </div>
+            {state?.errors?.figmaUrl && <p id="figmaUrl-error" className="text-sm text-destructive">{state.errors.figmaUrl.join(', ')}</p>}
+          </div>
+
+          <div className="space-y-4 border-t pt-6">
+            <h3 className="text-lg font-medium text-primary">Privacy Settings</h3>
+            <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+              <div className="space-y-0.5">
+                <Label htmlFor="isEmailPublic" className="text-base">Make Email Public</Label>
+                <p className="text-xs text-muted-foreground">Allow other users to see your email on your profile card.</p>
+              </div>
+              <Switch
+                id="isEmailPublic"
+                name="isEmailPublic"
+                checked={isEmailPublic}
+                onCheckedChange={setIsEmailPublic}
+                aria-label="Toggle email visibility"
+              />
+            </div>
+            {state?.errors?.isEmailPublic && <p className="text-sm text-destructive">{state.errors.isEmailPublic.join(', ')}</p>}
+
+            <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+              <div className="space-y-0.5">
+                <Label htmlFor="isPhonePublic" className="text-base">Make Phone Public</Label>
+                <p className="text-xs text-muted-foreground">
+                  Allow other users to see your phone number. (Note: Phone numbers are generally not shown on public cards).
+                </p>
+              </div>
+              <Switch
+                id="isPhonePublic"
+                name="isPhonePublic"
+                checked={isPhonePublic}
+                onCheckedChange={setIsPhonePublic}
+                aria-label="Toggle phone visibility"
+              />
+            </div>
+            {state?.errors?.isPhonePublic && <p className="text-sm text-destructive">{state.errors.isPhonePublic.join(', ')}</p>}
+          </div>
+
+
+          <div className="space-y-2">
+            <Label htmlFor="email">Email (cannot be changed for login)</Label>
+            <Input id="email" name="email_display" type="email" value={user.email || ''} readOnly disabled className="bg-muted/50"/>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="phone">Phone (cannot be changed for login)</Label>
+            <Input id="phone" name="phone_display" type="tel" value={user.phone || ''} readOnly disabled className="bg-muted/50"/>
           </div>
 
           {state?.errors?.general && <p className="text-sm text-destructive">{state.errors.general.join(', ')}</p>}

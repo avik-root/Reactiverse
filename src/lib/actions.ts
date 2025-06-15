@@ -51,6 +51,8 @@ import type {
   AdminSetUserCanSetPriceFormState,
   TeamMembersContent,
   TeamMember,
+  UpdateProfileFormState as UserUpdateProfileFormState,
+  IncrementCopyCountResult,
 } from './types';
 import { revalidatePath } from 'next/cache';
 import { hashPassword, comparePassword, hashPin, comparePin } from './auth-utils';
@@ -134,7 +136,13 @@ const UpdateProfileSchema = z.object({
   userId: z.string(),
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
   avatarUrl: z.string().optional(),
+  githubUrl: z.string().url("Invalid GitHub URL format.").or(z.literal('')).optional(),
+  linkedinUrl: z.string().url("Invalid LinkedIn URL format.").or(z.literal('')).optional(),
+  figmaUrl: z.string().url("Invalid Figma URL format.").or(z.literal('')).optional(),
+  isEmailPublic: z.preprocess((val) => String(val).toLowerCase() === 'on' || String(val).toLowerCase() === 'true', z.boolean().default(false)),
+  isPhonePublic: z.preprocess((val) => String(val).toLowerCase() === 'on' || String(val).toLowerCase() === 'true', z.boolean().default(false)),
 });
+
 
 const ChangePasswordSchema = z.object({
   userId: z.string(),
@@ -327,7 +335,6 @@ const TeamMembersContentSchemaClient = z.object({
   title: z.string().min(1, "Section title is required"),
   founder: TeamMemberSchemaClient,
   coFounder: TeamMemberSchemaClient,
-  // For file handling - these are not directly part of TeamMember, but come from form
   founderImageFile: ValidImageFileSchema.optional(),
   coFounderImageFile: ValidImageFileSchema.optional(),
   "founder.existingImageUrl": z.string().optional(),
@@ -346,7 +353,7 @@ const pageContentSchemasMap = {
   support: SupportPageContentSchema,
   guidelines: GuidelinesPageContentSchema,
   topDesigners: TopDesignersPageContentSchema,
-  teamMembers: TeamMembersContentSchemaClient, // Use the client-facing schema for form parsing
+  teamMembers: TeamMembersContentSchemaClient,
 };
 
 
@@ -413,39 +420,7 @@ export type UpdateDesignFormState = AddDesignFormState & {
   };
 };
 
-export type UpdateProfileFormState = {
-  message?: string | null;
-  success?: boolean;
-  user?: AuthUser | null;
-  errors?: {
-    name?: string[];
-    avatarUrl?: string[];
-    general?: string[];
-  };
-};
 
-export type ChangePasswordFormState = {
-  message?: string | null;
-  success?: boolean;
-  errors?: {
-    currentPassword?: string[];
-    newPassword?: string[];
-    confirmPassword?: string[];
-    general?: string[];
-  };
-};
-
-export type TwoFactorAuthFormState = {
-  message?: string | null;
-  success?: boolean;
-  actionType?: 'enable' | 'disable';
-  errors?: {
-    pin?: string[];
-    confirmPin?: string[];
-    currentPasswordFor2FA?: string[];
-    general?: string[];
-  };
-};
 
 
 export async function loginUser(prevState: LoginFormState, formData: FormData): Promise<LoginFormState> {
@@ -575,6 +550,11 @@ export async function signupUser(prevState: SignupFormState, formData: FormData)
     failedPinAttempts: 0,
     isLocked: false,
     canSetPrice: false,
+    githubUrl: '',
+    linkedinUrl: '',
+    figmaUrl: '',
+    isEmailPublic: false,
+    isPhonePublic: false,
   };
 
   await saveUserToFile(newUser);
@@ -661,7 +641,6 @@ export async function logoutAdminAction(): Promise<{ success: boolean }> {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
     });
-    // Attempt delete as well, though setting maxAge to 0 is usually sufficient
     cookies().delete(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS);
     return { success: true };
   } catch (error) {
@@ -740,6 +719,7 @@ export async function submitDesignAction(prevState: AddDesignFormState, formData
     tags: tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
     price: finalPrice,
     submittedByUserId,
+    copyCount: 0,
   };
 
   try {
@@ -849,7 +829,7 @@ export async function updateDesignAction(prevState: UpdateDesignFormState, formD
 }
 
 
-export async function updateProfileAction(prevState: UpdateProfileFormState, formData: FormData): Promise<UpdateProfileFormState> {
+export async function updateProfileAction(prevState: UserUpdateProfileFormState, formData: FormData): Promise<UserUpdateProfileFormState> {
   const validatedFields = UpdateProfileSchema.safeParse(Object.fromEntries(formData.entries()));
 
   if (!validatedFields.success) {
@@ -860,7 +840,7 @@ export async function updateProfileAction(prevState: UpdateProfileFormState, for
     };
   }
 
-  const { userId, name, avatarUrl } = validatedFields.data;
+  const { userId, name, avatarUrl, githubUrl, linkedinUrl, figmaUrl, isEmailPublic, isPhonePublic } = validatedFields.data;
 
   const users = await getUsersFromFile();
   const userToUpdate = users.find(u => u.id === userId);
@@ -873,6 +853,11 @@ export async function updateProfileAction(prevState: UpdateProfileFormState, for
     ...userToUpdate,
     name,
     avatarUrl: avatarUrl || userToUpdate.avatarUrl,
+    githubUrl: githubUrl || "",
+    linkedinUrl: linkedinUrl || "",
+    figmaUrl: figmaUrl || "",
+    isEmailPublic: isEmailPublic === undefined ? userToUpdate.isEmailPublic : isEmailPublic,
+    isPhonePublic: isPhonePublic === undefined ? userToUpdate.isPhonePublic : isPhonePublic,
   };
 
   try {
@@ -882,6 +867,7 @@ export async function updateProfileAction(prevState: UpdateProfileFormState, for
     revalidatePath('/dashboard/profile');
     revalidatePath('/dashboard');
     revalidatePath('/');
+    revalidatePath('/designers');
     return { message: 'Profile updated successfully!', success: true, user: {...userToReturn, isAdmin: false, canSetPrice: userToReturn.canSetPrice || false} };
   } catch (error) {
     console.error("Error updating profile:", error);
@@ -931,7 +917,7 @@ export async function changePasswordAction(prevState: ChangePasswordFormState, f
   }
 }
 
-export async function enableTwoFactorAction(prevState: TwoFactorAuthFormState, formData: FormData): Promise<TwoFactorAuthFormState> {
+export async function enableTwoFactorAction(prevState: AdminTwoFactorAuthFormState, formData: FormData): Promise<AdminTwoFactorAuthFormState> {
   const validatedFields = EnableTwoFactorSchema.safeParse(Object.fromEntries(formData.entries()));
   if (!validatedFields.success) {
     return { errors: validatedFields.error.flatten().fieldErrors, message: 'Invalid fields.', success: false, actionType: 'enable' };
@@ -967,7 +953,7 @@ export async function enableTwoFactorAction(prevState: TwoFactorAuthFormState, f
   }
 }
 
-export async function disableTwoFactorAction(prevState: TwoFactorAuthFormState, formData: FormData): Promise<TwoFactorAuthFormState> {
+export async function disableTwoFactorAction(prevState: AdminTwoFactorAuthFormState, formData: FormData): Promise<AdminTwoFactorAuthFormState> {
   const validatedFields = DisableTwoFactorSchema.safeParse(Object.fromEntries(formData.entries()));
   if (!validatedFields.success) {
     return { errors: validatedFields.error.flatten().fieldErrors, message: 'Invalid fields.', success: false, actionType: 'disable' };
@@ -1011,12 +997,13 @@ export async function getAllDesignsAction(): Promise<Design[]> {
     return designs.map(design => {
       const sanitizedDesigner = design.designer
         ? (({ passwordHash, twoFactorPinHash, ...rest }: StoredUser) => rest)(design.designer as StoredUser) as User
-        : { id: 'unknown', name: 'Unknown Designer', username: '@unknown', avatarUrl: '', email: 'unknown@example.com', phone: '', twoFactorEnabled: false, failedPinAttempts: 0, isLocked: false, canSetPrice: false };
+        : { id: 'unknown', name: 'Unknown Designer', username: '@unknown', avatarUrl: '', email: 'unknown@example.com', phone: '', twoFactorEnabled: false, failedPinAttempts: 0, isLocked: false, canSetPrice: false, githubUrl: '', linkedinUrl: '', figmaUrl: '', isEmailPublic: false, isPhonePublic: false };
 
       return {
         ...design,
         designer: sanitizedDesigner,
-        codeBlocks: design.codeBlocks || []
+        codeBlocks: design.codeBlocks || [],
+        copyCount: design.copyCount || 0,
       };
     });
   } catch (error) {
@@ -1032,11 +1019,12 @@ export async function getDesignByIdAction(id: string): Promise<Design | undefine
     if (design) {
       const sanitizedDesigner = design.designer
         ? (({ passwordHash, twoFactorPinHash, ...rest }: StoredUser) => rest)(design.designer as StoredUser) as User
-        : { id: 'unknown', name: 'Unknown Designer', username: '@unknown', avatarUrl: '', email: 'unknown@example.com', phone: '', twoFactorEnabled: false, failedPinAttempts: 0, isLocked: false, canSetPrice: false };
+        : { id: 'unknown', name: 'Unknown Designer', username: '@unknown', avatarUrl: '', email: 'unknown@example.com', phone: '', twoFactorEnabled: false, failedPinAttempts: 0, isLocked: false, canSetPrice: false, githubUrl: '', linkedinUrl: '', figmaUrl: '', isEmailPublic: false, isPhonePublic: false };
       return {
         ...design,
         designer: sanitizedDesigner,
-        codeBlocks: design.codeBlocks || []
+        codeBlocks: design.codeBlocks || [],
+        copyCount: design.copyCount || 0,
       };
     }
     return undefined;
@@ -1059,6 +1047,7 @@ export async function deleteDesignAction(designId: string): Promise<DeleteDesign
     revalidatePath('/dashboard/designs');
     revalidatePath('/admin/designs');
     revalidatePath('/');
+    revalidatePath('/designers');
     return { success: true, message: 'Design deleted successfully.' };
   } catch (error) {
     console.error('Error deleting design via action:', error);
@@ -1135,6 +1124,11 @@ export async function getAllUsersAdminAction(): Promise<User[]> {
         isLocked: user.isLocked || false,
         twoFactorEnabled: user.twoFactorEnabled || false,
         canSetPrice: user.canSetPrice || false,
+        githubUrl: user.githubUrl || "",
+        linkedinUrl: user.linkedinUrl || "",
+        figmaUrl: user.figmaUrl || "",
+        isEmailPublic: user.isEmailPublic === undefined ? false : user.isEmailPublic,
+        isPhonePublic: user.isPhonePublic === undefined ? false : user.isPhonePublic,
       };
     });
   } catch (error) {
@@ -1154,6 +1148,7 @@ export async function deleteUserAdminAction(userId: string): Promise<{ success: 
       return { success: false, message: 'User not found or already deleted.' };
     }
     revalidatePath('/admin/users');
+    revalidatePath('/designers');
     return { success: true, message: 'User deleted successfully.' };
   } catch (error) {
     console.error('Error deleting user via admin action:', error);
@@ -1439,7 +1434,6 @@ export async function updatePageContentAction<T extends PageContentKeys>(
 
   let teamDataForValidation = { ...rawData };
   if (pageKey === 'teamMembers') {
-    // For validation, include file fields. The actual saving is handled below.
     const founderFile = formData.get('founderImageFile') as File | null;
     const coFounderFile = formData.get('coFounderImageFile') as File | null;
     
@@ -1448,13 +1442,13 @@ export async function updatePageContentAction<T extends PageContentKeys>(
 
     teamDataForValidation.founder = {
       name: rawData['founder.name'], title: rawData['founder.title'], bio: rawData['founder.bio'],
-      imageUrl: rawData['founder.existingImageUrl'], // Use existing for validation if no new file
+      imageUrl: rawData['founder.existingImageUrl'],
       imageAlt: rawData['founder.imageAlt'], imageDataAiHint: rawData['founder.imageDataAiHint'],
       githubUrl: rawData['founder.githubUrl'], linkedinUrl: rawData['founder.linkedinUrl'], emailAddress: rawData['founder.emailAddress'],
     };
     teamDataForValidation.coFounder = {
       name: rawData['coFounder.name'], title: rawData['coFounder.title'], bio: rawData['coFounder.bio'],
-      imageUrl: rawData['coFounder.existingImageUrl'], // Use existing for validation if no new file
+      imageUrl: rawData['coFounder.existingImageUrl'],
       imageAlt: rawData['coFounder.imageAlt'], imageDataAiHint: rawData['coFounder.imageDataAiHint'],
       githubUrl: rawData['coFounder.githubUrl'], linkedinUrl: rawData['coFounder.linkedinUrl'], emailAddress: rawData['coFounder.emailAddress'],
     };
@@ -1474,9 +1468,8 @@ export async function updatePageContentAction<T extends PageContentKeys>(
   const contentToSave = { ...validatedFields.data };
 
   if (pageKey === 'teamMembers') {
-    const data = validatedFields.data as any; // Cast to access file fields
+    const data = validatedFields.data as any;
     
-    // Handle Founder Image
     const founderFile = data.founderImageFile as File | undefined;
     if (founderFile && founderFile.size > 0) {
       const buffer = Buffer.from(await founderFile.arrayBuffer());
@@ -1485,9 +1478,8 @@ export async function updatePageContentAction<T extends PageContentKeys>(
     } else {
       contentToSave.founder.imageUrl = formData.get('founder.existingImageUrl') as string || contentToSave.founder.imageUrl;
     }
-    delete contentToSave.founderImageFile; // Clean up file from data to be saved
+    delete contentToSave.founderImageFile;
 
-    // Handle Co-Founder Image
     const coFounderFile = data.coFounderImageFile as File | undefined;
     if (coFounderFile && coFounderFile.size > 0) {
       const buffer = Buffer.from(await coFounderFile.arrayBuffer());
@@ -1496,9 +1488,8 @@ export async function updatePageContentAction<T extends PageContentKeys>(
     } else {
        contentToSave.coFounder.imageUrl = formData.get('coFounder.existingImageUrl') as string || contentToSave.coFounder.imageUrl;
     }
-    delete contentToSave.coFounderImageFile; // Clean up file
+    delete contentToSave.coFounderImageFile;
     
-    // Remove existingImageUrl fields before saving
     delete contentToSave['founder.existingImageUrl'];
     delete contentToSave['coFounder.existingImageUrl'];
   }
@@ -1514,7 +1505,7 @@ export async function updatePageContentAction<T extends PageContentKeys>(
   } catch (error) {
     console.error(`Error updating page content for ${pageKey}:`, error);
     const typedError = error as {code?: string};
-    if (typedError.code === 'ENOENT') { // Example: File system error
+    if (typedError.code === 'ENOENT') {
        return { message: `Failed to save image. Please ensure storage is available and try again.`, success: false, errors: { general: ['File system error.'] } };
     }
     return { message: `Failed to update ${pageKey} content. Please try again.`, success: false, errors: { general: ['Server error.'] } };
@@ -1536,8 +1527,8 @@ export async function updateSiteLogoAction(prevState: SiteLogoUploadState, formD
 
   try {
     const buffer = Buffer.from(await logoFile.arrayBuffer());
-    const fileExtension = path.extname(logoFile.name) || '.png'; // default to .png if no extension
-    const fileName = `site_logo${fileExtension}`; // e.g. site_logo.png
+    const fileExtension = path.extname(logoFile.name) || '.png';
+    const fileName = `site_logo${fileExtension}`;
     const filePath = await saveSiteLogoToServer(buffer, fileName);
 
     revalidatePath('/');
@@ -1619,6 +1610,8 @@ export async function adminSetUserCanSetPriceAction(
   try {
     await updateUserInFile(userToUpdate);
     revalidatePath('/admin/users');
+    revalidatePath('/dashboard/designs/submit'); // Revalidate for the user who might now be able to set prices
+    revalidatePath(`/dashboard/designs/edit/[designId]`); // For existing designs
     const { passwordHash, twoFactorPinHash, ...userToReturn } = userToUpdate;
     return { message: `User's ability to set prices ${canSetPrice ? 'enabled' : 'disabled'} successfully.`, success: true, updatedUser: {...userToReturn, canSetPrice: userToReturn.canSetPrice || false} };
   } catch (error) {
@@ -1627,3 +1620,31 @@ export async function adminSetUserCanSetPriceAction(
   }
 }
 
+export async function incrementDesignCopyCountAction(designId: string): Promise<IncrementCopyCountResult> {
+  if (!designId) {
+    return { success: false, message: 'Design ID is required.' };
+  }
+
+  try {
+    const designs = await getDesignsFromFile();
+    const designIndex = designs.findIndex(d => d.id === designId);
+
+    if (designIndex === -1) {
+      return { success: false, message: 'Design not found.' };
+    }
+
+    const designToUpdate = designs[designIndex];
+    designToUpdate.copyCount = (designToUpdate.copyCount || 0) + 1;
+
+    await saveDesignsToFile(designs);
+    // Revalidate paths that might display copy counts or rankings
+    revalidatePath('/');
+    revalidatePath('/designers');
+    // No need to revalidate specific design detail pages unless they show copy count
+    
+    return { success: true, newCount: designToUpdate.copyCount };
+  } catch (error) {
+    console.error(`Error incrementing copy count for design ${designId}:`, error);
+    return { success: false, message: 'Server error while incrementing copy count.' };
+  }
+}

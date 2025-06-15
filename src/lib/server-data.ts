@@ -13,6 +13,7 @@ const SETTINGS_FILE_PATH = path.join(process.cwd(), 'settings.json');
 const PAGE_CONTENT_FILE_PATH = path.join(process.cwd(), 'page_content.json');
 const PUBLIC_DIR = path.join(process.cwd(), 'public');
 const TEAM_IMAGES_DIR = path.join(PUBLIC_DIR, 'team_images');
+const AVATARS_DIR = path.join(PUBLIC_DIR, 'avatars');
 
 
 const DEFAULT_SITE_SETTINGS: SiteSettings = {
@@ -41,7 +42,7 @@ const DEFAULT_TEAM_MEMBERS_CONTENT: TeamMembersContent = {
     title: "Founder & CEO",
     bio: "Visionary leader with a passion for innovative design and community building. Alex drives the strategic direction of Reactiverse, ensuring it remains a leading platform for UI/UX enthusiasts worldwide.",
     ...DEFAULT_TEAM_MEMBER_DATA,
-    imageUrl: "/team_images/founder_image.png", // Default if no upload yet
+    imageUrl: "/team_images/founder_image.png", 
     imageAlt: "Founder Alex Johnson",
   },
   coFounder: {
@@ -49,7 +50,7 @@ const DEFAULT_TEAM_MEMBERS_CONTENT: TeamMembersContent = {
     title: "Co-Founder & CTO",
     bio: "Expert technologist driving the platform's architecture and development. Maria focuses on creating a seamless and powerful experience for all Reactiverse users.",
     ...DEFAULT_TEAM_MEMBER_DATA,
-    imageUrl: "/team_images/cofounder_image.png", // Default if no upload yet
+    imageUrl: "/team_images/cofounder_image.png", 
     imageAlt: "Co-Founder Maria Garcia",
   }
 };
@@ -123,6 +124,15 @@ async function fileExists(filePath: string): Promise<boolean> {
     return false;
   }
 }
+
+async function ensureDirExists(dirPath: string): Promise<void> {
+  try {
+    await fs.access(dirPath);
+  } catch {
+    await fs.mkdir(dirPath, { recursive: true });
+  }
+}
+
 
 export async function getAdminUsers(): Promise<StoredAdminUser[]> {
   try {
@@ -204,7 +214,7 @@ export async function saveUserToFile(newUser: StoredUser): Promise<void> {
         failedPinAttempts: newUser.failedPinAttempts || 0,
         isLocked: newUser.isLocked || false,
         twoFactorEnabled: newUser.twoFactorEnabled || false,
-        canSetPrice: newUser.canSetPrice || false, // New users cannot set price by default
+        canSetPrice: newUser.canSetPrice || false, 
         githubUrl: newUser.githubUrl || "",
         linkedinUrl: newUser.linkedinUrl || "",
         figmaUrl: newUser.figmaUrl || "",
@@ -425,15 +435,10 @@ export async function savePageContent(pageKey: PageContentKeys, content: any): P
 
 export async function saveSiteLogo(fileBuffer: Buffer, fileName: string): Promise<string> {
   try {
-    try {
-      await fs.access(PUBLIC_DIR);
-    } catch {
-      await fs.mkdir(PUBLIC_DIR, { recursive: true });
-    }
-
+    await ensureDirExists(PUBLIC_DIR);
     const filePath = path.join(PUBLIC_DIR, fileName);
     await fs.writeFile(filePath, fileBuffer);
-    return `/${fileName}`;
+    return `/${fileName}`; // Return relative path for web access
   } catch (error) {
     console.error('Failed to save site logo:', error);
     throw error;
@@ -442,19 +447,39 @@ export async function saveSiteLogo(fileBuffer: Buffer, fileName: string): Promis
 
 export async function saveTeamMemberImage(fileBuffer: Buffer, memberType: 'founder' | 'coFounder', fileExtension: string): Promise<string> {
   try {
-    try {
-      await fs.access(TEAM_IMAGES_DIR);
-    } catch {
-      await fs.mkdir(TEAM_IMAGES_DIR, { recursive: true });
-    }
-
-    const fileName = `${memberType}_image${fileExtension}`; // e.g., founder_image.png
+    await ensureDirExists(TEAM_IMAGES_DIR);
+    const fileName = `${memberType}_image${fileExtension}`; 
     const filePath = path.join(TEAM_IMAGES_DIR, fileName);
     await fs.writeFile(filePath, fileBuffer);
-    return `/team_images/${fileName}`; // Return relative path for web access
+    return `/team_images/${fileName}`;
   } catch (error) {
     console.error(`Failed to save team member image for ${memberType}:`, error);
     throw error;
   }
 }
 
+export async function saveUserAvatar(fileBuffer: Buffer, userId: string, fileExtension: string): Promise<string> {
+  try {
+    await ensureDirExists(AVATARS_DIR);
+    const fileName = `user-${userId}-${Date.now()}${fileExtension}`;
+    const filePath = path.join(AVATARS_DIR, fileName);
+    await fs.writeFile(filePath, fileBuffer);
+    return `/avatars/${fileName}`;
+  } catch (error) {
+    console.error(`Failed to save user avatar for ${userId}:`, error);
+    throw error;
+  }
+}
+
+export async function saveAdminAvatar(fileBuffer: Buffer, adminId: string, fileExtension: string): Promise<string> {
+  try {
+    await ensureDirExists(AVATARS_DIR);
+    const fileName = `admin-${adminId}-${Date.now()}${fileExtension}`;
+    const filePath = path.join(AVATARS_DIR, fileName);
+    await fs.writeFile(filePath, fileBuffer);
+    return `/avatars/${fileName}`;
+  } catch (error) {
+    console.error(`Failed to save admin avatar for ${adminId}:`, error);
+    throw error;
+  }
+}

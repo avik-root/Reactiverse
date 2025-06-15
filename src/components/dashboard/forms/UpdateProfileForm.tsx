@@ -16,6 +16,11 @@ import Image from 'next/image';
 import { User, UploadCloud, Save, Github, Linkedin, Mail, Phone, Eye, EyeOff } from 'lucide-react';
 import FigmaIcon from '@/components/icons/FigmaIcon';
 
+const MAX_AVATAR_SIZE_MB = 5;
+const MAX_AVATAR_SIZE_BYTES = MAX_AVATAR_SIZE_MB * 1024 * 1024;
+const ALLOWED_AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/jpg'];
+
+
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
@@ -33,7 +38,8 @@ export default function UpdateProfileForm() {
   const [state, dispatch] = useActionState(updateProfileAction, initialState);
 
   const [name, setName] = useState('');
-  const [currentAvatarSource, setCurrentAvatarSource] = useState('');
+  const [currentAvatarSource, setCurrentAvatarSource] = useState(''); // For preview
+  const [avatarFile, setAvatarFile] = useState<File | null>(null); // To hold the selected file
   const [githubUrl, setGithubUrl] = useState('');
   const [linkedinUrl, setLinkedinUrl] = useState('');
   const [figmaUrl, setFigmaUrl] = useState('');
@@ -64,6 +70,18 @@ export default function UpdateProfileForm() {
       });
       if (state.success && state.user) {
         updateAuthUser(state.user);
+        // If avatar was successfully uploaded, the state.user.avatarUrl will have the new path
+        if (state.user.avatarUrl) {
+          setCurrentAvatarSource(state.user.avatarUrl); // Update preview to new path
+        }
+        setAvatarFile(null); // Clear the stored file after submission
+        // Reset form fields if necessary, though typically not needed as inputs are controlled
+        const form = document.getElementById('updateProfileForm') as HTMLFormElement;
+        if (form) {
+            const fileInput = form.elements.namedItem('avatarFile') as HTMLInputElement;
+            if (fileInput) fileInput.value = ""; // Clear file input
+        }
+
       }
     }
   }, [state, toast, updateAuthUser]);
@@ -71,22 +89,44 @@ export default function UpdateProfileForm() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      const validTypes = ['image/jpeg', 'image/png', 'image/jpg'];
-      if (!validTypes.includes(file.type)) {
+      if (!ALLOWED_AVATAR_TYPES.includes(file.type)) {
         toast({
           title: 'Invalid File Type',
           description: 'Please upload a JPG, JPEG, or PNG image.',
           variant: 'destructive',
         });
-        e.target.value = '';
+        e.target.value = ''; 
+        setAvatarFile(null);
+        // Revert preview to original/placeholder if selection is cleared
+        const originalAvatar = (user && 'avatarUrl' in user && user.avatarUrl)
+          ? user.avatarUrl
+          : `https://placehold.co/128x128.png?text=${name.charAt(0) || 'U'}`;
+        setCurrentAvatarSource(originalAvatar);
         return;
       }
+      if (file.size > MAX_AVATAR_SIZE_BYTES) {
+         toast({
+          title: 'File Too Large',
+          description: `Avatar image must be ${MAX_AVATAR_SIZE_MB}MB or less.`,
+          variant: 'destructive',
+        });
+        e.target.value = '';
+        setAvatarFile(null);
+        const originalAvatar = (user && 'avatarUrl' in user && user.avatarUrl)
+          ? user.avatarUrl
+          : `https://placehold.co/128x128.png?text=${name.charAt(0) || 'U'}`;
+        setCurrentAvatarSource(originalAvatar);
+        return;
+      }
+
+      setAvatarFile(file); // Store the file object
       const reader = new FileReader();
       reader.onloadend = () => {
-        setCurrentAvatarSource(reader.result as string);
+        setCurrentAvatarSource(reader.result as string); // Update preview
       };
       reader.readAsDataURL(file);
     } else {
+      setAvatarFile(null);
       const originalAvatar = (user && 'avatarUrl' in user && user.avatarUrl)
         ? user.avatarUrl
         : `https://placehold.co/128x128.png?text=${name.charAt(0) || 'U'}`;
@@ -98,16 +138,24 @@ export default function UpdateProfileForm() {
     return <p>Loading user data...</p>;
   }
 
+  const handleSubmit = (formData: FormData) => {
+    if (avatarFile) {
+      formData.set('avatarFile', avatarFile); // Ensure the file object is in FormData
+    } else {
+      formData.delete('avatarFile'); // Remove if no new file, so server uses existing
+    }
+    dispatch(formData);
+  };
+
   return (
     <Card className="w-full shadow-xl">
       <CardHeader>
         <CardTitle className="text-2xl font-headline text-primary">Update Profile</CardTitle>
         <CardDescription>Keep your personal information and social links up to date.</CardDescription>
       </CardHeader>
-      <form action={dispatch}>
+      <form id="updateProfileForm" action={handleSubmit}>
         <input type="hidden" name="userId" value={user.id} />
-        <input type="hidden" name="avatarUrl" value={currentAvatarSource} />
-
+        
         <CardContent className="space-y-6">
           <div className="flex flex-col items-center space-y-4">
             <div className="relative w-32 h-32 rounded-full overflow-hidden border-2 border-primary">
@@ -117,23 +165,24 @@ export default function UpdateProfileForm() {
                 layout="fill"
                 objectFit="cover"
                 data-ai-hint="profile avatar preview"
-                key={currentAvatarSource}
+                key={currentAvatarSource} 
               />
             </div>
             <div className="w-full space-y-2">
-                <Label htmlFor="avatarFile">Upload New Avatar (JPG, PNG)</Label>
+                <Label htmlFor="avatarFile">Upload New Avatar (JPG, PNG, max 5MB)</Label>
                 <div className="relative">
                     <UploadCloud className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                         id="avatarFile"
+                        name="avatarFile" // Name attribute is important for FormData
                         type="file"
                         accept="image/jpeg,image/png,image/jpg"
                         onChange={handleFileChange}
                         className="pl-10 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
-                        aria-describedby="avatarUrl-error"
+                        aria-describedby="avatarFile-error" // Corrected from avatarUrl-error
                     />
                 </div>
-                 {state?.errors?.avatarUrl && <p id="avatarUrl-error" className="text-sm text-destructive">{state.errors.avatarUrl.join(', ')}</p>}
+                 {state?.errors?.avatarFile && <p id="avatarFile-error" className="text-sm text-destructive">{state.errors.avatarFile.join(', ')}</p>}
             </div>
           </div>
 

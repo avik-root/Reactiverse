@@ -23,6 +23,8 @@ import {
   savePageContent as savePageContentToFile,
   saveSiteLogo as saveSiteLogoToServer,
   saveTeamMemberImage,
+  saveUserAvatar,
+  saveAdminAvatar,
 } from './server-data';
 import type {
   AdminUser,
@@ -132,11 +134,20 @@ const UpdateDesignSchema = AddDesignSchema.extend({
   designId: z.string().min(1, { message: 'Design ID is required for update.' }),
 });
 
+const MAX_AVATAR_SIZE_MB = 5;
+const MAX_AVATAR_SIZE_BYTES = MAX_AVATAR_SIZE_MB * 1024 * 1024;
+const ALLOWED_AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/jpg'];
+
+const AvatarFileSchema = z.instanceof(File, { message: "Avatar image is required." })
+  .refine(file => file.size > 0, "Avatar image cannot be empty.")
+  .refine(file => file.size <= MAX_AVATAR_SIZE_BYTES, `Avatar image must be ${MAX_AVATAR_SIZE_MB}MB or less.`)
+  .refine(file => ALLOWED_AVATAR_TYPES.includes(file.type), 'Invalid file type. Must be JPG, JPEG, or PNG.')
+  .optional();
 
 const UpdateProfileSchema = z.object({
   userId: z.string(),
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
-  avatarUrl: z.string().optional(),
+  avatarFile: AvatarFileSchema,
   githubUrl: z.string().url("Invalid GitHub URL format.").or(z.literal('')).optional(),
   linkedinUrl: z.string().url("Invalid LinkedIn URL format.").or(z.literal('')).optional(),
   figmaUrl: z.string().url("Invalid Figma URL format.").or(z.literal('')).optional(),
@@ -187,7 +198,7 @@ const SiteSettingsSchema = z.object({
 const UpdateAdminProfileSchema = z.object({
   adminId: z.string(),
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
-  avatarUrl: z.string().optional(),
+  avatarFile: AvatarFileSchema,
 });
 
 const ChangeAdminPasswordSchema = z.object({
@@ -324,7 +335,7 @@ const TeamMemberSchemaClient = z.object({
   name: z.string().min(1, "Name is required"),
   title: z.string().min(1, "Title is required"),
   bio: z.string().min(10, "Bio must be at least 10 characters"),
-  imageUrl: z.string().optional(), // This will be the existing path or new path after upload
+  imageUrl: z.string().optional(), 
   imageAlt: z.string().optional(),
   imageDataAiHint: z.string().max(30, "AI hint too long").optional(),
   githubUrl: z.string().url("Invalid GitHub URL").or(z.literal("")).optional(),
@@ -624,7 +635,7 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     path: '/admin',
-    maxAge: 0, // Use maxAge: 0 for session cookie behavior if preferred or specific duration
+    maxAge: 0, 
     sameSite: 'lax',
   });
 
@@ -637,12 +648,11 @@ export async function logoutAdminAction(): Promise<{ success: boolean }> {
   try {
     cookies().set(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS, '', {
       path: '/admin',
-      maxAge: 0, // Explicitly expire the cookie
+      maxAge: 0, 
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
     });
-    // cookies().delete(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS); // The set with maxAge: 0 should be sufficient
     return { success: true };
   } catch (error) {
     console.error('Error during admin logout action:', error);
@@ -817,7 +827,7 @@ export async function updateDesignAction(prevState: UpdateDesignFormState, formD
     designer: designerInfo as User,
     tags: tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0),
     price: finalPrice,
-    likedBy: existingDesign.likedBy || [], // Preserve existing likes
+    likedBy: existingDesign.likedBy || [], 
   };
 
   try {
@@ -835,7 +845,16 @@ export async function updateDesignAction(prevState: UpdateDesignFormState, formD
 
 
 export async function updateProfileAction(prevState: UserUpdateProfileFormState, formData: FormData): Promise<UserUpdateProfileFormState> {
-  const validatedFields = UpdateProfileSchema.safeParse(Object.fromEntries(formData.entries()));
+  const rawData = Object.fromEntries(formData.entries());
+  const avatarFile = formData.get('avatarFile') as File | null;
+  
+  // Prepare data for Zod validation
+  const dataToValidate = {
+    ...rawData,
+    avatarFile: avatarFile && avatarFile.size > 0 ? avatarFile : undefined, // Only pass to Zod if file exists
+  };
+
+  const validatedFields = UpdateProfileSchema.safeParse(dataToValidate);
 
   if (!validatedFields.success) {
     return {
@@ -845,7 +864,8 @@ export async function updateProfileAction(prevState: UserUpdateProfileFormState,
     };
   }
 
-  const { userId, name, avatarUrl, githubUrl, linkedinUrl, figmaUrl, isEmailPublic, isPhonePublic } = validatedFields.data;
+  const { userId, name, githubUrl, linkedinUrl, figmaUrl, isEmailPublic, isPhonePublic } = validatedFields.data;
+  const uploadedAvatarFile = validatedFields.data.avatarFile; // This is the potentially validated File object
 
   const users = await getUsersFromFile();
   const userToUpdate = users.find(u => u.id === userId);
@@ -854,10 +874,22 @@ export async function updateProfileAction(prevState: UserUpdateProfileFormState,
     return { message: 'User not found.', success: false, errors: { general: ['User not found.'] } };
   }
 
+  let newAvatarUrl = userToUpdate.avatarUrl;
+  if (uploadedAvatarFile) {
+    try {
+      const buffer = Buffer.from(await uploadedAvatarFile.arrayBuffer());
+      const fileExtension = path.extname(uploadedAvatarFile.name);
+      newAvatarUrl = await saveUserAvatar(buffer, userId, fileExtension);
+    } catch (error) {
+      console.error("Error saving user avatar:", error);
+      return { message: 'Failed to save avatar image.', success: false, errors: { avatarFile: ['Could not save image.'] } };
+    }
+  }
+
   const updatedUserData: StoredUser = {
     ...userToUpdate,
     name,
-    avatarUrl: avatarUrl || userToUpdate.avatarUrl,
+    avatarUrl: newAvatarUrl,
     githubUrl: githubUrl || "",
     linkedinUrl: linkedinUrl || "",
     figmaUrl: figmaUrl || "",
@@ -1198,7 +1230,7 @@ export async function updateSiteSettingsAction(
   try {
     await saveSiteSettingsToFile(newSettings);
     revalidatePath('/admin/settings');
-    revalidatePath('/'); // Site title and theme can affect all pages
+    revalidatePath('/'); 
     return { message: 'Site settings updated successfully!', success: true, settings: newSettings };
   } catch (error) {
     console.error('Error updating site settings:', error);
@@ -1211,7 +1243,15 @@ export async function updateAdminProfileAction(
   prevState: UpdateAdminProfileFormState,
   formData: FormData
 ): Promise<UpdateAdminProfileFormState> {
-  const validatedFields = UpdateAdminProfileSchema.safeParse(Object.fromEntries(formData.entries()));
+  const rawData = Object.fromEntries(formData.entries());
+  const avatarFile = formData.get('avatarFile') as File | null;
+
+  const dataToValidate = {
+    ...rawData,
+    avatarFile: avatarFile && avatarFile.size > 0 ? avatarFile : undefined,
+  };
+
+  const validatedFields = UpdateAdminProfileSchema.safeParse(dataToValidate);
 
   if (!validatedFields.success) {
     return {
@@ -1221,7 +1261,9 @@ export async function updateAdminProfileAction(
     };
   }
 
-  const { adminId, name, avatarUrl } = validatedFields.data;
+  const { adminId, name } = validatedFields.data;
+  const uploadedAvatarFile = validatedFields.data.avatarFile;
+
   const admins = await getAdminUsers();
   const adminToUpdate = admins.find(a => a.id === adminId);
 
@@ -1229,10 +1271,23 @@ export async function updateAdminProfileAction(
     return { message: 'Admin user not found.', success: false, errors: { general: ['Admin user not found.'] } };
   }
 
+  let newAvatarUrl = adminToUpdate.avatarUrl;
+  if (uploadedAvatarFile) {
+     try {
+      const buffer = Buffer.from(await uploadedAvatarFile.arrayBuffer());
+      const fileExtension = path.extname(uploadedAvatarFile.name);
+      newAvatarUrl = await saveAdminAvatar(buffer, adminId, fileExtension);
+    } catch (error) {
+      console.error("Error saving admin avatar:", error);
+      return { message: 'Failed to save avatar image.', success: false, errors: { avatarFile: ['Could not save image.'] } };
+    }
+  }
+
+
   const updatedAdminData: StoredAdminUser = {
     ...adminToUpdate,
     name,
-    avatarUrl: avatarUrl || adminToUpdate.avatarUrl,
+    avatarUrl: newAvatarUrl,
   };
 
   try {
@@ -1618,8 +1673,8 @@ export async function adminSetUserCanSetPriceAction(
   try {
     await updateUserInFile(userToUpdate);
     revalidatePath('/admin/users');
-    revalidatePath('/dashboard/designs/submit'); // Revalidate for the user who might now be able to set prices
-    revalidatePath(`/dashboard/designs/edit/[designId]`); // For existing designs
+    revalidatePath('/dashboard/designs/submit'); 
+    revalidatePath(`/dashboard/designs/edit/[designId]`); 
     const { passwordHash, twoFactorPinHash, ...userToReturn } = userToUpdate;
     return { message: `User's ability to set prices ${canSetPrice ? 'enabled' : 'disabled'} successfully.`, success: true, updatedUser: {...userToReturn, canSetPrice: userToReturn.canSetPrice || false} };
   } catch (error) {
@@ -1645,10 +1700,8 @@ export async function incrementDesignCopyCountAction(designId: string): Promise<
     designToUpdate.copyCount = (designToUpdate.copyCount || 0) + 1;
 
     await saveDesignsToFile(designs);
-    // Revalidate paths that might display copy counts or rankings
     revalidatePath('/');
     revalidatePath('/designers');
-    // No need to revalidate specific design detail pages unless they show copy count
     
     return { success: true, newCount: designToUpdate.copyCount };
   } catch (error) {
@@ -1680,20 +1733,17 @@ export async function toggleLikeDesignAction(designId: string, userId: string): 
     let isLikedByCurrentUser;
 
     if (userIndexInLikes > -1) {
-      // User has already liked, so unlike
       designToUpdate.likedBy.splice(userIndexInLikes, 1);
       isLikedByCurrentUser = false;
     } else {
-      // User has not liked, so like
       designToUpdate.likedBy.push(userId);
       isLikedByCurrentUser = true;
     }
 
     await saveDesignsToFile(designs);
-    revalidatePath('/'); // Revalidate homepage if it shows likes
-    revalidatePath(`/designers`); // Revalidate designers page for ranking
-    revalidatePath(`/dashboard/designs`); // Revalidate user's designs
-    // Consider revalidating specific design detail pages if they show live like counts
+    revalidatePath('/'); 
+    revalidatePath(`/designers`); 
+    revalidatePath(`/dashboard/designs`); 
 
     return {
       success: true,

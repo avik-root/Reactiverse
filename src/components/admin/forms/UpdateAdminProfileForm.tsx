@@ -13,6 +13,10 @@ import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 import { User, UploadCloud, Save } from 'lucide-react';
 
+const MAX_AVATAR_SIZE_MB = 5;
+const MAX_AVATAR_SIZE_BYTES = MAX_AVATAR_SIZE_MB * 1024 * 1024;
+const ALLOWED_AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/jpg'];
+
 function SubmitButton() {
   const { pending } = useFormStatus();
   return (
@@ -23,7 +27,7 @@ function SubmitButton() {
 }
 
 export default function UpdateAdminProfileForm() {
-  const { user: adminUser, updateAuthUser } = useAuth(); // Assuming 'user' in AuthContext is the admin when isAdmin is true
+  const { user: adminUser, updateAuthUser } = useAuth(); 
   const { toast } = useToast();
 
   const initialState: UpdateAdminProfileFormState = { message: null, errors: {}, success: false, adminUser: null };
@@ -31,6 +35,7 @@ export default function UpdateAdminProfileForm() {
 
   const [name, setName] = useState('');
   const [currentAvatarSource, setCurrentAvatarSource] = useState('');
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   
   useEffect(() => {
     if (adminUser && adminUser.isAdmin) {
@@ -48,8 +53,16 @@ export default function UpdateAdminProfileForm() {
         variant: state.success ? 'default' : 'destructive',
       });
       if (state.success && state.adminUser) {
-        // Update user in AuthContext. Make sure the structure matches what AuthContext expects for an admin.
         updateAuthUser(prev => ({...prev, ...state.adminUser, isAdmin: true}));
+        if (state.adminUser.avatarUrl) {
+            setCurrentAvatarSource(state.adminUser.avatarUrl);
+        }
+        setAvatarFile(null);
+         const form = document.getElementById('updateAdminProfileForm') as HTMLFormElement;
+        if (form) {
+            const fileInput = form.elements.namedItem('avatarFile') as HTMLInputElement;
+            if (fileInput) fileInput.value = ""; 
+        }
       }
     }
   }, [state, toast, updateAuthUser]);
@@ -57,28 +70,58 @@ export default function UpdateAdminProfileForm() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      const validTypes = ['image/jpeg', 'image/png', 'image/jpg'];
-      if (!validTypes.includes(file.type)) {
+      if (!ALLOWED_AVATAR_TYPES.includes(file.type)) {
         toast({
           title: 'Invalid File Type',
           description: 'Please upload a JPG, JPEG, or PNG image.',
           variant: 'destructive',
         });
         e.target.value = ''; 
+        setAvatarFile(null);
+        const originalAvatar = (adminUser && adminUser.isAdmin && adminUser.avatarUrl)
+          ? adminUser.avatarUrl
+          : `https://placehold.co/128x128.png?text=${name.charAt(0) || 'A'}`;
+        setCurrentAvatarSource(originalAvatar);
         return;
       }
+      if (file.size > MAX_AVATAR_SIZE_BYTES) {
+         toast({
+          title: 'File Too Large',
+          description: `Avatar image must be ${MAX_AVATAR_SIZE_MB}MB or less.`,
+          variant: 'destructive',
+        });
+        e.target.value = '';
+        setAvatarFile(null);
+        const originalAvatar = (adminUser && adminUser.isAdmin && adminUser.avatarUrl)
+          ? adminUser.avatarUrl
+          : `https://placehold.co/128x128.png?text=${name.charAt(0) || 'A'}`;
+        setCurrentAvatarSource(originalAvatar);
+        return;
+      }
+      setAvatarFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setCurrentAvatarSource(reader.result as string);
       };
       reader.readAsDataURL(file);
     } else {
+      setAvatarFile(null);
       const originalAvatar = (adminUser && adminUser.isAdmin && adminUser.avatarUrl)
         ? adminUser.avatarUrl
         : `https://placehold.co/128x128.png?text=${name.charAt(0) || 'A'}`;
       setCurrentAvatarSource(originalAvatar);
     }
   };
+  
+  const handleSubmit = (formData: FormData) => {
+    if (avatarFile) {
+      formData.set('avatarFile', avatarFile);
+    } else {
+      formData.delete('avatarFile');
+    }
+    dispatch(formData);
+  };
+
 
   if (!adminUser || !adminUser.isAdmin) {
     return <p>Loading admin data or not authorized...</p>;
@@ -90,10 +133,9 @@ export default function UpdateAdminProfileForm() {
         <CardTitle className="text-2xl font-headline text-primary">Update Admin Profile</CardTitle>
         <CardDescription>Keep your personal information up to date.</CardDescription>
       </CardHeader>
-      <form action={dispatch}>
+      <form id="updateAdminProfileForm" action={handleSubmit}>
         <input type="hidden" name="adminId" value={adminUser.id} />
-        <input type="hidden" name="avatarUrl" value={currentAvatarSource} />
-
+        
         <CardContent className="space-y-6">
           <div className="flex flex-col items-center space-y-4">
             <div className="relative w-32 h-32 rounded-full overflow-hidden border-2 border-primary">
@@ -107,19 +149,20 @@ export default function UpdateAdminProfileForm() {
               />
             </div>
             <div className="w-full space-y-2">
-                <Label htmlFor="avatarFile">Upload New Avatar (JPG, PNG)</Label>
+                <Label htmlFor="avatarFile">Upload New Avatar (JPG, PNG, max 5MB)</Label>
                 <div className="relative">
                     <UploadCloud className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input 
                         id="avatarFile"
+                        name="avatarFile" // Important for FormData
                         type="file" 
                         accept="image/jpeg,image/png,image/jpg"
                         onChange={handleFileChange}
                         className="pl-10 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
-                        aria-describedby="avatarUrl-error"
+                        aria-describedby="avatarFile-error" 
                     />
                 </div>
-                 {state?.errors?.avatarUrl && <p id="avatarUrl-error" className="text-sm text-destructive">{state.errors.avatarUrl.join(', ')}</p>}
+                 {state?.errors?.avatarFile && <p id="avatarFile-error" className="text-sm text-destructive">{state.errors.avatarFile.join(', ')}</p>}
             </div>
           </div>
           
@@ -144,11 +187,11 @@ export default function UpdateAdminProfileForm() {
 
           <div className="space-y-2">
             <Label htmlFor="email">Email (cannot be changed)</Label>
-            <Input id="email" name="email" type="email" value={adminUser.email || ''} readOnly disabled className="bg-muted/50"/>
+            <Input id="email" name="email_display" type="email" value={adminUser.email || ''} readOnly disabled className="bg-muted/50"/>
           </div>
            <div className="space-y-2">
             <Label htmlFor="username">Username (cannot be changed)</Label>
-            <Input id="username" name="username" type="text" value={adminUser.username || ''} readOnly disabled className="bg-muted/50"/>
+            <Input id="username" name="username_display" type="text" value={adminUser.username || ''} readOnly disabled className="bg-muted/50"/>
           </div>
 
           {state?.errors?.general && <p className="text-sm text-destructive">{state.errors.general.join(', ')}</p>}

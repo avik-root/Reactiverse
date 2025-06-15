@@ -36,7 +36,7 @@ export interface Design {
   price?: number;
   submittedByUserId?: string;
   copyCount?: number;
-  likedBy: string[]; // New field for storing user IDs who liked the design
+  likedBy: string[];
 }
 
 export interface AdminUser {
@@ -115,7 +115,7 @@ export type UpdateAdminProfileFormState = {
   adminUser?: Omit<AdminUser, 'passwordHash' | 'twoFactorPinHash'> | null;
   errors?: {
     name?: string[];
-    avatarUrl?: string[];
+    avatarFile?: string[]; // Changed from avatarUrl
     general?: string[];
   };
 };
@@ -270,7 +270,7 @@ export type UpdateProfileFormState = {
   user?: AuthUser | null;
   errors?: {
     name?: string[];
-    avatarUrl?: string[];
+    avatarFile?: string[]; // Changed from avatarUrl
     githubUrl?: string[];
     linkedinUrl?: string[];
     figmaUrl?: string[];

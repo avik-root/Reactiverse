@@ -1,6 +1,6 @@
 
 // This file should only be imported by server-side code (e.g., server actions, API routes)
-import type { StoredAdminUser, StoredUser, Design, SiteSettings, PageContentData, PageContentKeys, TeamMembersContent, TeamMember, ForumCategory } from './types';
+import type { StoredAdminUser, StoredUser, Design, SiteSettings, PageContentData, PageContentKeys, TeamMembersContent, TeamMember, ForumCategory, NewsletterSubscriber } from './types';
 import fs from 'fs/promises';
 import path from 'path';
 import { constants } from 'fs';
@@ -15,6 +15,7 @@ const PUBLIC_DIR = path.join(process.cwd(), 'public');
 const AVATARS_DIR = path.join(PUBLIC_DIR, 'avatars');
 const CONTENT_IMAGES_DIR = path.join(PUBLIC_DIR, 'content_images');
 const FORUM_CATEGORIES_FILE_PATH = path.join(process.cwd(), 'forum_categories.json');
+const NEWSLETTER_SUBSCRIBERS_FILE_PATH = path.join(process.cwd(), 'newsletter_subscribers.json');
 
 
 const DEFAULT_SITE_SETTINGS: SiteSettings = {
@@ -64,8 +65,8 @@ const DEFAULT_PAGE_CONTENT: PageContentData = {
     missionTitle: "Our Mission",
     missionContentP1: "At Reactiverse, our mission is to foster a vibrant community where creativity thrives. We provide a platform for UI/UX designers and front-end developers to showcase their innovative components, share knowledge, and inspire one another. We believe in the power of open collaboration to push the boundaries of web design and development.",
     missionContentP2: "Whether you're looking for inspiration, ready-to-use code snippets, or a place to share your own masterpieces, Reactiverse is your go-to destination.",
-    image1Url: "https://placehold.co/600x400.png",
-    image1Alt: "Collaborative design process",
+    image1Url: "/content_images/about/mission_image-1750057020985.png",
+    image1Alt: "Team working collaboratively on a design project",
     image1DataAiHint: "collaboration team",
     offerTitle: "What We Offer",
     offerItems: [
@@ -75,8 +76,8 @@ const DEFAULT_PAGE_CONTENT: PageContentData = {
     ],
     joinTitle: "Join Our Universe",
     joinContent: "Reactiverse is more than just a platform; it's a community. We invite you to join us, share your work, learn from others, and help build the future of UI design.",
-    image2Url: "https://placehold.co/600x300.png",
-    image2Alt: "Community of designers",
+    image2Url: "/content_images/about/join_image-1750057020986.png",
+    image2Alt: "Abstract representation of a digital community network",
     image2DataAiHint: "community digital"
   },
   support: {
@@ -90,21 +91,50 @@ const DEFAULT_PAGE_CONTENT: PageContentData = {
     forumLinkText: "Visit Forum (Coming Soon)",
     forumLinkUrl: "#",
     faqTitle: "Frequently Asked Questions",
-    faqs: []
+    faqs: [
+      {
+        "question": "What is Reactiverse?",
+        "answer": "Reactiverse is a community-driven platform for UI/UX designers and front-end developers to showcase their components, discover new ideas, and access code snippets for their projects. Our goal is to foster creativity and collaboration in web design."
+      },
+      {
+        "question": "How do I submit a design?",
+        "answer": "To submit a design, you need to create an account. Once logged in, navigate to your dashboard and look for the 'Submit New Design' option. You'll be asked to provide a title, description, relevant code snippets (HTML, CSS, JS, etc.), and tags for your component."
+      },
+      {
+        "question": "Are there any guidelines for submissions?",
+        "answer": "Yes, we have submission guidelines to ensure the quality and usability of components shared on Reactiverse. Please visit our 'Design Guidelines' page for detailed information on code quality, accessibility, performance, and more."
+      },
+      {
+        "question": "Can I sell my designs on Reactiverse?",
+        "answer": "Currently, Reactiverse primarily focuses on free and open-source component sharing. We are exploring options for premium components in the future. Users with specific permissions may be able to set prices for their designs if this feature is enabled for their account by an administrator."
+      },
+      {
+        "question": "How is my personal information handled?",
+        "answer": "We take your privacy seriously. You can manage the visibility of your email and phone number in your profile settings. Please review our Privacy Policy for more details on how we collect and use your data."
+      },
+      {
+        "question": "Who can I contact for support?",
+        "answer": "If you have questions or need assistance, you can reach out to us via email at support@reactiverse.com or visit our community forum (coming soon) to connect with other users and our team."
+      }
+    ]
   },
   guidelines: {
-    title: "Design Guidelines",
-    description: "Our principles and best practices for submitting designs to Reactiverse.",
-    mainPlaceholderTitle: "Guidelines Coming Soon!",
-    mainPlaceholderContent: "We are currently drafting our comprehensive design guidelines to ensure quality and consistency. Please check back soon for details on how to prepare your submissions.",
-    keyAreasTitle: "Key Areas We'll Cover:",
+    title: "Design & Submission Guidelines",
+    description: "Our principles and best practices for submitting high-quality UI components to Reactiverse.",
+    mainPlaceholderTitle: "Crafting Exceptional Components for Reactiverse",
+    mainPlaceholderContent: "Welcome, creators! To maintain a high standard of quality and ensure a great experience for all users, we've established these guidelines for submitting your UI components. Adhering to these principles will help your work shine and make it more accessible and useful to the community. Please review them carefully before submitting your designs.",
+    keyAreasTitle: "Core Principles & Technical Standards",
     keyAreas: [
-      "Code Quality and Readability",
-      "Component Reusability and Modularity",
-      "Accessibility Standards (WCAG)",
-      "Performance Considerations",
-      "Design Aesthetics and User Experience",
-      "Submission Formatting and Preview Requirements"
+      "**Clarity & Usability:** Components must be intuitive and easy to understand. Ensure clear visual hierarchy, logical interaction patterns, and provide necessary context for use.",
+      "**Code Quality & Maintainability:** Submit clean, well-structured, and commented code. Follow best practices for your chosen language/framework (HTML, CSS, JS, React, etc.). Ensure your code is readable and easy for others to integrate.",
+      "**Accessibility (A11y):** Designs must be accessible to all users, including those with disabilities. Adhere to WCAG 2.1 AA standards where applicable. Use semantic HTML, provide ARIA attributes, and ensure keyboard navigability and sufficient color contrast.",
+      "**Performance:** Components should be optimized for performance. Avoid unnecessary animations, large asset files, or inefficient code that could slow down a user's application.",
+      "**Visual Appeal & Consistency:** While creativity is encouraged, components should exhibit a good sense of aesthetics and align with modern UI/UX trends. If part of a set, ensure visual consistency.",
+      "**Responsiveness:** Components must be responsive and adapt gracefully to different screen sizes and devices (desktop, tablet, mobile).",
+      "**Originality & Licensing:** Submit your own original work or ensure you have the right to share any assets used. Clearly state any licensing terms if applicable for premium components.",
+      "**Documentation & Preview:** Provide a clear description of your component, its features, and how to use it. Your code snippets should be functional and produce a reasonable preview of the component in action.",
+      "**No Malicious Code:** Submissions must not contain any malicious code, trackers (beyond basic analytics if declared), or harmful scripts.",
+      "**Respectful Content:** Ensure your component, its description, and any associated text are respectful and inclusive. No offensive or discriminatory content will be tolerated."
     ]
   },
   topDesigners: {
@@ -113,7 +143,31 @@ const DEFAULT_PAGE_CONTENT: PageContentData = {
     mainPlaceholderTitle: "Coming Soon!",
     mainPlaceholderContent: "We're currently curating our list of top designers. Check back soon to see who's leading the pack in creativity and innovation!"
   },
-  teamMembers: DEFAULT_TEAM_MEMBERS_CONTENT,
+  teamMembers: {
+      title: "Meet Our Team",
+      founder: {
+        name: "Avik Samanta",
+        title: "Founder & CEO",
+        bio: "Cybersecurity Engineer | Blockchain Specialist | Bug Bounty Hunter.\r\nSkilled in vulnerability research, ethical hacking, and securing digital infrastructures. Passionate about advancing blockchain security, identifying threats, and building innovative security solutions.",
+        imageUrl: "/content_images/team/founder_image-1750057132178.jpg",
+        imageAlt: "Avik Samanta, Founder of Reactiverse",
+        imageDataAiHint: "professional portrait",
+        githubUrl: "https://github.com/avik-root",
+        linkedinUrl: "https://www.linkedin.com/in/avik-samanta-root/",
+        emailAddress: "aviksamantaofficial@gmail.com"
+      },
+      coFounder: {
+        name: "Anusha Gupta",
+        title: "Co-Founder & CTO",
+        bio: "Software Developer | AI Web Developer | Cybersecurity Enthusiast.\r\nSkilled in software and web development, AI integration, Python automation, and secure application design. Focused on leveraging machine learning and vulnerability research to create innovative, secure solutions.",
+        imageUrl: "/content_images/team/cofounder_image-1750057132178.jpg",
+        imageAlt: "Anusha Gupta, Co-Founder of Reactiverse",
+        imageDataAiHint: "professional tech",
+        githubUrl: "https://github.com/anushagupta11",
+        linkedinUrl: "https://www.linkedin.com/in/anusha-gupta-ofc/",
+        emailAddress: "anusha73gupta@gmail.com"
+      }
+    }
 };
 
 
@@ -502,5 +556,30 @@ export async function getForumCategoriesFromFile(): Promise<ForumCategory[]> {
   } catch (error) {
     console.error('Failed to read forum_categories.json:', error);
     return [];
+  }
+}
+
+export async function getNewsletterSubscribersFromFile(): Promise<NewsletterSubscriber[]> {
+  try {
+    if (!(await fileExists(NEWSLETTER_SUBSCRIBERS_FILE_PATH))) {
+      await fs.writeFile(NEWSLETTER_SUBSCRIBERS_FILE_PATH, JSON.stringify([], null, 2));
+      return [];
+    }
+    const jsonData = await fs.readFile(NEWSLETTER_SUBSCRIBERS_FILE_PATH, 'utf-8');
+    return JSON.parse(jsonData) as NewsletterSubscriber[];
+  } catch (error) {
+    console.error('Failed to read newsletter_subscribers.json:', error);
+    return [];
+  }
+}
+
+export async function addSubscriberToFile(newSubscriber: NewsletterSubscriber): Promise<void> {
+  try {
+    const subscribers = await getNewsletterSubscribersFromFile();
+    subscribers.push(newSubscriber);
+    await fs.writeFile(NEWSLETTER_SUBSCRIBERS_FILE_PATH, JSON.stringify(subscribers, null, 2), 'utf-8');
+  } catch (error) {
+    console.error('Failed to add subscriber to newsletter_subscribers.json:', error);
+    throw error;
   }
 }

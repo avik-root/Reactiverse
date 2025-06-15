@@ -5,7 +5,7 @@ import { useEffect, type ReactNode } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { LayoutDashboard, Users, Palette, Settings, LogOut, ShieldCheck, UserCog, FileText, Image as ImageIcon, Loader2, Users2 } from 'lucide-react';
+import { LayoutDashboard, Users, Palette, Settings, LogOut, ShieldCheck, UserCog, FileText, Image as ImageIcon, Loader2, Users2, MailOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Logo from '@/components/core/Logo';
 import { Button } from '@/components/ui/button';
@@ -33,6 +33,7 @@ const contentEditingNavItems = [
     { href: '/admin/edit-content/top-designers', label: 'Edit Top Designers Page', icon: FileText },
     { href: '/admin/edit-content/team', label: 'Edit Team Members', icon: Users2 },
     { href: '/admin/edit-content/logo', label: 'Change Site Logo', icon: ImageIcon },
+    { href: '/admin/subscribers', label: 'View Subscribers', icon: MailOpen },
 ];
 
 export default function AdminLayout({ children }: AdminLayoutProps) {

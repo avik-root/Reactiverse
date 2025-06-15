@@ -26,6 +26,8 @@ import {
   saveAdminAvatar,
   savePageContentImage,
   getForumCategoriesFromFile,
+  getNewsletterSubscribersFromFile,
+  addSubscriberToFile,
 } from './server-data';
 import type {
   AdminUser,
@@ -59,6 +61,8 @@ import type {
   ToggleLikeDesignResult,
   FAQItem,
   ForumCategory,
+  NewsletterSubscriber,
+  SubscribeToNewsletterFormState,
 } from './types';
 import { revalidatePath } from 'next/cache';
 import { hashPassword, comparePassword, hashPin, comparePin } from './auth-utils';
@@ -371,6 +375,10 @@ const TeamMembersContentSchemaClient = z.object({
 
 const SiteLogoSchema = z.object({
   logoFile: ValidImageFileSchema.refine(file => file !== undefined, "Logo file is required."),
+});
+
+const NewsletterSubscriptionSchema = z.object({
+  email: z.string().email({ message: 'Please enter a valid email address.' }),
 });
 
 
@@ -1856,6 +1864,64 @@ export async function getForumCategoriesAction(): Promise<ForumCategory[]> {
     return categories;
   } catch (error) {
     console.error("Error fetching forum categories via action:", error);
+    return [];
+  }
+}
+
+export async function subscribeToNewsletterAction(
+  prevState: SubscribeToNewsletterFormState,
+  formData: FormData
+): Promise<SubscribeToNewsletterFormState> {
+  const validatedFields = NewsletterSubscriptionSchema.safeParse(
+    Object.fromEntries(formData.entries())
+  );
+
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: 'Invalid email address.',
+      success: false,
+    };
+  }
+
+  const { email } = validatedFields.data;
+  const subscribers = await getNewsletterSubscribersFromFile();
+
+  if (subscribers.some(sub => sub.email === email)) {
+    return {
+      message: 'This email is already subscribed.',
+      success: false,
+      errors: { email: ['Already subscribed.'] }
+    };
+  }
+
+  const newSubscriber: NewsletterSubscriber = {
+    email,
+    subscribedAt: new Date().toISOString(),
+  };
+
+  try {
+    await addSubscriberToFile(newSubscriber);
+    revalidatePath('/community'); // In case we display subscriber count or something similar later
+    revalidatePath('/admin/subscribers');
+    return { message: 'Successfully subscribed to the newsletter!', success: true };
+  } catch (error) {
+    console.error('Error subscribing to newsletter:', error);
+    return {
+      message: 'Failed to subscribe. Please try again later.',
+      success: false,
+      errors: { general: ['Server error.'] }
+    };
+  }
+}
+
+export async function getNewsletterSubscribersAction(): Promise<NewsletterSubscriber[]> {
+  try {
+    const subscribers = await getNewsletterSubscribersFromFile();
+    // Sort by most recent subscription first
+    return subscribers.sort((a, b) => new Date(b.subscribedAt).getTime() - new Date(a.subscribedAt).getTime());
+  } catch (error) {
+    console.error("Error fetching newsletter subscribers:", error);
     return [];
   }
 }

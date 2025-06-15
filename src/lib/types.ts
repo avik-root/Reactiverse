@@ -315,3 +315,17 @@ export interface ForumCategory {
   postCount?: number; // Optional for now
   slug: string;
 }
+
+export interface NewsletterSubscriber {
+  email: string;
+  subscribedAt: string;
+}
+
+export type SubscribeToNewsletterFormState = {
+  message?: string | null;
+  success?: boolean;
+  errors?: {
+    email?: string[];
+    general?: string[];
+  };
+};

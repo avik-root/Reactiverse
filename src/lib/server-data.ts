@@ -12,8 +12,8 @@ const DESIGNS_FILE_PATH = path.join(process.cwd(), 'designs.json');
 const SETTINGS_FILE_PATH = path.join(process.cwd(), 'settings.json');
 const PAGE_CONTENT_FILE_PATH = path.join(process.cwd(), 'page_content.json');
 const PUBLIC_DIR = path.join(process.cwd(), 'public');
-const TEAM_IMAGES_DIR = path.join(PUBLIC_DIR, 'team_images');
 const AVATARS_DIR = path.join(PUBLIC_DIR, 'avatars');
+const CONTENT_IMAGES_DIR = path.join(PUBLIC_DIR, 'content_images');
 
 
 const DEFAULT_SITE_SETTINGS: SiteSettings = {
@@ -445,18 +445,20 @@ export async function saveSiteLogo(fileBuffer: Buffer, fileName: string): Promis
   }
 }
 
-export async function saveTeamMemberImage(fileBuffer: Buffer, memberType: 'founder' | 'coFounder', fileExtension: string): Promise<string> {
+export async function savePageContentImage(fileBuffer: Buffer, subfolder: string, baseName: string, fileExtension: string): Promise<string> {
   try {
-    await ensureDirExists(TEAM_IMAGES_DIR);
-    const fileName = `${memberType}_image${fileExtension}`; 
-    const filePath = path.join(TEAM_IMAGES_DIR, fileName);
+    const targetDir = path.join(CONTENT_IMAGES_DIR, subfolder);
+    await ensureDirExists(targetDir);
+    const fileName = `${baseName}-${Date.now()}${fileExtension}`;
+    const filePath = path.join(targetDir, fileName);
     await fs.writeFile(filePath, fileBuffer);
-    return `/team_images/${fileName}`;
+    return `/content_images/${subfolder}/${fileName}`;
   } catch (error) {
-    console.error(`Failed to save team member image for ${memberType}:`, error);
+    console.error(`Failed to save content image to ${subfolder}:`, error);
     throw error;
   }
 }
+
 
 export async function saveUserAvatar(fileBuffer: Buffer, userId: string, fileExtension: string): Promise<string> {
   try {

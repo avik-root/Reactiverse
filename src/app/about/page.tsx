@@ -29,7 +29,8 @@ interface TeamMemberCardProps {
 
 function TeamMemberCard({ member }: TeamMemberCardProps) {
   const defaultImageUrl = "https://placehold.co/300x300.png";
-  const imageUrl = member.imageUrl && member.imageUrl.startsWith('/') ? member.imageUrl : defaultImageUrl;
+  // Use member.imageUrl directly. If it's missing or empty, use placeholder.
+  const imageUrl = member.imageUrl ? member.imageUrl : defaultImageUrl;
   
   return (
     <Card className="shadow-md hover:shadow-lg transition-shadow duration-300 ease-in-out flex flex-col items-center text-center p-6 bg-card">
@@ -41,8 +42,7 @@ function TeamMemberCard({ member }: TeamMemberCardProps) {
           objectFit="cover"
           data-ai-hint={member.imageDataAiHint || "professional portrait"}
           className="rounded-lg"
-          // Add a key to force re-render if src changes, useful if using default and then actual loads
-          key={imageUrl} 
+          key={imageUrl} // Force re-render if src changes
         />
       </div>
       <CardTitle className="text-2xl font-headline text-primary mb-1">{member.name}</CardTitle>
@@ -114,6 +114,7 @@ export default async function AboutUsPage() {
                 objectFit="cover" 
                 className="rounded-lg"
                 data-ai-hint={aboutContent.image1DataAiHint || "team collaboration"}
+                key={aboutContent.image1Url} // Add key here
               />
             </div>
           </section>
@@ -155,6 +156,7 @@ export default async function AboutUsPage() {
                     objectFit="cover" 
                     className="rounded-lg"
                     data-ai-hint={aboutContent.image2DataAiHint || "digital community"}
+                    key={aboutContent.image2Url} // Add key here
                  />
             </div>
           </section>

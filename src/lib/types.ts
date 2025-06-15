@@ -223,10 +223,13 @@ export type PageContentData = {
 
 export type PageContentKeys = keyof PageContentData;
 
+// Updated to include potential file error fields
 export type UpdatePageContentFormState<T> = {
   message?: string | null;
   success?: boolean;
-  errors?: Partial<Record<keyof T, string[]>> & { general?: string[] } & {
+  errors?: Partial<Record<keyof T, string[] | any>> & { general?: string[] } & {
+    image1File?: string[];
+    image2File?: string[];
     founder?: Partial<Record<keyof TeamMember, string[] | { imageFile?: string[] }>>;
     coFounder?: Partial<Record<keyof TeamMember, string[] | { imageFile?: string[] }>>;
   };
@@ -292,3 +295,4 @@ export type ToggleLikeDesignResult = {
   newLikeCount?: number;
   isLikedByCurrentUser?: boolean;
 };
+

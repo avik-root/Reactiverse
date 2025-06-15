@@ -30,13 +30,38 @@ interface TeamMemberFormProps {
   onInputChange: (memberType: 'founder' | 'coFounder', field: keyof TeamMember, value: string) => void;
   onFileChange: (memberType: 'founder' | 'coFounder', file: File | null) => void;
   imagePreviewUrl?: string | null;
+  existingImageUrl?: string | null;
   errors?: Partial<Record<keyof TeamMember, string[] | { imageFile?: string[] }>>;
 }
 
-function TeamMemberFormSection({ memberType, memberData, onInputChange, onFileChange, imagePreviewUrl, errors }: TeamMemberFormProps) {
+function TeamMemberFormSection({ memberType, memberData, onInputChange, onFileChange, imagePreviewUrl, existingImageUrl, errors }: TeamMemberFormProps) {
   const title = memberType === 'founder' ? 'Founder Details' : 'Co-Founder Details';
-  const imageFileError = errors?.imageUrl && typeof errors.imageUrl === 'object' && 'imageFile' in errors.imageUrl ? (errors.imageUrl as { imageFile?: string[] }).imageFile?.join(', ') : null;
-  const imageUrlError = errors?.imageUrl && Array.isArray(errors.imageUrl) ? (errors.imageUrl as string[]).join(', ') : null;
+  
+  const imageFileErrorKey = `${memberType}ImageFile` as keyof UpdatePageContentFormState<TeamMembersContent>['errors'];
+  const imageFileError = errors && (errors as any)[imageFileErrorKey] ? ((errors as any)[imageFileErrorKey] as string[]).join(', ') : null;
+
+  const { toast } = useToast();
+
+  const handleLocalFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        toast({ title: "Error", description: "File size exceeds 5MB limit.", variant: "destructive"});
+        e.target.value = ""; 
+        onFileChange(memberType, null);
+        return;
+      }
+      if (!['image/jpeg', 'image/png', 'image/jpg'].includes(file.type)) {
+        toast({ title: "Error", description: "Invalid file type. Please use JPG or PNG.", variant: "destructive"});
+        e.target.value = "";
+        onFileChange(memberType, null);
+        return;
+      }
+      onFileChange(memberType, file);
+    } else {
+      onFileChange(memberType, null);
+    }
+  };
 
 
   return (
@@ -73,16 +98,17 @@ function TeamMemberFormSection({ memberType, memberData, onInputChange, onFileCh
 
       {/* Image Upload Section */}
       <div className="space-y-3">
-        <Label htmlFor={`${memberType}ImageFile`}>Profile Image (JPG, PNG, max 2MB)</Label>
+        <Label htmlFor={`${memberType}ImageFile`}>Profile Image (JPG, PNG, max 5MB)</Label>
         <div className="flex items-center gap-4">
-          {imagePreviewUrl && (
+          {(imagePreviewUrl || existingImageUrl) && (
             <Image
-              src={imagePreviewUrl}
+              src={imagePreviewUrl || existingImageUrl!}
               alt={`${memberType} preview`}
               width={80}
               height={80}
               className="rounded-md border object-cover"
               data-ai-hint={`${memberType} avatar preview`}
+              key={imagePreviewUrl || existingImageUrl} 
             />
           )}
           <div className="relative flex-grow">
@@ -91,16 +117,14 @@ function TeamMemberFormSection({ memberType, memberData, onInputChange, onFileCh
               id={`${memberType}ImageFile`}
               name={`${memberType}ImageFile`}
               type="file"
-              accept="image/jpeg,image/png"
-              onChange={(e) => onFileChange(memberType, e.target.files ? e.target.files[0] : null)}
+              accept="image/jpeg,image/png,image/jpg"
+              onChange={handleLocalFileChange}
               className="pl-10 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
             />
           </div>
         </div>
-        {/* Hidden input to carry over existing image URL if no new file is selected */}
-        <input type="hidden" name={`${memberType}.imageUrl`} value={memberData.imageUrl || ''} />
+        <input type="hidden" name={`${memberType}.existingImageUrl`} value={memberData.imageUrl || ''} />
         {imageFileError && <p className="text-sm text-destructive">{imageFileError}</p>}
-        {imageUrlError && !imageFileError && <p className="text-sm text-destructive">{imageUrlError}</p>}
       </div>
 
 
@@ -157,11 +181,8 @@ export default function EditTeamMembersPage() {
     coFounder: {}
   });
 
-  // State for image previews
   const [founderPreview, setFounderPreview] = useState<string | null>(null);
   const [coFounderPreview, setCoFounderPreview] = useState<string | null>(null);
-
-  // Store selected files separately as FormData doesn't directly reflect them for re-render
   const [founderFile, setFounderFile] = useState<File | null>(null);
   const [coFounderFile, setCoFounderFile] = useState<File | null>(null);
 
@@ -207,27 +228,23 @@ export default function EditTeamMembersPage() {
   const handleFileChange = (memberType: 'founder' | 'coFounder', file: File | null) => {
     if (memberType === 'founder') {
       setFounderFile(file);
-      if (file) setFounderPreview(URL.createObjectURL(file));
-      else setFounderPreview(initialContent?.founder?.imageUrl || null); // Revert to original if file cleared
+      setFounderPreview(file ? URL.createObjectURL(file) : initialContent?.founder?.imageUrl || null);
     } else {
       setCoFounderFile(file);
-      if (file) setCoFounderPreview(URL.createObjectURL(file));
-      else setCoFounderPreview(initialContent?.coFounder?.imageUrl || null); // Revert
+      setCoFounderPreview(file ? URL.createObjectURL(file) : initialContent?.coFounder?.imageUrl || null);
     }
   };
 
   const handleFormSubmit = (payload: FormData) => {
-    // Append files if they exist
     if (founderFile) payload.set('founderImageFile', founderFile);
-    else payload.delete('founderImageFile'); // Ensure it's not sent if null
+    else payload.delete('founderImageFile');
+    payload.set('founder.existingImageUrl', initialContent?.founder?.imageUrl || '');
+
 
     if (coFounderFile) payload.set('coFounderImageFile', coFounderFile);
     else payload.delete('coFounderImageFile');
+    payload.set('coFounder.existingImageUrl', initialContent?.coFounder?.imageUrl || '');
     
-    // Pass existing image URLs so server action can decide to keep them if no new file
-    payload.set('founder.existingImageUrl', formData.founder?.imageUrl || '');
-    payload.set('coFounder.existingImageUrl', formData.coFounder?.imageUrl || '');
-
     formAction(payload);
   };
 
@@ -240,13 +257,21 @@ export default function EditTeamMembersPage() {
         variant: state.success ? 'default' : 'destructive',
       });
       if (state.success && state.content) {
-        setInitialContent(state.content as TeamMembersContent);
-        setFormData(state.content as TeamMembersContent || { title: 'Meet Our Team', founder: {}, coFounder: {} });
-        // Update previews with potentially new paths from server
-        setFounderPreview((state.content as TeamMembersContent).founder?.imageUrl || null);
-        setCoFounderPreview((state.content as TeamMembersContent).coFounder?.imageUrl || null);
-        setFounderFile(null); // Clear file state
+        const updatedContent = state.content as TeamMembersContent;
+        setInitialContent(updatedContent);
+        setFormData(updatedContent || { title: 'Meet Our Team', founder: {}, coFounder: {} });
+        setFounderPreview(updatedContent.founder?.imageUrl || null);
+        setCoFounderPreview(updatedContent.coFounder?.imageUrl || null);
+        setFounderFile(null);
         setCoFounderFile(null);
+
+        const formElement = document.getElementById('editTeamMembersForm') as HTMLFormElement;
+        if (formElement) {
+            const founderInput = formElement.elements.namedItem('founderImageFile') as HTMLInputElement;
+            if (founderInput) founderInput.value = "";
+            const coFounderInput = formElement.elements.namedItem('coFounderImageFile') as HTMLInputElement;
+            if (coFounderInput) coFounderInput.value = "";
+        }
       }
     }
   }, [state, toast]);
@@ -264,6 +289,7 @@ export default function EditTeamMembersPage() {
       </Card>
     );
   }
+  
 
   return (
     <Card className="shadow-lg border-border">
@@ -274,13 +300,13 @@ export default function EditTeamMembersPage() {
         </div>
         <CardDescription>Modify the content displayed for your team members on the About Us page.</CardDescription>
       </CardHeader>
-      <form action={handleFormSubmit}>
+      <form id="editTeamMembersForm" action={handleFormSubmit}>
         <CardContent className="space-y-8">
           <section className="space-y-4 p-6 border rounded-lg bg-card shadow-sm">
             <h3 className="text-xl font-semibold font-headline text-primary">Section Title</h3>
             <div className="space-y-2">
-              <Label htmlFor="teamMembers.title">Title for "Meet Our Team" Section</Label>
-              <Input id="teamMembers.title" name="title" value={formData.title || 'Meet Our Team'} onChange={(e) => handleSectionTitleChange(e.target.value)} />
+              <Label htmlFor="title">Title for "Meet Our Team" Section</Label>
+              <Input id="title" name="title" value={formData.title || 'Meet Our Team'} onChange={(e) => handleSectionTitleChange(e.target.value)} />
               {state?.errors?.title && <p className="text-sm text-destructive">{(state.errors.title as string[]).join(', ')}</p>}
             </div>
           </section>
@@ -291,7 +317,8 @@ export default function EditTeamMembersPage() {
             onInputChange={handleMemberInputChange}
             onFileChange={handleFileChange}
             imagePreviewUrl={founderPreview}
-            errors={state?.errors?.founder}
+            existingImageUrl={initialContent.founder?.imageUrl}
+            errors={state?.errors?.founder as any}
           />
           <TeamMemberFormSection
             memberType="coFounder"
@@ -299,7 +326,8 @@ export default function EditTeamMembersPage() {
             onInputChange={handleMemberInputChange}
             onFileChange={handleFileChange}
             imagePreviewUrl={coFounderPreview}
-            errors={state?.errors?.coFounder}
+            existingImageUrl={initialContent.coFounder?.imageUrl}
+            errors={state?.errors?.coFounder as any}
           />
           
           {state?.errors?.general && <p className="text-sm text-destructive p-4 text-center">{(state.errors.general as string[]).join(', ')}</p>}

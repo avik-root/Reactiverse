@@ -22,9 +22,9 @@ import {
   getPageContent as getPageContentFromFile,
   savePageContent as savePageContentToFile,
   saveSiteLogo as saveSiteLogoToServer,
-  saveTeamMemberImage,
   saveUserAvatar,
   saveAdminAvatar,
+  savePageContentImage,
 } from './server-data';
 import type {
   AdminUser,
@@ -134,15 +134,18 @@ const UpdateDesignSchema = AddDesignSchema.extend({
   designId: z.string().min(1, { message: 'Design ID is required for update.' }),
 });
 
-const MAX_AVATAR_SIZE_MB = 5;
-const MAX_AVATAR_SIZE_BYTES = MAX_AVATAR_SIZE_MB * 1024 * 1024;
-const ALLOWED_AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/jpg'];
+const MAX_IMAGE_SIZE_MB = 5;
+const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/jpg'];
 
-const AvatarFileSchema = z.instanceof(File, { message: "Avatar image is required." })
-  .refine(file => file.size > 0, "Avatar image cannot be empty.")
-  .refine(file => file.size <= MAX_AVATAR_SIZE_BYTES, `Avatar image must be ${MAX_AVATAR_SIZE_MB}MB or less.`)
-  .refine(file => ALLOWED_AVATAR_TYPES.includes(file.type), 'Invalid file type. Must be JPG, JPEG, or PNG.')
-  .optional();
+const ValidImageFileSchema = z.instanceof(File, { message: "Image file is required." })
+  .refine(file => file.size > 0, "Image file cannot be empty.")
+  .refine(file => file.size <= MAX_IMAGE_SIZE_BYTES, `Image must be ${MAX_IMAGE_SIZE_MB}MB or less.`)
+  .refine(file => ALLOWED_IMAGE_TYPES.includes(file.type), 'Invalid file type. Must be JPG, JPEG, or PNG.')
+  .optional(); // Make it optional at the base, individual schemas can enforce `required` if needed
+
+const AvatarFileSchema = ValidImageFileSchema;
+
 
 const UpdateProfileSchema = z.object({
   userId: z.string(),
@@ -245,7 +248,8 @@ const AboutUsContentSchema = z.object({
   missionTitle: z.string().min(1, "Mission title is required"),
   missionContentP1: z.string().min(1, "Mission paragraph 1 is required"),
   missionContentP2: z.string().min(1, "Mission paragraph 2 is required"),
-  image1Url: z.string().url("Invalid URL for mission image").or(z.literal('')).optional(),
+  image1File: ValidImageFileSchema,
+  existingImage1Url: z.string().optional(),
   image1Alt: z.string().optional(),
   image1DataAiHint: z.string().max(30, "AI hint too long").optional(),
   offerTitle: z.string().min(1, "Offer title is required"),
@@ -275,7 +279,8 @@ const AboutUsContentSchema = z.object({
   ),
   joinTitle: z.string().min(1, "Join title is required"),
   joinContent: z.string().min(1, "Join content is required"),
-  image2Url: z.string().url("Invalid URL for join image").or(z.literal('')).optional(),
+  image2File: ValidImageFileSchema,
+  existingImage2Url: z.string().optional(),
   image2Alt: z.string().optional(),
   image2DataAiHint: z.string().max(30, "AI hint too long").optional(),
 });
@@ -326,11 +331,6 @@ const TopDesignersPageContentSchema = z.object({
   mainPlaceholderContent: z.string().min(1, "Placeholder content is required"),
 });
 
-const ValidImageFileSchema = z.instanceof(File, { message: "Image file is required." })
-  .refine(file => file.size > 0, "Image file cannot be empty.")
-  .refine(file => file.size <= 2 * 1024 * 1024, "Image must be 2MB or less.")
-  .refine(file => ["image/png", "image/jpeg", "image/jpg"].includes(file.type), "Invalid file type. Must be PNG or JPG.");
-
 const TeamMemberSchemaClient = z.object({
   name: z.string().min(1, "Name is required"),
   title: z.string().min(1, "Title is required"),
@@ -347,16 +347,15 @@ const TeamMembersContentSchemaClient = z.object({
   title: z.string().min(1, "Section title is required"),
   founder: TeamMemberSchemaClient,
   coFounder: TeamMemberSchemaClient,
-  founderImageFile: ValidImageFileSchema.optional(),
-  coFounderImageFile: ValidImageFileSchema.optional(),
+  founderImageFile: ValidImageFileSchema,
+  coFounderImageFile: ValidImageFileSchema,
   "founder.existingImageUrl": z.string().optional(),
   "coFounder.existingImageUrl": z.string().optional(),
 });
 
 
-
 const SiteLogoSchema = z.object({
-  logoFile: ValidImageFileSchema,
+  logoFile: ValidImageFileSchema.refine(file => file !== undefined, "Logo file is required."),
 });
 
 
@@ -1499,57 +1498,72 @@ export async function updatePageContentAction<T extends PageContentKeys>(
   }
 
   let rawData = Object.fromEntries(formData.entries());
+  let dataToValidate = { ...rawData };
 
+  // Pre-processing for AboutUs offerItems
   if (pageKey === 'aboutUs') {
     const offerItems: { title: string; description: string }[] = [];
     let i = 0;
-    while(rawData[`offerItems[${i}].title`] !== undefined || rawData[`offerItems[${i}].description`] !== undefined) {
+    while(dataToValidate[`offerItems[${i}].title`] !== undefined || dataToValidate[`offerItems[${i}].description`] !== undefined) {
       offerItems.push({
-        title: (rawData[`offerItems[${i}].title`] as string) || '',
-        description: (rawData[`offerItems[${i}].description`] as string) || ''
+        title: (dataToValidate[`offerItems[${i}].title`] as string) || '',
+        description: (dataToValidate[`offerItems[${i}].description`] as string) || ''
       });
-      delete rawData[`offerItems[${i}].title`];
-      delete rawData[`offerItems[${i}].description`];
+      delete dataToValidate[`offerItems[${i}].title`]; // Clean up for Zod
+      delete dataToValidate[`offerItems[${i}].description`]; // Clean up for Zod
       i++;
     }
     if (offerItems.length > 0) {
-      rawData.offerItems = offerItems;
-    } else if (!rawData.offerItems) {
-      rawData.offerItems = [];
+      dataToValidate.offerItems = offerItems;
+    } else if (!dataToValidate.offerItems) { // Ensure it's an array if nothing was parsed
+      dataToValidate.offerItems = [];
     }
   }
-
-
-  if (pageKey === 'guidelines' && rawData.keyAreasJSON && typeof rawData.keyAreasJSON === 'string') {
+  
+  // Pre-processing for Guidelines keyAreas
+  if (pageKey === 'guidelines' && dataToValidate.keyAreasJSON && typeof dataToValidate.keyAreasJSON === 'string') {
       try {
-          const parsedKeyAreas = JSON.parse(rawData.keyAreasJSON);
+          const parsedKeyAreas = JSON.parse(dataToValidate.keyAreasJSON as string);
           if (Array.isArray(parsedKeyAreas)) {
-            rawData.keyAreas = parsedKeyAreas;
+            dataToValidate.keyAreas = parsedKeyAreas;
           } else {
-             rawData.keyAreas = [];
+             dataToValidate.keyAreas = [];
           }
       } catch (e) {
-          if(!rawData.keyAreas) rawData.keyAreas = [];
+          if(!dataToValidate.keyAreas) dataToValidate.keyAreas = [];
       }
-  } else if (pageKey === 'guidelines' && !rawData.keyAreas) {
-    rawData.keyAreas = [];
+  } else if (pageKey === 'guidelines' && !dataToValidate.keyAreas) {
+    dataToValidate.keyAreas = [];
   }
 
-  let teamDataForValidation = { ...rawData };
-  if (pageKey === 'teamMembers') {
-    const founderFile = formData.get('founderImageFile') as File | null;
-    const coFounderFile = formData.get('coFounderImageFile') as File | null;
-    
-    teamDataForValidation.founderImageFile = founderFile && founderFile.size > 0 ? founderFile : undefined;
-    teamDataForValidation.coFounderImageFile = coFounderFile && coFounderFile.size > 0 ? coFounderFile : undefined;
+  // Pre-processing for image files (common logic for aboutUs and teamMembers)
+  const imageFields: { formKey: string; contentKey: string; subfolder: string, baseName?: string, memberType?: 'founder' | 'coFounder' }[] = [];
+  if (pageKey === 'aboutUs') {
+    imageFields.push({ formKey: 'image1File', contentKey: 'image1Url', subfolder: 'about', baseName: 'mission_image' });
+    imageFields.push({ formKey: 'image2File', contentKey: 'image2Url', subfolder: 'about', baseName: 'join_image' });
+  } else if (pageKey === 'teamMembers') {
+    imageFields.push({ formKey: 'founderImageFile', contentKey: 'founder.imageUrl', subfolder: 'team', baseName: 'founder_image', memberType: 'founder'});
+    imageFields.push({ formKey: 'coFounderImageFile', contentKey: 'coFounder.imageUrl', subfolder: 'team', baseName: 'cofounder_image', memberType: 'coFounder' });
+  }
 
-    teamDataForValidation.founder = {
+  for (const imgField of imageFields) {
+    const file = formData.get(imgField.formKey) as File | null;
+    if (file && file.size > 0) {
+      (dataToValidate as any)[imgField.formKey] = file;
+    } else {
+      delete (dataToValidate as any)[imgField.formKey]; // Remove if no file to avoid Zod error on empty file
+    }
+  }
+  
+  // For teamMembers, structure the data for Zod validation
+  if (pageKey === 'teamMembers') {
+    dataToValidate.founder = {
       name: rawData['founder.name'], title: rawData['founder.title'], bio: rawData['founder.bio'],
-      imageUrl: rawData['founder.existingImageUrl'],
+      imageUrl: rawData['founder.existingImageUrl'], // Will be replaced by file if new one uploaded
       imageAlt: rawData['founder.imageAlt'], imageDataAiHint: rawData['founder.imageDataAiHint'],
       githubUrl: rawData['founder.githubUrl'], linkedinUrl: rawData['founder.linkedinUrl'], emailAddress: rawData['founder.emailAddress'],
     };
-    teamDataForValidation.coFounder = {
+    dataToValidate.coFounder = {
       name: rawData['coFounder.name'], title: rawData['coFounder.title'], bio: rawData['coFounder.bio'],
       imageUrl: rawData['coFounder.existingImageUrl'],
       imageAlt: rawData['coFounder.imageAlt'], imageDataAiHint: rawData['coFounder.imageDataAiHint'],
@@ -1558,7 +1572,7 @@ export async function updatePageContentAction<T extends PageContentKeys>(
   }
 
 
-  const validatedFields = schema.safeParse(teamDataForValidation);
+  const validatedFields = schema.safeParse(dataToValidate);
 
   if (!validatedFields.success) {
     return {
@@ -1570,37 +1584,53 @@ export async function updatePageContentAction<T extends PageContentKeys>(
   
   const contentToSave = { ...validatedFields.data };
 
-  if (pageKey === 'teamMembers') {
-    const data = validatedFields.data as any;
-    
-    const founderFile = data.founderImageFile as File | undefined;
-    if (founderFile && founderFile.size > 0) {
-      const buffer = Buffer.from(await founderFile.arrayBuffer());
-      const fileExtension = path.extname(founderFile.name);
-      contentToSave.founder.imageUrl = await saveTeamMemberImage(buffer, 'founder', fileExtension);
-    } else {
-      contentToSave.founder.imageUrl = formData.get('founder.existingImageUrl') as string || contentToSave.founder.imageUrl;
-    }
-    delete contentToSave.founderImageFile;
+  // Handle image saving after validation
+  try {
+    for (const imgField of imageFields) {
+        const file = (validatedFields.data as any)[imgField.formKey] as File | undefined;
+        const existingUrlKey = pageKey === 'teamMembers' && imgField.memberType 
+                                ? `${imgField.memberType}.existingImageUrl` 
+                                : `existing${imgField.contentKey.charAt(0).toUpperCase() + imgField.contentKey.slice(1)}`;
+        const existingUrl = formData.get(existingUrlKey) as string | null;
 
-    const coFounderFile = data.coFounderImageFile as File | undefined;
-    if (coFounderFile && coFounderFile.size > 0) {
-      const buffer = Buffer.from(await coFounderFile.arrayBuffer());
-      const fileExtension = path.extname(coFounderFile.name);
-      contentToSave.coFounder.imageUrl = await saveTeamMemberImage(buffer, 'coFounder', fileExtension);
-    } else {
-       contentToSave.coFounder.imageUrl = formData.get('coFounder.existingImageUrl') as string || contentToSave.coFounder.imageUrl;
+
+        let finalImageUrl = existingUrl || '';
+        if (pageKey === 'teamMembers' && imgField.memberType) {
+            finalImageUrl = existingUrl || (contentToSave as any)[imgField.memberType]?.imageUrl || '';
+        } else if (pageKey === 'aboutUs') {
+            finalImageUrl = existingUrl || (contentToSave as any)[imgField.contentKey] || '';
+        }
+
+
+        if (file) {
+            const buffer = Buffer.from(await file.arrayBuffer());
+            const fileExtension = path.extname(file.name);
+            finalImageUrl = await savePageContentImage(buffer, imgField.subfolder, imgField.baseName || imgField.formKey, fileExtension);
+        }
+
+        if (pageKey === 'teamMembers' && imgField.memberType) {
+            if (!(contentToSave as any)[imgField.memberType]) (contentToSave as any)[imgField.memberType] = {};
+            (contentToSave as any)[imgField.memberType].imageUrl = finalImageUrl;
+            delete (contentToSave as any)[imgField.formKey]; // Clean up file field from content
+        } else {
+            (contentToSave as any)[imgField.contentKey] = finalImageUrl;
+            delete (contentToSave as any)[imgField.formKey]; // Clean up file field from content
+        }
     }
-    delete contentToSave.coFounderImageFile;
-    
-    delete contentToSave['founder.existingImageUrl'];
-    delete contentToSave['coFounder.existingImageUrl'];
+     if (pageKey === 'teamMembers') {
+        delete (contentToSave as any)['founder.existingImageUrl'];
+        delete (contentToSave as any)['coFounder.existingImageUrl'];
+    }
+
+  } catch(error) {
+     console.error(`Error saving image for ${pageKey}:`, error);
+     return { message: `Failed to save image. Please try again.`, success: false, errors: { general: ['Image saving error.'] } };
   }
 
 
   try {
     await savePageContentToFile(pageKey, contentToSave);
-    const publicPath = pageKey === 'topDesigners' ? '/designers' : (pageKey === 'teamMembers' ? '/about' : `/${pageKey}`);
+    const publicPath = pageKey === 'topDesigners' ? '/designers' : (pageKey === 'teamMembers' || pageKey === 'aboutUs' ? '/about' : `/${pageKey}`);
     revalidatePath(publicPath);
     revalidatePath(`/admin/edit-content/${pageKey}`);
 

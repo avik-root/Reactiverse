@@ -5,26 +5,34 @@ import { useEffect, useState, useMemo } from 'react';
 import type { User, Design } from '@/lib/types';
 import { getAllUsersAdminAction, getAllDesignsAction, getPageContentAction } from '@/lib/actions';
 import DesignerCard from '@/components/designer/DesignerCard';
-import DesignerDetailDialog from '@/components/designer/DesignerDetailDialog'; // New Import
+import DesignerDetailDialog from '@/components/designer/DesignerDetailDialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Award, Info, Search } from 'lucide-react';
+import { Award, Info, Search, Palette, Users, ListOrdered, PercentSquare, Crown, Medal, Trophy } from 'lucide-react';
 import type { TopDesignersPageContent } from '@/lib/types';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
-interface DesignerWithContributionCount extends User {
+interface DesignerStats extends User {
+  totalLikes: number;
   totalDesignsUploaded: number;
 }
 
+const getInitials = (name?: string) => {
+    if (!name) return 'D';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase();
+};
+
 export default function DesignersPage() {
   const [content, setContent] = useState<TopDesignersPageContent | null>(null);
-  const [users, setUsers] = useState<User[]>([]);
-  const [allDesigns, setAllDesigns] = useState<Design[] | null>(null);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [allDesigns, setAllDesigns] = useState<Design[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const [selectedDesignerForDetail, setSelectedDesignerForDetail] = useState<DesignerWithContributionCount | null>(null);
+  const [selectedDesignerForDetail, setSelectedDesignerForDetail] = useState<DesignerStats | null>(null);
   const [isDesignerDetailOpen, setIsDesignerDetailOpen] = useState(false);
 
   useEffect(() => {
@@ -37,81 +45,102 @@ export default function DesignersPage() {
           getAllDesignsAction()
         ]);
         setContent(pageContent);
-        setUsers(fetchedUsers);
+        setAllUsers(fetchedUsers.filter(user => !user.id.startsWith('admin-'))); // Exclude admins
         setAllDesigns(designsData);
       } catch (error) {
         console.error("Error fetching data for Designers page:", error);
-        setContent(null);
+        setContent(null); // Keep content null on error to show loading/error state
       }
       setIsLoading(false);
     }
     fetchAllData();
   }, []);
 
-  const designersWithContributionCount = useMemo(() => {
-    if (!users.length || !allDesigns) return [];
+  const fullDesignerStatsList = useMemo(() => {
+    if (!allUsers.length || !allDesigns) return [];
 
-    const designersWithCounts: DesignerWithContributionCount[] = users
-      .filter(user => !user.id.startsWith('admin-'))
-      .map(designer => {
-        const designsByThisUser = allDesigns.filter(design => design.submittedByUserId === designer.id);
-        return {
-          ...designer,
-          totalDesignsUploaded: designsByThisUser.length,
-        };
-      });
+    const stats: DesignerStats[] = allUsers.map(user => {
+      const designsByThisUser = allDesigns.filter(design => design.submittedByUserId === user.id);
+      const totalLikes = designsByThisUser.reduce((sum, design) => sum + (design.likedBy?.length || 0), 0);
+      return {
+        ...user,
+        totalLikes: totalLikes,
+        totalDesignsUploaded: designsByThisUser.length,
+      };
+    });
 
-    designersWithCounts.sort((a, b) => {
-      if (b.totalDesignsUploaded !== a.totalDesignsUploaded) {
-        return b.totalDesignsUploaded - a.totalDesignsUploaded;
-      }
+    return stats.sort((a, b) => {
+      if (b.totalLikes !== a.totalLikes) return b.totalLikes - a.totalLikes;
+      if (b.totalDesignsUploaded !== a.totalDesignsUploaded) return b.totalDesignsUploaded - a.totalDesignsUploaded;
       return a.name.localeCompare(b.name);
     });
-    return designersWithCounts;
-  }, [users, allDesigns]);
+  }, [allUsers, allDesigns]);
 
-  const filteredAndSortedDesigners = useMemo(() => {
-    if (!designersWithContributionCount.length) return [];
-    if (!searchTerm) return designersWithContributionCount;
+  const displayableDesignerStatsList = useMemo(() => {
+    if (!fullDesignerStatsList.length) return [];
+    if (!searchTerm) return fullDesignerStatsList;
 
     const lowerSearchTerm = searchTerm.toLowerCase();
-    return designersWithContributionCount.filter(
+    return fullDesignerStatsList.filter(
       designer =>
         designer.name.toLowerCase().includes(lowerSearchTerm) ||
         designer.username.toLowerCase().includes(lowerSearchTerm)
     );
-  }, [designersWithContributionCount, searchTerm]);
+  }, [fullDesignerStatsList, searchTerm]);
 
-  const handleOpenDesignerDetail = (designer: DesignerWithContributionCount) => {
+  const top20Designers = useMemo(() => {
+    return displayableDesignerStatsList.filter(d => d.totalLikes > 0).slice(0, 20);
+  }, [displayableDesignerStatsList]);
+
+  const handleOpenDesignerDetail = (designer: DesignerStats) => {
     setSelectedDesignerForDetail(designer);
     setIsDesignerDetailOpen(true);
   };
 
+  const getPercentileCategory = (rank: number, total: number): string => {
+    if (total === 0) return "Contributor";
+    const percentile = (rank / total) * 100;
+    if (percentile <= 10) return "Top 10%";
+    if (percentile <= 25) return "Top 25%";
+    if (percentile <= 50) return "Top 50%";
+    return "Valued Contributor";
+  };
+  
+  const getPercentileIcon = (category: string) => {
+    if (category === "Top 10%") return <Crown className="h-4 w-4 text-yellow-500" />;
+    if (category === "Top 25%") return <Trophy className="h-4 w-4 text-orange-400" />;
+    if (category === "Top 50%") return <Medal className="h-4 w-4 text-sky-400" />;
+    return <PercentSquare className="h-4 w-4 text-muted-foreground" />;
+  };
+
+
   if (isLoading || !content) {
     return (
-      <div className="container mx-auto py-12">
+      <div className="container mx-auto py-12 space-y-10">
         <Card className="shadow-lg">
           <CardHeader>
             <Skeleton className="h-8 w-1/2 mb-2" />
             <Skeleton className="h-6 w-3/4" />
-             <div className="mt-4">
-                <Skeleton className="h-10 w-full" />
-            </div>
+            <div className="mt-4"><Skeleton className="h-10 w-full" /></div>
           </CardHeader>
           <CardContent className="space-y-6">
+            <Skeleton className="h-8 w-1/3 mb-4" />
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {[...Array(8)].map((_, i) => (
+              {[...Array(4)].map((_, i) => (
                 <div key={i} className="p-6 border rounded-lg bg-card space-y-3">
                   <Skeleton className="h-24 w-24 rounded-full mx-auto" />
                   <Skeleton className="h-6 w-3/4 mx-auto" />
                   <Skeleton className="h-4 w-1/2 mx-auto" />
-                   <div className="flex justify-center gap-2 pt-2">
-                    <Skeleton className="h-8 w-8 rounded-full" />
-                    <Skeleton className="h-8 w-8 rounded-full" />
-                  </div>
+                  <Skeleton className="h-4 w-1/3 mx-auto mt-1" />
                 </div>
               ))}
             </div>
+          </CardContent>
+        </Card>
+         <Card className="shadow-lg">
+          <CardHeader><Skeleton className="h-8 w-1/3 mb-4" /></CardHeader>
+          <CardContent className="space-y-3">
+             {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full rounded-md" />)}
           </CardContent>
         </Card>
       </div>
@@ -119,8 +148,8 @@ export default function DesignersPage() {
   }
 
   return (
-    <div className="container mx-auto py-12">
-      <Card className="shadow-lg">
+    <div className="container mx-auto py-12 space-y-12">
+      <Card className="shadow-lg border-border">
         <CardHeader>
           <CardTitle className="flex items-center text-3xl font-headline text-primary">
             <Award className="mr-3 h-8 w-8" />
@@ -138,33 +167,100 @@ export default function DesignersPage() {
             />
           </div>
         </CardHeader>
-        <CardContent className="space-y-6">
-          {filteredAndSortedDesigners.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {filteredAndSortedDesigners.map((designer) => (
-                <DesignerCard
-                  key={designer.id}
-                  user={designer}
-                  onOpenDetail={() => handleOpenDesignerDetail(designer)}
-                />
-              ))}
-            </div>
-          ) : (
-            <Alert>
-              <Info className="h-4 w-4" />
-              <AlertTitle>{searchTerm ? "No Designers Found" : (content.mainPlaceholderTitle || "No Designers Yet")}</AlertTitle>
-              <AlertDescription>
-                {searchTerm ? "No designers match your search criteria. Try a different term." : (content.mainPlaceholderContent || "We're waiting for talented designers to join and contribute. Check back soon!")}
-              </AlertDescription>
-            </Alert>
-          )}
-        </CardContent>
       </Card>
+
+      {/* Top 20 Designers Section */}
+      <section>
+        <h2 className="text-2xl font-semibold font-headline mb-6 flex items-center">
+          <Trophy className="mr-2 h-7 w-7 text-yellow-500" /> Top 20 Designers (by Likes)
+        </h2>
+        {top20Designers.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {top20Designers.map((designer, index) => (
+              <DesignerCard
+                key={designer.id}
+                user={designer}
+                rank={index + 1}
+                highlightMetricLabel="Total Likes"
+                highlightMetricValue={designer.totalLikes}
+                onOpenDetail={() => handleOpenDesignerDetail(designer)}
+              />
+            ))}
+          </div>
+        ) : (
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertTitle>{searchTerm ? "No Designers Found" : "No Designers with Likes Yet"}</AlertTitle>
+            <AlertDescription>
+              {searchTerm ? "No designers match your current search and have likes." : "Be the first to like some designs, or encourage designers to share their work!"}
+            </AlertDescription>
+          </Alert>
+        )}
+      </section>
+
+      {/* Overall Ranking List Section */}
+      <section>
+        <h2 className="text-2xl font-semibold font-headline mb-6 flex items-center">
+          <ListOrdered className="mr-2 h-7 w-7 text-primary" /> Complete Designer Standing
+        </h2>
+        {displayableDesignerStatsList.length > 0 ? (
+          <Card className="shadow-md border-border">
+            <CardContent className="p-0">
+              <ul className="divide-y divide-border">
+                {displayableDesignerStatsList.map((designer, index) => {
+                  const overallRank = fullDesignerStatsList.findIndex(d => d.id === designer.id) + 1;
+                  const percentileCategory = getPercentileCategory(overallRank, fullDesignerStatsList.length);
+                  const IconComponent = getPercentileIcon(percentileCategory);
+
+                  return (
+                    <li 
+                        key={designer.id} 
+                        className="flex items-center p-4 hover:bg-muted/50 transition-colors cursor-pointer"
+                        onClick={() => handleOpenDesignerDetail(designer)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleOpenDesignerDetail(designer); }}
+                        aria-label={`View details for ${designer.name}`}
+                    >
+                      <span className="text-lg font-medium text-primary w-10 text-center">#{index + 1}</span>
+                      <Avatar className="h-10 w-10 mx-4">
+                         <AvatarImage src={designer.avatarUrl || `https://placehold.co/40x40.png?text=${getInitials(designer.name)}`} alt={designer.name} data-ai-hint="designer avatar list"/>
+                         <AvatarFallback>{getInitials(designer.name)}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-grow">
+                        <p className="font-semibold text-foreground">{designer.name}</p>
+                        <p className="text-xs text-muted-foreground">@{designer.username.startsWith('@') ? designer.username.substring(1) : designer.username}</p>
+                      </div>
+                      <div className="text-right space-y-0.5 min-w-[160px] sm:min-w-[200px]">
+                        <Badge variant="outline" className="text-xs text-primary border-primary">
+                           <Star className="h-3 w-3 mr-1 fill-primary" /> Likes: {designer.totalLikes}
+                        </Badge>
+                        <Badge variant="secondary" className="text-xs ml-2 flex items-center justify-end">
+                           {IconComponent} <span className="ml-1">{percentileCategory}</span>
+                        </Badge>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </CardContent>
+          </Card>
+        ) : (
+           <Alert>
+            <Info className="h-4 w-4" />
+            <AlertTitle>{searchTerm ? "No Designers Found" : "No Designers Available"}</AlertTitle>
+            <AlertDescription>
+              {searchTerm ? "No designers match your search criteria." : (content.mainPlaceholderContent || "We're waiting for talented designers to join and contribute. Check back soon!")}
+            </AlertDescription>
+          </Alert>
+        )}
+      </section>
+
 
       {selectedDesignerForDetail && (
         <DesignerDetailDialog
           user={selectedDesignerForDetail}
-          totalDesignsUploaded={selectedDesignerForDetail.totalDesignsUploaded}
+          // totalDesignsUploaded is part of DesignerStats, so it's passed directly
           isOpen={isDesignerDetailOpen}
           onOpenChange={setIsDesignerDetailOpen}
         />

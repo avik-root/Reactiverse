@@ -4,16 +4,20 @@
 import type { User } from '@/lib/types';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { AtSign, Github, Linkedin, Mail } from 'lucide-react';
+import { AtSign, Github, Linkedin, Mail, Palette, BadgePercent, Star } from 'lucide-react';
 import FigmaIcon from '@/components/icons/FigmaIcon';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Badge } from '@/components/ui/badge';
 
 interface DesignerCardProps {
   user: User;
-  onOpenDetail: () => void; // Callback to open detail dialog
+  rank?: number;
+  highlightMetricLabel?: string;
+  highlightMetricValue?: number | string;
+  onOpenDetail: () => void;
 }
 
 const getInitials = (name?: string) => {
@@ -21,11 +25,11 @@ const getInitials = (name?: string) => {
   return name.split(' ').map(n => n[0]).join('').toUpperCase();
 };
 
-const DesignerCard: React.FC<DesignerCardProps> = ({ user, onOpenDetail }) => {
+const DesignerCard: React.FC<DesignerCardProps> = ({ user, rank, highlightMetricLabel, highlightMetricValue, onOpenDetail }) => {
   const { toast } = useToast();
 
   const handleCopyEmail = (event: React.MouseEvent) => {
-    event.stopPropagation(); // Prevent card click when copying email
+    event.stopPropagation();
     if (user.email && user.isEmailPublic) {
       navigator.clipboard.writeText(user.email)
         .then(() => {
@@ -47,17 +51,26 @@ const DesignerCard: React.FC<DesignerCardProps> = ({ user, onOpenDetail }) => {
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onOpenDetail(); }}
       aria-label={`View details for ${user.name}`}
     >
+      {rank && (
+        <Badge variant="secondary" className="absolute top-3 left-3 text-sm px-2.5 py-1 bg-primary/20 text-primary font-bold border-primary/50">
+          <Star className="h-4 w-4 mr-1.5 fill-primary text-primary" /> #{rank}
+        </Badge>
+      )}
       <Avatar className="w-24 h-24 mt-4 mb-4 border-2 border-primary shadow-sm">
         <AvatarImage src={user.avatarUrl || `https://placehold.co/100x100.png?text=${getInitials(user.name)}`} alt={user.name} data-ai-hint="designer avatar" />
         <AvatarFallback className="text-3xl">{getInitials(user.name)}</AvatarFallback>
       </Avatar>
       <CardTitle className="text-2xl font-headline text-primary mb-1">{user.name}</CardTitle>
-      <CardDescription className="text-accent font-medium flex items-center mb-3">
+      <CardDescription className="text-accent font-medium flex items-center mb-2">
         <AtSign className="h-4 w-4 mr-1" />
         {user.username.startsWith('@') ? user.username.substring(1) : user.username}
       </CardDescription>
       
-      {/* Contribution count removed from here */}
+      {highlightMetricLabel && highlightMetricValue !== undefined && (
+        <div className="mb-3 text-sm text-muted-foreground">
+          <span className="font-semibold text-primary">{highlightMetricLabel}:</span> {highlightMetricValue}
+        </div>
+      )}
 
       <div className="flex flex-wrap justify-center gap-2 mt-auto pt-3 border-t w-full">
         {user.githubUrl && (

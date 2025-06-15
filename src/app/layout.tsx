@@ -7,6 +7,7 @@ import Header from '@/components/core/Header';
 import Footer from '@/components/core/Footer';
 import { AuthProvider } from '@/contexts/AuthContext';
 import ClientDotGrid from '@/components/core/ClientDotGrid'; // Import the new client component
+import AutoRefresher from '@/components/core/AutoRefresher'; // Import the new AutoRefresher component
 
 export const metadata: Metadata = {
   title: 'Reactiverse - Showcase Your Designs',
@@ -43,6 +44,7 @@ export default function RootLayout({
         {/* Main content wrapper with z-index to be above the DotGrid */}
         <div className="relative z-0 flex flex-col min-h-screen">
           <AuthProvider>
+            <AutoRefresher /> {/* Add the AutoRefresher component here */}
             <Header />
             <main className="flex-grow container mx-auto px-4 py-8">
               {children}

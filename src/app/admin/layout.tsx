@@ -135,7 +135,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         <div className="mt-auto border-t pt-4">
             <div className="flex items-center gap-3 px-3 py-2">
                 <Avatar className="h-9 w-9">
-                    <AvatarImage src={avatarUrl || `https://placehold.co/100x100.png?text=${getInitials(displayName)}`} alt={displayName} data-ai-hint="admin avatar"/>
+                    <AvatarImage
+                        key={avatarUrl} 
+                        src={avatarUrl || `https://placehold.co/100x100.png?text=${getInitials(displayName)}`} 
+                        alt={displayName} data-ai-hint="admin avatar"/>
                     <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
                 </Avatar>
                 <div>

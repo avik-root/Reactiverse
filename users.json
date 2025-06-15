@@ -6,7 +6,7 @@
     "email": "test@gmail.com",
     "phone": "+911234567890",
     "passwordHash": "$2a$10$77HlwQT9FL7jKLrwGTmGEev/CW5Xew58ddN/ns2h1vOj3AvWQmTam",
-    "avatarUrl": "https://placehold.co/100x100.png?text=T",
+    "avatarUrl": "/avatars/user-user-1749918806145-1750016056769.jpeg",
     "twoFactorEnabled": false,
     "failedPinAttempts": 0,
     "isLocked": false,

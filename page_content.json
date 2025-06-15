@@ -1,4 +1,3 @@
-
 {
   "aboutUs": {
     "title": "About Reactiverse",
@@ -11,9 +10,18 @@
     "image1DataAiHint": "collaboration team",
     "offerTitle": "What We Offer",
     "offerItems": [
-      { "title": "Diverse Component Showcase", "description": "Explore a vast collection of UI components, from simple buttons to complex interactive elements." },
-      { "title": "Inspiration Hub", "description": "Discover new design trends, techniques, and get inspired by the work of talented creators." },
-      { "title": "Community Driven", "description": "Connect with fellow designers, share feedback, and contribute to a growing ecosystem of creativity." }
+      {
+        "title": "Diverse Component Showcase",
+        "description": "Explore a vast collection of UI components, from simple buttons to complex interactive elements."
+      },
+      {
+        "title": "Inspiration Hub",
+        "description": "Discover new design trends, techniques, and get inspired by the work of talented creators."
+      },
+      {
+        "title": "Community Driven",
+        "description": "Connect with fellow designers, share feedback, and contribute to a growing ecosystem of creativity."
+      }
     ],
     "joinTitle": "Join Our Universe",
     "joinContent": "Reactiverse is more than just a platform; it's a community. We invite you to join us, share your work, learn from others, and help build the future of UI design.",
@@ -58,26 +66,26 @@
   "teamMembers": {
     "title": "Meet Our Team",
     "founder": {
-      "name": "Alex Johnson",
+      "name": "Avik Samanta",
       "title": "Founder & CEO",
-      "bio": "Visionary leader with a passion for innovative design and community building. Alex drives the strategic direction of Reactiverse, ensuring it remains a leading platform for UI/UX enthusiasts worldwide.",
-      "imageUrl": "/team_images/founder_image.png",
+      "bio": "Cybersecurity Engineer | Blockchain Specialist | Bug Bounty Hunter.\r\nSkilled in vulnerability research, ethical hacking, and securing digital infrastructures. Passionate about advancing blockchain security, identifying threats, and building innovative security solutions.",
+      "imageUrl": "/team_images/founder_image.jpg",
       "imageAlt": "Founder Alex Johnson",
       "imageDataAiHint": "professional portrait",
-      "githubUrl": "",
-      "linkedinUrl": "",
-      "emailAddress": ""
+      "githubUrl": "https://github.com/avik-root",
+      "linkedinUrl": "https://www.linkedin.com/in/avik-samanta-root/",
+      "emailAddress": "aviksamantaofficial@gmail.com"
     },
     "coFounder": {
-      "name": "Maria Garcia",
-      "title": "Co-Founder & CTO",
-      "bio": "Expert technologist driving the platform's architecture and development. Maria focuses on creating a seamless and powerful experience for all Reactiverse users.",
-      "imageUrl": "/team_images/cofounder_image.png",
+      "name": "Anusha Gupta",
+      "title": "Co-Founder & CEO",
+      "bio": "Software Developer | AI Web Developer | Cybersecurity Enthusiast.\r\nSkilled in software and web development, AI integration, Python automation, and secure application design. Focused on leveraging machine learning and vulnerability research to create innovative, secure solutions.",
+      "imageUrl": "/team_images/coFounder_image.jpg",
       "imageAlt": "Co-Founder Maria Garcia",
       "imageDataAiHint": "professional tech",
-      "githubUrl": "",
-      "linkedinUrl": "",
-      "emailAddress": ""
+      "githubUrl": "https://github.com/anushagupta11",
+      "linkedinUrl": "https://www.linkedin.com/in/anusha-gupta-ofc/",
+      "emailAddress": "anusha73gupta@gmail.com"
     }
   }
 }

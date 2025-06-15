@@ -33,14 +33,14 @@ function TeamMemberCard({ member }: TeamMemberCardProps) {
   
   return (
     <Card className="shadow-md hover:shadow-lg transition-shadow duration-300 ease-in-out flex flex-col items-center text-center p-6 bg-card">
-      <div className="relative h-32 w-32 rounded-full overflow-hidden mb-4 border-2 border-primary shadow-sm">
+      <div className="relative h-32 w-32 rounded-lg overflow-hidden mb-4 border-2 border-primary shadow-sm">
         <Image
           src={imageUrl}
           alt={member.imageAlt || member.name}
           layout="fill"
           objectFit="cover"
           data-ai-hint={member.imageDataAiHint || "professional portrait"}
-          className="rounded-full"
+          className="rounded-lg"
           // Add a key to force re-render if src changes, useful if using default and then actual loads
           key={imageUrl} 
         />

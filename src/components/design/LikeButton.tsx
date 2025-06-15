@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useOptimistic, useTransition } from 'react'; // Import useTransition
+import { useOptimistic, useTransition } from 'react';
 import { Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -32,27 +32,16 @@ const LikeButton: React.FC<LikeButtonProps> = ({
 
   const currentUserId = propCurrentUserId || (authUser && 'id' in authUser ? authUser.id : undefined);
 
+  // useOptimistic's first argument is the "base state". It will re-base if these props change.
   const [optimisticState, toggleOptimisticState] = useOptimistic(
     { isLiked: initialIsLiked, likeCount: initialLikeCount },
-    (state) => ({
+    (state) => ({ // Reducer for optimistic update
       isLiked: !state.isLiked,
       likeCount: state.isLiked ? state.likeCount - 1 : state.likeCount + 1,
     })
   );
 
-  // This useEffect is to ensure that if the props themselves change
-  // (e.g. parent component re-fetched data), the optimistic hook's base state
-  // is correctly reflecting the latest props. useOptimistic takes its base
-  // state from its first argument on each render.
-  useEffect(() => {
-    // The base state for useOptimistic is { isLiked: initialIsLiked, likeCount: initialLikeCount }.
-    // If these props change, useOptimistic will use the new values as its base.
-    // No explicit action needed here to "sync" optimisticState with props,
-    // as useOptimistic handles this by comparing its internal state with the base state.
-  }, [initialIsLiked, initialLikeCount]);
-
-
-  const handleLike = () => { // Made non-async, startTransition handles the async work
+  const handleLike = () => {
     if (!currentUserId) {
       toast({
         title: 'Login Required',
@@ -73,21 +62,17 @@ const LikeButton: React.FC<LikeButtonProps> = ({
         if (onLikeToggle && result.newLikeCount !== undefined && result.isLikedByCurrentUser !== undefined) {
           onLikeToggle(result.newLikeCount, result.isLikedByCurrentUser);
         }
-        // If the action was successful, and onLikeToggle updates parent state,
-        // new props (initialIsLiked, initialLikeCount) will flow down.
-        // useOptimistic will see that its base state now matches the (former) optimistic state,
-        // effectively "committing" the optimistic update.
+        // If server action is successful, the parent component (if it uses onLikeToggle)
+        // should update its state, causing new initialIsLiked/initialLikeCount props to be passed down.
+        // useOptimistic will reconcile with these new base props.
       } else {
         toast({
           title: 'Error',
           description: result.message || 'Could not update like status.',
           variant: 'destructive',
         });
-        // If action failed, onLikeToggle might not be called or parent state won't match optimistic update.
-        // When startTransition completes, useOptimistic will compare its internal optimistic value
-        // with its base state (derived from initialIsLiked/initialLikeCount props).
-        // If they don't match (because the "true" state didn't update as optimistically predicted),
-        // React will revert the optimistic update, showing the UI based on the (unchanged or differently changed) props.
+        // If action failed, useOptimistic automatically reverts to its base state (props)
+        // as the underlying data hasn't changed as optimistically predicted.
       }
     });
   };
@@ -97,7 +82,7 @@ const LikeButton: React.FC<LikeButtonProps> = ({
       variant="ghost"
       size="sm"
       onClick={handleLike}
-      disabled={!currentUserId || isTransitionPending} // Use isTransitionPending
+      disabled={!currentUserId || isTransitionPending}
       className={cn("flex items-center gap-1.5 text-muted-foreground hover:text-primary px-2 py-1 h-auto", className)}
       aria-pressed={optimisticState.isLiked}
     >
@@ -116,4 +101,3 @@ const LikeButton: React.FC<LikeButtonProps> = ({
 };
 
 export default LikeButton;
-

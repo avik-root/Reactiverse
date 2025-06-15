@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ScrollText, Lightbulb } from 'lucide-react';
 import { getPageContentAction } from '@/lib/actions';
 import type { GuidelinesPageContent } from '@/lib/types';
+import React from 'react'; // Import React for React.Fragment
 
 export default async function DesignGuidelinesPage() {
   const content = await getPageContentAction('guidelines') as GuidelinesPageContent;
@@ -46,11 +47,20 @@ export default async function DesignGuidelinesPage() {
             </h2>
             {content.keyAreas && content.keyAreas.length > 0 ? (
               <ul className="list-disc list-inside space-y-3 text-muted-foreground pl-5">
-                {content.keyAreas.map((area, index) => (
-                  <li key={index} className="leading-relaxed text-base">
-                    {area}
-                  </li>
-                ))}
+                {content.keyAreas.map((area, index) => {
+                  const parts = area.split('**');
+                  return (
+                    <li key={index} className="leading-relaxed text-base">
+                      {parts.map((part, partIndex) =>
+                        partIndex % 2 === 1 ? (
+                          <strong key={partIndex} className="text-foreground">{part}</strong>
+                        ) : (
+                          <React.Fragment key={partIndex}>{part}</React.Fragment>
+                        )
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             ) : (
               <p className="text-muted-foreground">Details on key areas will be provided soon.</p>

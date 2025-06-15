@@ -3,6 +3,7 @@
 
 import { z } from 'zod';
 import { cookies } from 'next/headers';
+import path from 'path';
 import {
   getUsersFromFile,
   saveUserToFile,
@@ -21,6 +22,7 @@ import {
   getPageContent as getPageContentFromFile,
   savePageContent as savePageContentToFile,
   saveSiteLogo as saveSiteLogoToServer,
+  saveTeamMemberImage,
 } from './server-data';
 import type {
   AdminUser,
@@ -304,27 +306,38 @@ const TopDesignersPageContentSchema = z.object({
   mainPlaceholderContent: z.string().min(1, "Placeholder content is required"),
 });
 
-const TeamMemberSchema = z.object({
+const ValidImageFileSchema = z.instanceof(File, { message: "Image file is required." })
+  .refine(file => file.size > 0, "Image file cannot be empty.")
+  .refine(file => file.size <= 2 * 1024 * 1024, "Image must be 2MB or less.")
+  .refine(file => ["image/png", "image/jpeg", "image/jpg"].includes(file.type), "Invalid file type. Must be PNG or JPG.");
+
+const TeamMemberSchemaClient = z.object({
   name: z.string().min(1, "Name is required"),
   title: z.string().min(1, "Title is required"),
   bio: z.string().min(10, "Bio must be at least 10 characters"),
-  imageUrl: z.string().url("Invalid image URL").or(z.literal("")).optional(),
+  imageUrl: z.string().optional(), // This will be the existing path or new path after upload
   imageAlt: z.string().optional(),
   imageDataAiHint: z.string().max(30, "AI hint too long").optional(),
+  githubUrl: z.string().url("Invalid GitHub URL").or(z.literal("")).optional(),
+  linkedinUrl: z.string().url("Invalid LinkedIn URL").or(z.literal("")).optional(),
+  emailAddress: z.string().email("Invalid Email Address").or(z.literal("")).optional(),
 });
 
-const TeamMembersContentSchema = z.object({
+const TeamMembersContentSchemaClient = z.object({
   title: z.string().min(1, "Section title is required"),
-  founder: TeamMemberSchema,
-  coFounder: TeamMemberSchema,
+  founder: TeamMemberSchemaClient,
+  coFounder: TeamMemberSchemaClient,
+  // For file handling - these are not directly part of TeamMember, but come from form
+  founderImageFile: ValidImageFileSchema.optional(),
+  coFounderImageFile: ValidImageFileSchema.optional(),
+  "founder.existingImageUrl": z.string().optional(),
+  "coFounder.existingImageUrl": z.string().optional(),
 });
+
 
 
 const SiteLogoSchema = z.object({
-  logoFile: z.instanceof(File, { message: "Logo file is required." })
-    .refine(file => file.size > 0, "Logo file cannot be empty.")
-    .refine(file => file.size <= 2 * 1024 * 1024, "Logo must be 2MB or less.")
-    .refine(file => ["image/png", "image/jpeg", "image/svg+xml", "image/jpg"].includes(file.type), "Invalid file type. Must be PNG, JPG, or SVG."),
+  logoFile: ValidImageFileSchema,
 });
 
 
@@ -333,7 +346,7 @@ const pageContentSchemasMap = {
   support: SupportPageContentSchema,
   guidelines: GuidelinesPageContentSchema,
   topDesigners: TopDesignersPageContentSchema,
-  teamMembers: TeamMembersContentSchema,
+  teamMembers: TeamMembersContentSchemaClient, // Use the client-facing schema for form parsing
 };
 
 
@@ -630,7 +643,7 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     path: '/admin',
-    maxAge: 60 * 60 * 24 * 7,
+    maxAge: 0, // Use maxAge: 0 for session cookie behavior if preferred or specific duration
     sameSite: 'lax',
   });
 
@@ -643,11 +656,13 @@ export async function logoutAdminAction(): Promise<{ success: boolean }> {
   try {
     cookies().set(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS, '', { 
       path: '/admin', 
-      maxAge: 0,
+      maxAge: 0, // Explicitly expire the cookie
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
     });
+    // Attempt delete as well, though setting maxAge to 0 is usually sufficient
+    cookies().delete(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS);
     return { success: true };
   } catch (error) {
     console.error('Error during admin logout action:', error);
@@ -1422,30 +1437,31 @@ export async function updatePageContentAction<T extends PageContentKeys>(
     rawData.keyAreas = [];
   }
 
+  let teamDataForValidation = { ...rawData };
   if (pageKey === 'teamMembers') {
-    // Manually construct founder and coFounder objects from flat form data
-    const teamData: any = { title: rawData.title };
-    teamData.founder = {
-      name: rawData['founder.name'],
-      title: rawData['founder.title'],
-      bio: rawData['founder.bio'],
-      imageUrl: rawData['founder.imageUrl'],
-      imageAlt: rawData['founder.imageAlt'],
-      imageDataAiHint: rawData['founder.imageDataAiHint'],
+    // For validation, include file fields. The actual saving is handled below.
+    const founderFile = formData.get('founderImageFile') as File | null;
+    const coFounderFile = formData.get('coFounderImageFile') as File | null;
+    
+    teamDataForValidation.founderImageFile = founderFile && founderFile.size > 0 ? founderFile : undefined;
+    teamDataForValidation.coFounderImageFile = coFounderFile && coFounderFile.size > 0 ? coFounderFile : undefined;
+
+    teamDataForValidation.founder = {
+      name: rawData['founder.name'], title: rawData['founder.title'], bio: rawData['founder.bio'],
+      imageUrl: rawData['founder.existingImageUrl'], // Use existing for validation if no new file
+      imageAlt: rawData['founder.imageAlt'], imageDataAiHint: rawData['founder.imageDataAiHint'],
+      githubUrl: rawData['founder.githubUrl'], linkedinUrl: rawData['founder.linkedinUrl'], emailAddress: rawData['founder.emailAddress'],
     };
-    teamData.coFounder = {
-      name: rawData['coFounder.name'],
-      title: rawData['coFounder.title'],
-      bio: rawData['coFounder.bio'],
-      imageUrl: rawData['coFounder.imageUrl'],
-      imageAlt: rawData['coFounder.imageAlt'],
-      imageDataAiHint: rawData['coFounder.imageDataAiHint'],
+    teamDataForValidation.coFounder = {
+      name: rawData['coFounder.name'], title: rawData['coFounder.title'], bio: rawData['coFounder.bio'],
+      imageUrl: rawData['coFounder.existingImageUrl'], // Use existing for validation if no new file
+      imageAlt: rawData['coFounder.imageAlt'], imageDataAiHint: rawData['coFounder.imageDataAiHint'],
+      githubUrl: rawData['coFounder.githubUrl'], linkedinUrl: rawData['coFounder.linkedinUrl'], emailAddress: rawData['coFounder.emailAddress'],
     };
-    rawData = teamData; // Use the reconstructed object for validation
   }
 
 
-  const validatedFields = schema.safeParse(rawData);
+  const validatedFields = schema.safeParse(teamDataForValidation);
 
   if (!validatedFields.success) {
     return {
@@ -1454,16 +1470,53 @@ export async function updatePageContentAction<T extends PageContentKeys>(
       success: false,
     };
   }
+  
+  const contentToSave = { ...validatedFields.data };
+
+  if (pageKey === 'teamMembers') {
+    const data = validatedFields.data as any; // Cast to access file fields
+    
+    // Handle Founder Image
+    const founderFile = data.founderImageFile as File | undefined;
+    if (founderFile && founderFile.size > 0) {
+      const buffer = Buffer.from(await founderFile.arrayBuffer());
+      const fileExtension = path.extname(founderFile.name);
+      contentToSave.founder.imageUrl = await saveTeamMemberImage(buffer, 'founder', fileExtension);
+    } else {
+      contentToSave.founder.imageUrl = formData.get('founder.existingImageUrl') as string || contentToSave.founder.imageUrl;
+    }
+    delete contentToSave.founderImageFile; // Clean up file from data to be saved
+
+    // Handle Co-Founder Image
+    const coFounderFile = data.coFounderImageFile as File | undefined;
+    if (coFounderFile && coFounderFile.size > 0) {
+      const buffer = Buffer.from(await coFounderFile.arrayBuffer());
+      const fileExtension = path.extname(coFounderFile.name);
+      contentToSave.coFounder.imageUrl = await saveTeamMemberImage(buffer, 'coFounder', fileExtension);
+    } else {
+       contentToSave.coFounder.imageUrl = formData.get('coFounder.existingImageUrl') as string || contentToSave.coFounder.imageUrl;
+    }
+    delete contentToSave.coFounderImageFile; // Clean up file
+    
+    // Remove existingImageUrl fields before saving
+    delete contentToSave['founder.existingImageUrl'];
+    delete contentToSave['coFounder.existingImageUrl'];
+  }
+
 
   try {
-    await savePageContentToFile(pageKey, validatedFields.data);
+    await savePageContentToFile(pageKey, contentToSave);
     const publicPath = pageKey === 'topDesigners' ? '/designers' : (pageKey === 'teamMembers' ? '/about' : `/${pageKey}`);
     revalidatePath(publicPath);
     revalidatePath(`/admin/edit-content/${pageKey}`);
 
-    return { message: `${pageKey.charAt(0).toUpperCase() + pageKey.slice(1)} content updated successfully!`, success: true, content: validatedFields.data as PageContentData[T] };
+    return { message: `${pageKey.charAt(0).toUpperCase() + pageKey.slice(1)} content updated successfully!`, success: true, content: contentToSave as PageContentData[T] };
   } catch (error) {
     console.error(`Error updating page content for ${pageKey}:`, error);
+    const typedError = error as {code?: string};
+    if (typedError.code === 'ENOENT') { // Example: File system error
+       return { message: `Failed to save image. Please ensure storage is available and try again.`, success: false, errors: { general: ['File system error.'] } };
+    }
     return { message: `Failed to update ${pageKey} content. Please try again.`, success: false, errors: { general: ['Server error.'] } };
   }
 }
@@ -1483,7 +1536,8 @@ export async function updateSiteLogoAction(prevState: SiteLogoUploadState, formD
 
   try {
     const buffer = Buffer.from(await logoFile.arrayBuffer());
-    const fileName = "site_logo.png";
+    const fileExtension = path.extname(logoFile.name) || '.png'; // default to .png if no extension
+    const fileName = `site_logo${fileExtension}`; // e.g. site_logo.png
     const filePath = await saveSiteLogoToServer(buffer, fileName);
 
     revalidatePath('/');

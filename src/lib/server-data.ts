@@ -1,6 +1,6 @@
 
 // This file should only be imported by server-side code (e.g., server actions, API routes)
-import type { StoredAdminUser, StoredUser, Design, SiteSettings, PageContentData, PageContentKeys, TeamMembersContent } from './types';
+import type { StoredAdminUser, StoredUser, Design, SiteSettings, PageContentData, PageContentKeys, TeamMembersContent, TeamMember } from './types';
 import fs from 'fs/promises';
 import path from 'path';
 import { constants } from 'fs';
@@ -11,6 +11,9 @@ const ADMIN_USERS_FILE_PATH = path.join(process.cwd(), 'admin.json');
 const DESIGNS_FILE_PATH = path.join(process.cwd(), 'designs.json');
 const SETTINGS_FILE_PATH = path.join(process.cwd(), 'settings.json');
 const PAGE_CONTENT_FILE_PATH = path.join(process.cwd(), 'page_content.json');
+const PUBLIC_DIR = path.join(process.cwd(), 'public');
+const TEAM_IMAGES_DIR = path.join(PUBLIC_DIR, 'team_images');
+
 
 const DEFAULT_SITE_SETTINGS: SiteSettings = {
   siteTitle: "Reactiverse",
@@ -22,23 +25,32 @@ const DEFAULT_SITE_SETTINGS: SiteSettings = {
   logoPath: "/default-logo.png"
 };
 
+const DEFAULT_TEAM_MEMBER_DATA: Omit<TeamMember, 'name' | 'title' | 'bio'> = {
+  imageUrl: "",
+  imageAlt: "",
+  imageDataAiHint: "professional portrait",
+  githubUrl: "",
+  linkedinUrl: "",
+  emailAddress: "",
+};
+
 const DEFAULT_TEAM_MEMBERS_CONTENT: TeamMembersContent = {
   title: "Meet Our Team",
   founder: {
     name: "Alex Johnson",
     title: "Founder & CEO",
     bio: "Visionary leader with a passion for innovative design and community building. Alex drives the strategic direction of Reactiverse, ensuring it remains a leading platform for UI/UX enthusiasts worldwide.",
-    imageUrl: "https://placehold.co/300x300.png",
+    ...DEFAULT_TEAM_MEMBER_DATA,
+    imageUrl: "/team_images/founder_image.png", // Default if no upload yet
     imageAlt: "Founder Alex Johnson",
-    imageDataAiHint: "professional portrait"
   },
   coFounder: {
     name: "Maria Garcia",
     title: "Co-Founder & CTO",
     bio: "Expert technologist driving the platform's architecture and development. Maria focuses on creating a seamless and powerful experience for all Reactiverse users.",
-    imageUrl: "https://placehold.co/300x300.png",
+    ...DEFAULT_TEAM_MEMBER_DATA,
+    imageUrl: "/team_images/cofounder_image.png", // Default if no upload yet
     imageAlt: "Co-Founder Maria Garcia",
-    imageDataAiHint: "professional tech"
   }
 };
 
@@ -352,15 +364,19 @@ export async function getPageContent(): Promise<PageContentData> {
       support: { ...DEFAULT_PAGE_CONTENT.support, ...parsedContent.support },
       guidelines: { ...DEFAULT_PAGE_CONTENT.guidelines, ...parsedContent.guidelines },
       topDesigners: { ...DEFAULT_PAGE_CONTENT.topDesigners, ...parsedContent.topDesigners },
-      teamMembers: { ...DEFAULT_PAGE_CONTENT.teamMembers, ...parsedContent.teamMembers }
+      teamMembers: { 
+        ...DEFAULT_PAGE_CONTENT.teamMembers, 
+        ...(parsedContent.teamMembers || {}),
+        founder: {
+          ...DEFAULT_PAGE_CONTENT.teamMembers.founder,
+          ...(parsedContent.teamMembers?.founder || {}),
+        },
+        coFounder: {
+          ...DEFAULT_PAGE_CONTENT.teamMembers.coFounder,
+          ...(parsedContent.teamMembers?.coFounder || {}),
+        }
+      }
     };
-     // Ensure founder and coFounder objects exist within teamMembers
-    if (!mergedContent.teamMembers.founder) {
-      mergedContent.teamMembers.founder = DEFAULT_PAGE_CONTENT.teamMembers.founder;
-    }
-    if (!mergedContent.teamMembers.coFounder) {
-      mergedContent.teamMembers.coFounder = DEFAULT_PAGE_CONTENT.teamMembers.coFounder;
-    }
     return mergedContent;
   } catch (error) {
     console.warn('Failed to read page_content.json, returning default content:', error);
@@ -381,18 +397,35 @@ export async function savePageContent(pageKey: PageContentKeys, content: any): P
 
 export async function saveSiteLogo(fileBuffer: Buffer, fileName: string): Promise<string> {
   try {
-    const publicDir = path.join(process.cwd(), 'public');
     try {
-      await fs.access(publicDir);
+      await fs.access(PUBLIC_DIR);
     } catch {
-      await fs.mkdir(publicDir, { recursive: true });
+      await fs.mkdir(PUBLIC_DIR, { recursive: true });
     }
 
-    const filePath = path.join(publicDir, fileName);
+    const filePath = path.join(PUBLIC_DIR, fileName);
     await fs.writeFile(filePath, fileBuffer);
     return `/${fileName}`;
   } catch (error) {
     console.error('Failed to save site logo:', error);
+    throw error;
+  }
+}
+
+export async function saveTeamMemberImage(fileBuffer: Buffer, memberType: 'founder' | 'coFounder', fileExtension: string): Promise<string> {
+  try {
+    try {
+      await fs.access(TEAM_IMAGES_DIR);
+    } catch {
+      await fs.mkdir(TEAM_IMAGES_DIR, { recursive: true });
+    }
+    
+    const fileName = `${memberType}_image${fileExtension}`; // e.g., founder_image.png
+    const filePath = path.join(TEAM_IMAGES_DIR, fileName);
+    await fs.writeFile(filePath, fileBuffer);
+    return `/team_images/${fileName}`; // Return relative path for web access
+  } catch (error) {
+    console.error(`Failed to save team member image for ${memberType}:`, error);
     throw error;
   }
 }

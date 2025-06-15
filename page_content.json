@@ -61,17 +61,23 @@
       "name": "Alex Johnson",
       "title": "Founder & CEO",
       "bio": "Visionary leader with a passion for innovative design and community building. Alex drives the strategic direction of Reactiverse, ensuring it remains a leading platform for UI/UX enthusiasts worldwide.",
-      "imageUrl": "https://placehold.co/300x300.png",
+      "imageUrl": "/team_images/founder_image.png",
       "imageAlt": "Founder Alex Johnson",
-      "imageDataAiHint": "professional portrait"
+      "imageDataAiHint": "professional portrait",
+      "githubUrl": "",
+      "linkedinUrl": "",
+      "emailAddress": ""
     },
     "coFounder": {
       "name": "Maria Garcia",
       "title": "Co-Founder & CTO",
       "bio": "Expert technologist driving the platform's architecture and development. Maria focuses on creating a seamless and powerful experience for all Reactiverse users.",
-      "imageUrl": "https://placehold.co/300x300.png",
+      "imageUrl": "/team_images/cofounder_image.png",
       "imageAlt": "Co-Founder Maria Garcia",
-      "imageDataAiHint": "professional tech"
+      "imageDataAiHint": "professional tech",
+      "githubUrl": "",
+      "linkedinUrl": "",
+      "emailAddress": ""
     }
   }
 }

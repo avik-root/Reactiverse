@@ -132,9 +132,12 @@ export interface TeamMember {
   name: string;
   title: string;
   bio: string;
-  imageUrl?: string;
+  imageUrl?: string; // Will store relative path like /team_images/founder.png
   imageAlt?: string;
   imageDataAiHint?: string;
+  githubUrl?: string;
+  linkedinUrl?: string;
+  emailAddress?: string;
 }
 
 export interface TeamMembersContent {
@@ -209,8 +212,8 @@ export type UpdatePageContentFormState<T> = {
   message?: string | null;
   success?: boolean;
   errors?: Partial<Record<keyof T, string[]>> & { general?: string[] } & {
-    founder?: Partial<Record<keyof TeamMember, string[]>>;
-    coFounder?: Partial<Record<keyof TeamMember, string[]>>;
+    founder?: Partial<Record<keyof TeamMember, string[] | { imageFile?: string[] }>>;
+    coFounder?: Partial<Record<keyof TeamMember, string[] | { imageFile?: string[] }>>;
   };
   content?: T | null;
 };

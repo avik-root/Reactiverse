@@ -5,10 +5,11 @@ import { useEffect, useState, useMemo } from 'react';
 import type { User, Design } from '@/lib/types';
 import { getAllUsersAdminAction, getAllDesignsAction, getPageContentAction } from '@/lib/actions';
 import DesignerCard from '@/components/designer/DesignerCard';
+import DesignerDetailDialog from '@/components/designer/DesignerDetailDialog'; // New Import
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Award, Users, Info, Search } from 'lucide-react';
+import { Award, Info, Search } from 'lucide-react';
 import type { TopDesignersPageContent } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 
@@ -22,6 +23,9 @@ export default function DesignersPage() {
   const [allDesigns, setAllDesigns] = useState<Design[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+
+  const [selectedDesignerForDetail, setSelectedDesignerForDetail] = useState<DesignerWithContributionCount | null>(null);
+  const [isDesignerDetailOpen, setIsDesignerDetailOpen] = useState(false);
 
   useEffect(() => {
     async function fetchAllData() {
@@ -37,18 +41,18 @@ export default function DesignersPage() {
         setAllDesigns(designsData);
       } catch (error) {
         console.error("Error fetching data for Designers page:", error);
-        setContent(null); // Or set a default error content state
+        setContent(null);
       }
       setIsLoading(false);
     }
     fetchAllData();
   }, []);
 
-  const filteredAndSortedDesigners = useMemo(() => {
+  const designersWithContributionCount = useMemo(() => {
     if (!users.length || !allDesigns) return [];
 
-    let designersWithContributionCount: DesignerWithContributionCount[] = users
-      .filter(user => !user.id.startsWith('admin-')) // Filter out admin users
+    const designersWithCounts: DesignerWithContributionCount[] = users
+      .filter(user => !user.id.startsWith('admin-'))
       .map(designer => {
         const designsByThisUser = allDesigns.filter(design => design.submittedByUserId === designer.id);
         return {
@@ -57,24 +61,31 @@ export default function DesignersPage() {
         };
       });
 
-    // Sort by designs uploaded (descending), then by name (ascending)
-    designersWithContributionCount.sort((a, b) => {
+    designersWithCounts.sort((a, b) => {
       if (b.totalDesignsUploaded !== a.totalDesignsUploaded) {
         return b.totalDesignsUploaded - a.totalDesignsUploaded;
       }
       return a.name.localeCompare(b.name);
     });
+    return designersWithCounts;
+  }, [users, allDesigns]);
 
-    if (searchTerm) {
-      const lowerSearchTerm = searchTerm.toLowerCase();
-      designersWithContributionCount = designersWithContributionCount.filter(
-        designer =>
-          designer.name.toLowerCase().includes(lowerSearchTerm) ||
-          designer.username.toLowerCase().includes(lowerSearchTerm)
-      );
-    }
-    return designersWithContributionCount;
-  }, [users, allDesigns, searchTerm]);
+  const filteredAndSortedDesigners = useMemo(() => {
+    if (!designersWithContributionCount.length) return [];
+    if (!searchTerm) return designersWithContributionCount;
+
+    const lowerSearchTerm = searchTerm.toLowerCase();
+    return designersWithContributionCount.filter(
+      designer =>
+        designer.name.toLowerCase().includes(lowerSearchTerm) ||
+        designer.username.toLowerCase().includes(lowerSearchTerm)
+    );
+  }, [designersWithContributionCount, searchTerm]);
+
+  const handleOpenDesignerDetail = (designer: DesignerWithContributionCount) => {
+    setSelectedDesignerForDetail(designer);
+    setIsDesignerDetailOpen(true);
+  };
 
   if (isLoading || !content) {
     return (
@@ -94,7 +105,6 @@ export default function DesignersPage() {
                   <Skeleton className="h-24 w-24 rounded-full mx-auto" />
                   <Skeleton className="h-6 w-3/4 mx-auto" />
                   <Skeleton className="h-4 w-1/2 mx-auto" />
-                  <Skeleton className="h-4 w-1/3 mx-auto" />
                    <div className="flex justify-center gap-2 pt-2">
                     <Skeleton className="h-8 w-8 rounded-full" />
                     <Skeleton className="h-8 w-8 rounded-full" />
@@ -135,7 +145,7 @@ export default function DesignersPage() {
                 <DesignerCard
                   key={designer.id}
                   user={designer}
-                  totalDesignsUploaded={designer.totalDesignsUploaded}
+                  onOpenDetail={() => handleOpenDesignerDetail(designer)}
                 />
               ))}
             </div>
@@ -150,6 +160,15 @@ export default function DesignersPage() {
           )}
         </CardContent>
       </Card>
+
+      {selectedDesignerForDetail && (
+        <DesignerDetailDialog
+          user={selectedDesignerForDetail}
+          totalDesignsUploaded={selectedDesignerForDetail.totalDesignsUploaded}
+          isOpen={isDesignerDetailOpen}
+          onOpenChange={setIsDesignerDetailOpen}
+        />
+      )}
     </div>
   );
 }

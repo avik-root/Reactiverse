@@ -1,9 +1,8 @@
 
 'use client';
 
-import type { AuthUser, User as StoredUserType, AdminUser as StoredAdminUserType } from '@/lib/types';
-import type React from 'react';
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import type { AuthUser } from '@/lib/types';
+import * as React from 'react'; // Changed to import React namespace
 import { logoutAdminAction } from '@/lib/actions';
 
 interface AuthContextType {
@@ -15,14 +14,14 @@ interface AuthContextType {
   isLoading: boolean;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [isAdmin, setIsAdmin] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [user, setUser] = React.useState<AuthUser | null>(null);
+  const [isAdmin, setIsAdmin] = React.useState<boolean>(false);
+  const [isLoading, setIsLoading] = React.useState<boolean>(true);
 
-  useEffect(() => {
+  React.useEffect(() => {
     setIsLoading(true);
     try {
       const storedUserJSON = localStorage.getItem('reactiverseUser');
@@ -40,7 +39,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(false);
   }, []);
 
-  const login = useCallback((userData: AuthUser, adminStatus: boolean = false) => {
+  const login = React.useCallback((userData: AuthUser, adminStatus: boolean = false) => {
     setIsLoading(true);
     setUser(userData);
     setIsAdmin(adminStatus);
@@ -51,11 +50,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error("Failed to save user to localStorage", error);
     }
     setIsLoading(false);
-  }, []);
+  }, []); // Setters from React.useState are stable, so an empty array is fine
 
-  const logout = useCallback(async () => {
+  const logout = React.useCallback(async () => {
     setIsLoading(true);
-    const currentIsAdminStatus = isAdmin; // Capture status before clearing
+    const currentIsAdminStatus = isAdmin; 
 
     setUser(null);
     setIsAdmin(false);
@@ -69,34 +68,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error) {
       console.error("Error during logout process:", error);
-      // Even if server action fails, client state is cleared.
     }
     setIsLoading(false);
   }, [isAdmin]); // isAdmin is a dependency here
 
-  const updateAuthUser = useCallback((updatedUserDataOrFn: Partial<AuthUser> | ((currentUser: AuthUser | null) => AuthUser | null) ) => {
+  const updateAuthUser = React.useCallback((updatedUserDataOrFn: Partial<AuthUser> | ((currentUser: AuthUser | null) => AuthUser | null) ) => {
     setUser(prevUser => {
       let newUser: AuthUser | null;
       if (typeof updatedUserDataOrFn === 'function') {
         newUser = updatedUserDataOrFn(prevUser);
       } else {
-        if (!prevUser) return null; // Or handle as needed if prevUser is null
+        if (!prevUser) return null; 
         newUser = { ...prevUser, ...updatedUserDataOrFn } as AuthUser;
       }
 
       if (newUser) {
         try {
           localStorage.setItem('reactiverseUser', JSON.stringify(newUser));
-          // Note: We don't update 'reactiverseIsAdmin' here, as this function is for user data, not admin status.
         } catch (error) {
           console.error("Failed to update user in localStorage", error);
         }
       } else {
-         localStorage.removeItem('reactiverseUser'); // If newUser becomes null
+         localStorage.removeItem('reactiverseUser'); 
       }
       return newUser;
     });
-  }, []);
+  }, []); // setUser is stable
 
 
   return (
@@ -107,7 +104,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 };
 
 export const useAuth = (): AuthContextType => {
-  const context = useContext(AuthContext);
+  const context = React.useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }

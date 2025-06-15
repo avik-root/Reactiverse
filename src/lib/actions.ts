@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { z } from 'zod';
@@ -27,9 +28,11 @@ import {
   savePageContentImage,
   getForumCategoriesFromFile,
   addForumCategoryToFile,
+  saveForumCategoriesToFile,
   getNewsletterSubscribersFromFile,
   addSubscriberToFile,
   getForumTopicsFromFile,
+  addForumTopicToFile,
   getForumPostsFromFile,
 } from './server-data';
 import type {
@@ -68,6 +71,7 @@ import type {
   NewsletterSubscriber,
   SubscribeToNewsletterFormState,
   ForumTopic,
+  CreateTopicFormState,
   ForumPost,
 } from './types';
 import { revalidatePath } from 'next/cache';
@@ -155,7 +159,7 @@ const ValidImageFileSchema = z.instanceof(File, { message: "Image file is requir
   .refine(file => file.size > 0, "Image file cannot be empty.")
   .refine(file => file.size <= MAX_IMAGE_SIZE_BYTES, `Image must be ${MAX_IMAGE_SIZE_MB}MB or less.`)
   .refine(file => ALLOWED_IMAGE_TYPES.includes(file.type), 'Invalid file type. Must be JPG, JPEG, or PNG.')
-  .optional(); 
+  .optional();
 
 const AvatarFileSchema = ValidImageFileSchema;
 
@@ -394,6 +398,12 @@ const AddForumCategorySchema = z.object({
   iconName: z.enum(['MessagesSquare', 'Palette', 'Code2', 'Lightbulb', 'Megaphone', 'HelpCircle', 'Users', 'Info', 'Filter', 'LayoutList'], {
     errorMap: () => ({ message: "Please select a valid icon." })
   }),
+});
+
+const CreateTopicFormSchema = z.object({
+  title: z.string().min(5, { message: "Title must be at least 5 characters long." }).max(150, { message: "Title cannot exceed 150 characters." }),
+  content: z.string().min(10, { message: "Content must be at least 10 characters long." }).max(5000, { message: "Content cannot exceed 5000 characters." }),
+  // categoryId, userId, userName, userAvatarUrl will be passed as arguments, not part of formData directly from user
 });
 
 
@@ -1067,7 +1077,7 @@ export async function disableTwoFactorAction(prevState: AdminTwoFactorAuthFormSt
 export async function getAllDesignsAction(): Promise<Design[]> {
   try {
     const designs = await getDesignsFromFile();
-    const users = await getUsersFromFile(); 
+    const users = await getUsersFromFile();
     const usersMap = new Map(users.map(u => [u.id, u]));
 
     const defaultDesigner: User = {
@@ -1089,7 +1099,7 @@ export async function getAllDesignsAction(): Promise<Design[]> {
     };
 
     return designs.map(design => {
-      const storedDesigner = usersMap.get(design.submittedByUserId || ''); 
+      const storedDesigner = usersMap.get(design.submittedByUserId || '');
       let finalDesigner: User;
 
       if (storedDesigner) {
@@ -1109,7 +1119,7 @@ export async function getAllDesignsAction(): Promise<Design[]> {
 
       return {
         ...design,
-        designer: finalDesigner, 
+        designer: finalDesigner,
         codeBlocks: design.codeBlocks || [],
         copyCount: design.copyCount || 0,
         likedBy: design.likedBy || [],
@@ -1127,7 +1137,7 @@ export async function getDesignByIdAction(id: string): Promise<Design | undefine
     const design = designs.find(d => d.id === id);
 
     if (design) {
-      const users = await getUsersFromFile(); 
+      const users = await getUsersFromFile();
       const storedDesigner = users.find(u => u.id === design.submittedByUserId);
       let finalDesigner: User;
 
@@ -1153,7 +1163,7 @@ export async function getDesignByIdAction(id: string): Promise<Design | undefine
       }
       return {
         ...design,
-        designer: finalDesigner, 
+        designer: finalDesigner,
         codeBlocks: design.codeBlocks || [],
         copyCount: design.copyCount || 0,
         likedBy: design.likedBy || [],
@@ -1562,13 +1572,13 @@ export async function updatePageContentAction<T extends PageContentKeys>(
         title: (dataToValidate[`offerItems[${i}].title`] as string) || '',
         description: (dataToValidate[`offerItems[${i}].description`] as string) || ''
       });
-      delete dataToValidate[`offerItems[${i}].title`]; 
-      delete dataToValidate[`offerItems[${i}].description`]; 
+      delete dataToValidate[`offerItems[${i}].title`];
+      delete dataToValidate[`offerItems[${i}].description`];
       i++;
     }
     if (offerItems.length > 0) {
       dataToValidate.offerItems = offerItems;
-    } else if (!dataToValidate.offerItems) { 
+    } else if (!dataToValidate.offerItems) {
       dataToValidate.offerItems = [];
     }
   }
@@ -1602,14 +1612,14 @@ export async function updatePageContentAction<T extends PageContentKeys>(
     if (file && file.size > 0) {
       (dataToValidate as any)[imgField.formKey] = file;
     } else {
-      delete (dataToValidate as any)[imgField.formKey]; 
+      delete (dataToValidate as any)[imgField.formKey];
     }
   }
 
   if (pageKey === 'teamMembers') {
     dataToValidate.founder = {
       name: rawData['founder.name'], title: rawData['founder.title'], bio: rawData['founder.bio'],
-      imageUrl: rawData['founder.existingImageUrl'], 
+      imageUrl: rawData['founder.existingImageUrl'],
       imageAlt: rawData['founder.imageAlt'], imageDataAiHint: rawData['founder.imageDataAiHint'],
       githubUrl: rawData['founder.githubUrl'], linkedinUrl: rawData['founder.linkedinUrl'], emailAddress: rawData['founder.emailAddress'],
     };
@@ -1660,10 +1670,10 @@ export async function updatePageContentAction<T extends PageContentKeys>(
         if (pageKey === 'teamMembers' && imgField.memberType) {
             if (!(contentToSave as any)[imgField.memberType]) (contentToSave as any)[imgField.memberType] = {};
             (contentToSave as any)[imgField.memberType].imageUrl = finalImageUrl;
-            delete (contentToSave as any)[imgField.formKey]; 
+            delete (contentToSave as any)[imgField.formKey];
         } else {
             (contentToSave as any)[imgField.contentKey] = finalImageUrl;
-            delete (contentToSave as any)[imgField.formKey]; 
+            delete (contentToSave as any)[imgField.formKey];
         }
     }
      if (pageKey === 'teamMembers') {
@@ -1966,7 +1976,7 @@ export async function getTopicsByCategoryIdAction(categoryId: string): Promise<F
   try {
     const topics = await getForumTopicsFromFile();
     return topics.filter(topic => topic.categoryId === categoryId)
-                 .sort((a, b) => new Date(b.lastRepliedAt).getTime() - new Date(a.lastRepliedAt).getTime()); 
+                 .sort((a, b) => new Date(b.lastRepliedAt).getTime() - new Date(a.lastRepliedAt).getTime());
   } catch (error) {
     console.error(`Error fetching topics for category ID "${categoryId}":`, error);
     return [];
@@ -2038,7 +2048,7 @@ export async function subscribeToNewsletterAction(
 
   try {
     await addSubscriberToFile(newSubscriber);
-    revalidatePath('/community'); 
+    revalidatePath('/community');
     revalidatePath('/admin/subscribers');
     return { message: 'Successfully subscribed to the newsletter!', success: true };
   } catch (error) {
@@ -2061,3 +2071,69 @@ export async function getNewsletterSubscribersAction(): Promise<NewsletterSubscr
   }
 }
 
+export async function createForumTopicAction(
+    prevState: CreateTopicFormState,
+    formData: FormData,
+    categoryId: string,
+    categorySlug: string, // Used for revalidation and redirection
+    userId: string,
+    userName: string,
+    userAvatarUrl?: string
+): Promise<CreateTopicFormState> {
+    const validatedFields = CreateTopicFormSchema.safeParse(Object.fromEntries(formData.entries()));
+
+    if (!validatedFields.success) {
+        return {
+            errors: validatedFields.error.flatten().fieldErrors,
+            message: 'Invalid fields. Please check your input.',
+            success: false,
+        };
+    }
+
+    const { title, content } = validatedFields.data;
+
+    const categories = await getForumCategoriesFromFile();
+    const category = categories.find(cat => cat.id === categoryId);
+
+    if (!category) {
+        return { message: 'Category not found.', success: false, errors: { general: ['Category not found.'] } };
+    }
+
+    // Authorization: Ensure only admins post to "announcements"
+    if (category.slug === 'announcements') {
+        const adminUsers = await getAdminUsers();
+        if (!adminUsers.some(admin => admin.id === userId)) { // Assuming admin ID is passed as userId for simplicity here
+             return { message: 'You are not authorized to post in this category.', success: false, errors: { general: ['Authorization failed.'] } };
+        }
+    }
+
+    const newTopic: ForumTopic = {
+        id: `topic-${Date.now()}`,
+        categoryId,
+        title,
+        content,
+        createdByUserId: userId,
+        authorName: userName,
+        authorAvatarUrl: userAvatarUrl || `https://placehold.co/40x40.png?text=${userName.charAt(0).toUpperCase()}`,
+        createdAt: new Date().toISOString(),
+        lastRepliedAt: new Date().toISOString(),
+        viewCount: 0,
+        replyCount: 0,
+        postIds: [],
+    };
+
+    try {
+        await addForumTopicToFile(newTopic);
+
+        category.topicCount = (category.topicCount || 0) + 1;
+        await saveForumCategoriesToFile(categories);
+
+        revalidatePath(`/community/category/${categorySlug}`);
+        revalidatePath('/community'); // If main page shows category stats
+
+        return { message: 'Topic created successfully!', success: true, newTopicId: newTopic.id };
+    } catch (error) {
+        console.error("Error creating forum topic:", error);
+        return { message: 'Failed to create topic. Please try again.', success: false, errors: { general: ['Server error.'] } };
+    }
+}

@@ -333,15 +333,15 @@ export interface ForumTopic {
   id: string;
   categoryId: string;
   title: string;
-  content: string; 
+  content: string;
   createdByUserId: string;
-  authorName: string; 
-  authorAvatarUrl?: string; 
-  createdAt: string; 
-  lastRepliedAt: string; 
+  authorName: string;
+  authorAvatarUrl?: string;
+  createdAt: string;
+  lastRepliedAt: string;
   viewCount: number;
-  replyCount: number; 
-  postIds: string[]; 
+  replyCount: number;
+  postIds: string[];
 }
 
 export interface ForumPost {
@@ -349,9 +349,9 @@ export interface ForumPost {
   topicId: string;
   content: string;
   createdByUserId: string;
-  authorName: string; 
-  authorAvatarUrl?: string; 
-  createdAt: string; 
+  authorName: string;
+  authorAvatarUrl?: string;
+  createdAt: string;
 }
 
 
@@ -369,3 +369,15 @@ export type SubscribeToNewsletterFormState = {
   };
 };
 
+export type CreateTopicFormState = {
+  message?: string | null;
+  success?: boolean;
+  errors?: {
+    title?: string[];
+    content?: string[];
+    general?: string[];
+  };
+  newTopicId?: string | null;
+};
+
+```

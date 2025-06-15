@@ -549,7 +549,8 @@ export async function getForumCategoriesFromFile(): Promise<ForumCategory[]> {
     if (!(await fileExists(FORUM_CATEGORIES_FILE_PATH))) {
       const defaultCategories: ForumCategory[] = [
         { id: "cat-001", name: "General Discussion", description: "Talk about anything UI/UX.", iconName: "MessagesSquare", slug:"general-discussion", topicCount: 0, postCount: 0 },
-        { id: "cat-002", name: "Showcase & Feedback", description: "Share your work.", iconName: "Palette", slug:"showcase-feedback", topicCount: 0, postCount: 0 },
+        { id: "cat-005", name: "Announcements", description: "Stay updated with the latest news and announcements from the Reactiverse team.", iconName: "Megaphone", slug: "announcements", topicCount: 0, postCount: 0 },
+        { id: "cat-006", name: "Support & Q/A", description: "Got questions about using Reactiverse? Find answers and support.", iconName: "HelpCircle", slug: "support-qa", topicCount: 0, postCount: 0 }
       ];
       await fs.writeFile(FORUM_CATEGORIES_FILE_PATH, JSON.stringify(defaultCategories, null, 2));
       return defaultCategories;
@@ -606,6 +607,18 @@ export async function saveForumTopicsToFile(topics: ForumTopic[]): Promise<void>
   }
 }
 
+export async function addForumTopicToFile(newTopic: ForumTopic): Promise<void> {
+  try {
+    const topics = await getForumTopicsFromFile();
+    topics.push(newTopic);
+    await saveForumTopicsToFile(topics);
+  } catch (error) {
+    console.error('Failed to add topic to forum_topics.json:', error);
+    throw error;
+  }
+}
+
+
 export async function getForumPostsFromFile(): Promise<ForumPost[]> {
   try {
     if (!(await fileExists(FORUM_POSTS_FILE_PATH))) {
@@ -654,4 +667,3 @@ export async function addSubscriberToFile(newSubscriber: NewsletterSubscriber): 
     throw error;
   }
 }
-

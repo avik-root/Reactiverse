@@ -1,6 +1,6 @@
 
 // This file should only be imported by server-side code (e.g., server actions, API routes)
-import type { StoredAdminUser, StoredUser, Design, SiteSettings, PageContentData, PageContentKeys, TeamMembersContent, TeamMember } from './types';
+import type { StoredAdminUser, StoredUser, Design, SiteSettings, PageContentData, PageContentKeys, TeamMembersContent, TeamMember, ForumCategory } from './types';
 import fs from 'fs/promises';
 import path from 'path';
 import { constants } from 'fs';
@@ -14,6 +14,7 @@ const PAGE_CONTENT_FILE_PATH = path.join(process.cwd(), 'page_content.json');
 const PUBLIC_DIR = path.join(process.cwd(), 'public');
 const AVATARS_DIR = path.join(PUBLIC_DIR, 'avatars');
 const CONTENT_IMAGES_DIR = path.join(PUBLIC_DIR, 'content_images');
+const FORUM_CATEGORIES_FILE_PATH = path.join(process.cwd(), 'forum_categories.json');
 
 
 const DEFAULT_SITE_SETTINGS: SiteSettings = {
@@ -89,7 +90,7 @@ const DEFAULT_PAGE_CONTENT: PageContentData = {
     forumLinkText: "Visit Forum (Coming Soon)",
     forumLinkUrl: "#",
     faqTitle: "Frequently Asked Questions",
-    faqPlaceholder: "Our FAQ section is under construction. Please check back later for common questions and answers!"
+    faqs: []
   },
   guidelines: {
     title: "Design Guidelines",
@@ -399,7 +400,7 @@ export async function getPageContent(): Promise<PageContentData> {
     // Merge ensuring all default keys exist
     const mergedContent: PageContentData = {
       aboutUs: { ...DEFAULT_PAGE_CONTENT.aboutUs, ...parsedContent.aboutUs },
-      support: { ...DEFAULT_PAGE_CONTENT.support, ...parsedContent.support },
+      support: { ...DEFAULT_PAGE_CONTENT.support, ...parsedContent.support, faqs: parsedContent.support?.faqs || [] },
       guidelines: { ...DEFAULT_PAGE_CONTENT.guidelines, ...parsedContent.guidelines },
       topDesigners: { ...DEFAULT_PAGE_CONTENT.topDesigners, ...parsedContent.topDesigners },
       teamMembers: {
@@ -486,3 +487,20 @@ export async function saveAdminAvatar(fileBuffer: Buffer, adminId: string, fileE
   }
 }
 
+export async function getForumCategoriesFromFile(): Promise<ForumCategory[]> {
+  try {
+    if (!(await fileExists(FORUM_CATEGORIES_FILE_PATH))) {
+      const defaultCategories: ForumCategory[] = [
+        { id: "cat-001", name: "General Discussion", description: "Talk about anything UI/UX.", iconName: "MessagesSquare", slug:"general", topicCount: 0, postCount: 0 },
+        { id: "cat-002", name: "Showcase & Feedback", description: "Share your work.", iconName: "Palette", slug:"showcase", topicCount: 0, postCount: 0 },
+      ];
+      await fs.writeFile(FORUM_CATEGORIES_FILE_PATH, JSON.stringify(defaultCategories, null, 2));
+      return defaultCategories;
+    }
+    const jsonData = await fs.readFile(FORUM_CATEGORIES_FILE_PATH, 'utf-8');
+    return JSON.parse(jsonData) as ForumCategory[];
+  } catch (error) {
+    console.error('Failed to read forum_categories.json:', error);
+    return [];
+  }
+}

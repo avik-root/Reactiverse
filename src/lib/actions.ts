@@ -25,6 +25,7 @@ import {
   saveUserAvatar,
   saveAdminAvatar,
   savePageContentImage,
+  getForumCategoriesFromFile,
 } from './server-data';
 import type {
   AdminUser,
@@ -57,6 +58,7 @@ import type {
   IncrementCopyCountResult,
   ToggleLikeDesignResult,
   FAQItem,
+  ForumCategory,
 } from './types';
 import { revalidatePath } from 'next/cache';
 import { hashPassword, comparePassword, hashPin, comparePin } from './auth-utils';
@@ -1848,3 +1850,12 @@ export async function toggleLikeDesignAction(designId: string, userId: string): 
   }
 }
 
+export async function getForumCategoriesAction(): Promise<ForumCategory[]> {
+  try {
+    const categories = await getForumCategoriesFromFile();
+    return categories;
+  } catch (error) {
+    console.error("Error fetching forum categories via action:", error);
+    return [];
+  }
+}

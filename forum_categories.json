@@ -1,0 +1,57 @@
+
+[
+  {
+    "id": "cat-001",
+    "name": "General Discussion",
+    "description": "Talk about anything related to UI/UX design, development, and Reactiverse.",
+    "iconName": "MessagesSquare",
+    "slug": "general-discussion",
+    "topicCount": 0,
+    "postCount": 0
+  },
+  {
+    "id": "cat-002",
+    "name": "Showcase & Feedback",
+    "description": "Share your latest designs and get constructive feedback from the community.",
+    "iconName": "Palette",
+    "slug": "showcase-feedback",
+    "topicCount": 0,
+    "postCount": 0
+  },
+  {
+    "id": "cat-003",
+    "name": "Coding & Technical Help",
+    "description": "Stuck on a problem? Ask for help with HTML, CSS, JavaScript, React, or other tech.",
+    "iconName": "Code2",
+    "slug": "coding-technical-help",
+    "topicCount": 0,
+    "postCount": 0
+  },
+  {
+    "id": "cat-004",
+    "name": "Ideas & Feature Requests",
+    "description": "Have an idea for Reactiverse or a component? Share it here!",
+    "iconName": "Lightbulb",
+    "slug": "ideas-feature-requests",
+    "topicCount": 0,
+    "postCount": 0
+  },
+  {
+    "id": "cat-005",
+    "name": "Announcements",
+    "description": "Stay updated with the latest news and announcements from the Reactiverse team.",
+    "iconName": "Megaphone",
+    "slug": "announcements",
+    "topicCount": 0,
+    "postCount": 0
+  },
+   {
+    "id": "cat-006",
+    "name": "Support & Q/A",
+    "description": "Got questions about using Reactiverse? Find answers and support.",
+    "iconName": "HelpCircle",
+    "slug": "support-qa",
+    "topicCount": 0,
+    "postCount": 0
+  }
+]

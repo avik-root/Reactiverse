@@ -174,6 +174,7 @@ export interface AboutUsContent {
   image1Url?: string;
   image1Alt?: string;
   image1DataAiHint?: string;
+  image1File?: File;
   offerTitle: string;
   offerItems: AboutUsOfferItem[];
   joinTitle: string;
@@ -181,6 +182,7 @@ export interface AboutUsContent {
   image2Url?: string;
   image2Alt?: string;
   image2DataAiHint?: string;
+  image2File?: File;
 }
 
 export interface FAQItem {
@@ -238,6 +240,8 @@ export type UpdatePageContentFormState<T> = {
     founder?: Partial<Record<keyof TeamMember, string[] | { imageFile?: string[] }>>;
     coFounder?: Partial<Record<keyof TeamMember, string[] | { imageFile?: string[] }>>;
     faqsJSON?: string[];
+    founderImageFile?: string[];
+    coFounderImageFile?: string[];
   };
   content?: T | null;
 };
@@ -302,3 +306,12 @@ export type ToggleLikeDesignResult = {
   isLikedByCurrentUser?: boolean;
 };
 
+export interface ForumCategory {
+  id: string;
+  name: string;
+  description: string;
+  iconName: 'MessagesSquare' | 'Palette' | 'Code2' | 'Lightbulb' | 'Megaphone' | 'HelpCircle' | 'Users'; // Add more as needed
+  topicCount?: number; // Optional for now
+  postCount?: number; // Optional for now
+  slug: string;
+}

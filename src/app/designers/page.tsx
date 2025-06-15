@@ -1,16 +1,23 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Award } from 'lucide-react';
-import { getPageContentAction } from '@/lib/actions';
-import type { TopDesignersPageContent } from '@/lib/types';
+import { Users, Award, Info } from 'lucide-react';
+import { getPageContentAction, getAllUsersAdminAction } from '@/lib/actions';
+import type { TopDesignersPageContent, User } from '@/lib/types';
+import DesignerCard from '@/components/designer/DesignerCard';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default async function TopDesignersPage() {
-  const content = await getPageContentAction('topDesigners') as TopDesignersPageContent;
+  const contentPromise = getPageContentAction('topDesigners') as Promise<TopDesignersPageContent>;
+  const usersPromise = getAllUsersAdminAction();
+
+  const [content, users] = await Promise.all([contentPromise, usersPromise]);
 
   if (!content) {
-    return <div className="container mx-auto py-12">Error loading content. Please try again later.</div>;
+    return <div className="container mx-auto py-12">Error loading page content. Please try again later.</div>;
   }
   
+  const designers = users.filter(user => !user.id.startsWith('admin-')); // Filter out any potential admin users if they were in users.json
+
   return (
     <div className="container mx-auto py-12">
       <Card className="shadow-lg">
@@ -22,13 +29,21 @@ export default async function TopDesignersPage() {
           <CardDescription>{content.description}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="flex flex-col items-center justify-center text-center py-10 bg-muted/30 rounded-lg">
-            <Users className="h-16 w-16 text-primary/70 mb-4" />
-            <h3 className="text-xl font-semibold mb-2">{content.mainPlaceholderTitle}</h3>
-            <p className="text-muted-foreground max-w-md">
-              {content.mainPlaceholderContent}
-            </p>
-          </div>
+          {designers && designers.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {designers.map((designer) => (
+                <DesignerCard key={designer.id} user={designer} />
+              ))}
+            </div>
+          ) : (
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertTitle>{content.mainPlaceholderTitle || "No Designers Yet"}</AlertTitle>
+              <AlertDescription>
+                {content.mainPlaceholderContent || "We're waiting for talented designers to join our community. Check back soon!"}
+              </AlertDescription>
+            </Alert>
+          )}
         </CardContent>
       </Card>
     </div>

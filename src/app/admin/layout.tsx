@@ -5,7 +5,7 @@ import { useEffect, type ReactNode } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { LayoutDashboard, Users, Palette, Settings, LogOut, ShieldCheck, UserCog, FileText, Image as ImageIcon, Loader2, Users2, MailOpen } from 'lucide-react';
+import { LayoutDashboard, Users, Palette, Settings, LogOut, ShieldCheck, UserCog, FileText, Image as ImageIcon, Loader2, Users2, MailOpen, LayoutList } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Logo from '@/components/core/Logo';
 import { Button } from '@/components/ui/button';
@@ -34,6 +34,7 @@ const contentEditingNavItems = [
     { href: '/admin/edit-content/team', label: 'Edit Team Members', icon: Users2 },
     { href: '/admin/edit-content/logo', label: 'Change Site Logo', icon: ImageIcon },
     { href: '/admin/subscribers', label: 'View Subscribers', icon: MailOpen },
+    { href: '/admin/forum-categories', label: 'Manage Forum Categories', icon: LayoutList },
 ];
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
@@ -50,15 +51,15 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   }, [user, isAdmin, isLoading, router, pathname, isPublicAdminPage]);
 
   const handleLogout = async () => {
-    await logout(); 
+    await logout();
     window.location.href = '/';
   };
 
   if (isPublicAdminPage) {
     return <>{children}</>;
   }
-  
-  if (isLoading) { 
+
+  if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background">
         <ShieldCheck className="h-16 w-16 animate-spin text-primary mb-6" />
@@ -75,7 +76,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       </div>
     );
   }
-  
+
   const getInitials = (name?: string) => {
     if (!name) return 'A';
     const nameToProcess = user && isAdmin && 'name' in user && user.name ? user.name : 'Admin';
@@ -91,7 +92,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         <div className="px-2 py-2">
           <Logo />
         </div>
-        
+
         <nav className="flex-grow space-y-1">
           {mainNavItems.map((item) => (
             <Link
@@ -107,10 +108,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             </Link>
           ))}
 
-          <Accordion type="single" collapsible className="w-full">
+          <Accordion type="single" collapsible className="w-full" defaultValue="content-editing">
             <AccordionItem value="content-editing" className="border-none">
               <AccordionTrigger className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-muted-foreground transition-all hover:text-primary hover:bg-muted hover:no-underline [&[data-state=open]>svg]:text-primary">
-                 <Settings className="h-5 w-5" /> Site Content
+                 <Settings className="h-5 w-5" /> Site Content & Community
               </AccordionTrigger>
               <AccordionContent className="pl-4 pt-1 pb-0">
                 <nav className="flex-grow space-y-1">
@@ -137,8 +138,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             <div className="flex items-center gap-3 px-3 py-2">
                 <Avatar className="h-9 w-9">
                     <AvatarImage
-                        key={avatarUrl} 
-                        src={avatarUrl || `https://placehold.co/100x100.png?text=${getInitials(displayName)}`} 
+                        key={avatarUrl}
+                        src={avatarUrl || `https://placehold.co/100x100.png?text=${getInitials(displayName)}`}
                         alt={displayName} data-ai-hint="admin avatar"/>
                     <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
                 </Avatar>

@@ -40,7 +40,32 @@
     "forumLinkText": "Visit Forum (Coming Soon)",
     "forumLinkUrl": "#",
     "faqTitle": "Frequently Asked Questions",
-    "faqPlaceholder": "Our FAQ section is under construction. Please check back later for common questions and answers!"
+    "faqs": [
+      {
+        "question": "What is Reactiverse?",
+        "answer": "Reactiverse is a community-driven platform for UI/UX designers and front-end developers to showcase their components, discover new ideas, and access code snippets for their projects. Our goal is to foster creativity and collaboration in web design."
+      },
+      {
+        "question": "How do I submit a design?",
+        "answer": "To submit a design, you need to create an account. Once logged in, navigate to your dashboard and look for the 'Submit New Design' option. You'll be asked to provide a title, description, relevant code snippets (HTML, CSS, JS, etc.), and tags for your component."
+      },
+      {
+        "question": "Are there any guidelines for submissions?",
+        "answer": "Yes, we have submission guidelines to ensure the quality and usability of components shared on Reactiverse. Please visit our 'Design Guidelines' page for detailed information on code quality, accessibility, performance, and more."
+      },
+      {
+        "question": "Can I sell my designs on Reactiverse?",
+        "answer": "Currently, Reactiverse primarily focuses on free and open-source component sharing. We are exploring options for premium components in the future. Users with specific permissions may be able to set prices for their designs if this feature is enabled for their account by an administrator."
+      },
+      {
+        "question": "How is my personal information handled?",
+        "answer": "We take your privacy seriously. You can manage the visibility of your email and phone number in your profile settings. Please review our Privacy Policy for more details on how we collect and use your data."
+      },
+      {
+        "question": "Who can I contact for support?",
+        "answer": "If you have questions or need assistance, you can reach out to us via email at support@reactiverse.com or visit our community forum (coming soon) to connect with other users and our team."
+      }
+    ]
   },
   "guidelines": {
     "title": "Design & Submission Guidelines",

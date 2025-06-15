@@ -5,6 +5,7 @@ import { LifeBuoy, Mail, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
 import { getPageContentAction } from '@/lib/actions';
 import type { SupportPageContent } from '@/lib/types';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 export default async function SupportPage() {
   const content = await getPageContentAction('support') as SupportPageContent;
@@ -58,9 +59,22 @@ export default async function SupportPage() {
 
           <section>
             <h2 className="text-2xl font-semibold font-headline mb-4">{content.faqTitle}</h2>
-            <div className="space-y-4 text-center py-6 bg-muted/30 rounded-lg">
-                <p className="text-muted-foreground">{content.faqPlaceholder}</p>
-            </div>
+            {content.faqs && content.faqs.length > 0 ? (
+              <Accordion type="single" collapsible className="w-full">
+                {content.faqs.map((faq, index) => (
+                  <AccordionItem value={`item-${index}`} key={index}>
+                    <AccordionTrigger className="text-left hover:text-accent">{faq.question}</AccordionTrigger>
+                    <AccordionContent className="text-muted-foreground leading-relaxed">
+                      {faq.answer}
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            ) : (
+              <div className="space-y-4 text-center py-6 bg-muted/30 rounded-lg">
+                  <p className="text-muted-foreground">No frequently asked questions have been added yet. Please check back later!</p>
+              </div>
+            )}
           </section>
         </CardContent>
       </Card>

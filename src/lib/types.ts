@@ -183,6 +183,11 @@ export interface AboutUsContent {
   image2DataAiHint?: string;
 }
 
+export interface FAQItem {
+  question: string;
+  answer: string;
+}
+
 export interface SupportPageContent {
   title: string;
   description: string;
@@ -194,7 +199,7 @@ export interface SupportPageContent {
   forumLinkText: string;
   forumLinkUrl: string;
   faqTitle: string;
-  faqPlaceholder: string;
+  faqs: FAQItem[];
 }
 
 export interface GuidelinesPageContent {
@@ -232,6 +237,7 @@ export type UpdatePageContentFormState<T> = {
     image2File?: string[];
     founder?: Partial<Record<keyof TeamMember, string[] | { imageFile?: string[] }>>;
     coFounder?: Partial<Record<keyof TeamMember, string[] | { imageFile?: string[] }>>;
+    faqsJSON?: string[];
   };
   content?: T | null;
 };

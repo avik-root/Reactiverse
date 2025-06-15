@@ -56,6 +56,7 @@ import type {
   UpdateProfileFormState as UserUpdateProfileFormState,
   IncrementCopyCountResult,
   ToggleLikeDesignResult,
+  FAQItem,
 } from './types';
 import { revalidatePath } from 'next/cache';
 import { hashPassword, comparePassword, hashPin, comparePin } from './auth-utils';
@@ -286,6 +287,11 @@ const AboutUsContentSchema = z.object({
 });
 
 
+const FAQItemSchema = z.object({
+  question: z.string().min(1, "FAQ question cannot be empty."),
+  answer: z.string().min(1, "FAQ answer cannot be empty.")
+});
+
 const SupportPageContentSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().min(1, "Description is required"),
@@ -297,7 +303,14 @@ const SupportPageContentSchema = z.object({
   forumLinkText: z.string().min(1, "Forum link text is required"),
   forumLinkUrl: z.string().url("Invalid URL for forum link").or(z.literal('#')),
   faqTitle: z.string().min(1, "FAQ title is required"),
-  faqPlaceholder: z.string().min(1, "FAQ placeholder text is required"),
+  faqsJSON: z.string().refine(val => {
+    try {
+      const parsed = JSON.parse(val);
+      return z.array(FAQItemSchema).min(1, "At least one FAQ item is required.").safeParse(parsed).success;
+    } catch {
+      return false;
+    }
+  }, "Invalid JSON format for FAQs or FAQs array is empty. Ensure it's an array of objects with 'question' and 'answer'.")
 });
 
 const GuidelinesPageContentSchema = z.object({
@@ -1469,7 +1482,7 @@ export async function getPageContentAction(pageKey: PageContentKeys): Promise<an
     console.warn(`Content for key "${pageKey}" not found in getPageContentAction.`);
     switch (pageKey) {
       case 'aboutUs': return {} as AboutUsContent;
-      case 'support': return {} as SupportPageContent;
+      case 'support': return { faqs: [] } as SupportPageContent;
       case 'guidelines': return { keyAreas: [] } as GuidelinesPageContent;
       case 'topDesigners': return {} as TopDesignersPageContent;
       case 'teamMembers': return { founder: {}, coFounder: {} } as TeamMembersContent;
@@ -1479,7 +1492,7 @@ export async function getPageContentAction(pageKey: PageContentKeys): Promise<an
     console.error(`Error in getPageContentAction for key "${pageKey}":`, error);
     switch (pageKey) {
       case 'aboutUs': return {} as AboutUsContent;
-      case 'support': return {} as SupportPageContent;
+      case 'support': return { faqs: [] } as SupportPageContent;
       case 'guidelines': return { keyAreas: [] } as GuidelinesPageContent;
       case 'topDesigners': return {} as TopDesignersPageContent;
       case 'teamMembers': return { founder: {}, coFounder: {} } as TeamMembersContent;
@@ -1582,7 +1595,7 @@ export async function updatePageContentAction<T extends PageContentKeys>(
     };
   }
   
-  const contentToSave = { ...validatedFields.data };
+  const contentToSave: any = { ...validatedFields.data };
 
   // Handle image saving after validation
   try {
@@ -1625,6 +1638,15 @@ export async function updatePageContentAction<T extends PageContentKeys>(
   } catch(error) {
      console.error(`Error saving image for ${pageKey}:`, error);
      return { message: `Failed to save image. Please try again.`, success: false, errors: { general: ['Image saving error.'] } };
+  }
+
+  if (pageKey === 'support' && contentToSave.faqsJSON) {
+    try {
+      contentToSave.faqs = JSON.parse(contentToSave.faqsJSON) as FAQItem[];
+      delete contentToSave.faqsJSON;
+    } catch (e) {
+      return { message: 'Invalid JSON format for FAQs.', success: false, errors: { faqsJSON: ['Invalid JSON.'] } };
+    }
   }
 
 

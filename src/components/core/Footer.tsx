@@ -68,7 +68,7 @@ const Footer = () => {
       <div className="border-t border-[hsl(var(--footer-border))]">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 text-center">
           <p className="text-sm text-[hsl(var(--footer-muted-foreground))]">
-            &copy; {currentYear} Reactiverse by MintFire. All Rights Reserved. 
+            &copy; {currentYear} Reactiverse. MintFire Tech
           </p>
         </div>
       </div>

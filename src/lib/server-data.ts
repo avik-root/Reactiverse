@@ -99,8 +99,8 @@ const DEFAULT_PAGE_CONTENT: PageContentData = {
     emailAddress: "support@reactiverse.com",
     forumTitle: "Community Forum",
     forumDescription: "Ask questions and find answers in our community.",
-    forumLinkText: "Visit Forum (Coming Soon)",
-    forumLinkUrl: "#",
+    forumLinkText: "Visit Support & Q/A Forum",
+    forumLinkUrl: "/community/category/support-qa",
     faqTitle: "Frequently Asked Questions",
     faqs: [
       {
@@ -629,7 +629,12 @@ export async function addForumCategoryToFile(newCategory: ForumCategory): Promis
 
 // General purpose function to get topics from a specific file
 async function getTopicsFromFile(filePath: string): Promise<ForumTopic[]> {
-  return readJsonFile<ForumTopic[]>(filePath, []);
+  const topics = await readJsonFile<ForumTopic[]>(filePath, []);
+  // Ensure viewCount defaults to 0 if missing
+  return topics.map(topic => ({
+    ...topic,
+    viewCount: topic.viewCount === undefined ? 0 : topic.viewCount,
+  }));
 }
 
 // General purpose function to save topics to a specific file
@@ -672,6 +677,8 @@ export async function addForumTopicToFile(newTopic: ForumTopic, categorySlug: st
   let topics;
   let saveFunction;
 
+  const topicWithViewCount = { ...newTopic, viewCount: 0 }; // Initialize viewCount
+
   switch (categorySlug) {
     case 'general-discussion':
       topics = await getUsersForumData();
@@ -689,7 +696,7 @@ export async function addForumTopicToFile(newTopic: ForumTopic, categorySlug: st
       console.error(`Unknown category slug for adding topic: ${categorySlug}`);
       throw new Error(`Cannot add topic to unknown category: ${categorySlug}`);
   }
-  topics.push(newTopic);
+  topics.push(topicWithViewCount);
   await saveFunction(topics);
 }
 

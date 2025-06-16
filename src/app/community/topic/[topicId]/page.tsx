@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { MessageCircle, Info, CalendarDays, User as UserIcon, ArrowLeft, BadgeCheck, Loader2, Trash2 } from 'lucide-react';
+import { MessageCircle, Info, CalendarDays, User as UserIcon, ArrowLeft, BadgeCheck, Loader2, Trash2, Eye } from 'lucide-react';
 import SealCheckIcon from '@/components/icons/SealCheckIcon';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
@@ -56,6 +56,7 @@ export default function TopicPage() {
     setIsLoading(true);
     setError(null);
     try {
+      // getTopicDetailsAction now increments view count
       const fetchedTopic = await getTopicDetailsAction(topicId, categorySlug || undefined);
       if (fetchedTopic) {
         setTopic(fetchedTopic);
@@ -193,6 +194,10 @@ export default function TopicPage() {
               <MessageCircle className="h-4 w-4 mr-1.5 text-accent" />
               <span>{topic.replyCount} Replies</span>
             </div>
+             <div className="flex items-center">
+              <Eye className="h-4 w-4 mr-1.5 text-accent" />
+              <span>{topic.viewCount || 0} Views</span>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -318,3 +323,4 @@ export default function TopicPage() {
     </div>
   );
 }
+

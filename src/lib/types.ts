@@ -363,7 +363,7 @@ export interface ForumTopic {
   authorIsVerified?: boolean; // Added
   createdAt: string;
   lastRepliedAt: string;
-  viewCount: number;
+  viewCount: number; // Added
   replyCount: number;
   posts?: ForumPost[]; 
 }

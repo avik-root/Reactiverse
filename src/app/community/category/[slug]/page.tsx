@@ -238,7 +238,7 @@ export default function CategoryPage() {
                               <MessageSquare className="h-4 w-4 mr-1.5 text-accent" /> {topic.replyCount} Replies
                           </div>
                           <div className="flex items-center justify-end">
-                              <Eye className="h-4 w-4 mr-1.5 text-accent" /> {topic.viewCount} Views
+                              <Eye className="h-4 w-4 mr-1.5 text-accent" /> {topic.viewCount || 0} Views
                           </div>
                       </div>
                     </div>
@@ -279,3 +279,4 @@ export default function CategoryPage() {
     </div>
   );
 }
+

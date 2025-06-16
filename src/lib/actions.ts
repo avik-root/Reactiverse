@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { z } from 'zod';
@@ -1948,22 +1949,24 @@ export async function getTopicsByCategoryIdAction(categoryId: string): Promise<F
     const usersMap = new Map(users.map(u => [u.id, u]));
 
     const processedTopics = topics.map(topic => {
+      let finalTopic = { ...topic, viewCount: topic.viewCount || 0 }; // Ensure viewCount
       if (topic.createdByUserId.startsWith('admin-')) {
-        return {
-          ...topic,
+        finalTopic = {
+          ...finalTopic,
           authorName: "Admin",
           authorAvatarUrl: adminAvatarMap.get(topic.createdByUserId) || ADMIN_DEFAULT_AVATAR,
           authorIsVerified: true, // Admins are "verified" by role
         };
       } else {
         const author = usersMap.get(topic.createdByUserId);
-        return {
-          ...topic,
+        finalTopic = {
+          ...finalTopic,
           authorName: author?.name || topic.authorName,
           authorAvatarUrl: author?.avatarUrl || topic.authorAvatarUrl,
           authorIsVerified: author?.isVerified || false,
         };
       }
+      return finalTopic;
     });
 
     return processedTopics.sort((a, b) => new Date(b.lastRepliedAt).getTime() - new Date(a.lastRepliedAt).getTime());
@@ -1975,26 +1978,28 @@ export async function getTopicsByCategoryIdAction(categoryId: string): Promise<F
 
 export async function getTopicDetailsAction(topicId: string, categorySlug?: string): Promise<ForumTopic | undefined> {
   let topics: ForumTopic[] = [];
+  let saveFunction: ((topics: ForumTopic[]) => Promise<void>) | null = null;
   let slugToUse = categorySlug;
   let determinedSlug = false;
   const adminAvatarMap = await getAdminAvatarMap();
-  const users = await getUsersFromFile(); // Fetch users for verification status
+  const users = await getUsersFromFile();
   const usersMap = new Map(users.map(u => [u.id, u]));
-
 
   if (!slugToUse) {
     const allCategories = await getForumCategoriesFromFile();
     for (const cat of allCategories) {
       let potentialTopics: ForumTopic[] = [];
+      let currentSaveFunction: ((topics: ForumTopic[]) => Promise<void>) | null = null;
       switch (cat.slug) {
-        case 'general-discussion': potentialTopics = await getUsersForumData(); break;
-        case 'announcements': potentialTopics = await getAnnouncementsData(); break;
-        case 'support-qa': potentialTopics = await getSupportForumData(); break;
+        case 'general-discussion': potentialTopics = await getUsersForumData(); currentSaveFunction = saveUsersForumData; break;
+        case 'announcements': potentialTopics = await getAnnouncementsData(); currentSaveFunction = saveAnnouncementsData; break;
+        case 'support-qa': potentialTopics = await getSupportForumData(); currentSaveFunction = saveSupportForumData; break;
       }
       const foundTopic = potentialTopics.find(t => t.id === topicId);
       if (foundTopic) {
         slugToUse = cat.slug;
         topics = potentialTopics;
+        saveFunction = currentSaveFunction;
         determinedSlug = true;
         break;
       }
@@ -2006,66 +2011,83 @@ export async function getTopicDetailsAction(topicId: string, categorySlug?: stri
   }
 
   if (!slugToUse) {
-      console.warn(`getTopicDetailsAction: Could not determine category slug for topic ID ${topicId}.`);
-      return undefined;
+    console.warn(`getTopicDetailsAction: Could not determine category slug for topic ID ${topicId}.`);
+    return undefined;
   }
 
   if (!determinedSlug) { // Only fetch if not already fetched during slug determination
     try {
-        switch (slugToUse) {
-        case 'general-discussion': topics = await getUsersForumData(); break;
-        case 'announcements': topics = await getAnnouncementsData(); break;
-        case 'support-qa': topics = await getSupportForumData(); break;
+      switch (slugToUse) {
+        case 'general-discussion': topics = await getUsersForumData(); saveFunction = saveUsersForumData; break;
+        case 'announcements': topics = await getAnnouncementsData(); saveFunction = saveAnnouncementsData; break;
+        case 'support-qa': topics = await getSupportForumData(); saveFunction = saveSupportForumData; break;
         default:
-            console.warn(`Unknown category slug for fetching topic details: ${slugToUse}`);
-            return undefined;
-        }
+          console.warn(`Unknown category slug for fetching topic details: ${slugToUse}`);
+          return undefined;
+      }
     } catch (error) {
-        console.error(`Error fetching topics for category slug "${slugToUse}" in getTopicDetailsAction:`, error);
-        return undefined;
+      console.error(`Error fetching topics for category slug "${slugToUse}" in getTopicDetailsAction:`, error);
+      return undefined;
     }
   }
 
-  let topic = topics.find(t => t.id === topicId);
+  const topicIndex = topics.findIndex(t => t.id === topicId);
+  if (topicIndex === -1) return undefined;
 
-  if (topic) {
-    if (topic.createdByUserId.startsWith('admin-')) {
-      topic = {
-        ...topic,
-        authorName: "Admin",
-        authorAvatarUrl: adminAvatarMap.get(topic.createdByUserId) || ADMIN_DEFAULT_AVATAR,
-        authorIsVerified: true, // Admins are "verified"
-      };
-    } else {
-      const author = usersMap.get(topic.createdByUserId);
-      topic = {
-        ...topic,
-        authorName: author?.name || topic.authorName,
-        authorAvatarUrl: author?.avatarUrl || topic.authorAvatarUrl,
-        authorIsVerified: author?.isVerified || false,
-      };
+  let topic = topics[topicIndex];
+  
+  // Increment view count
+  topic.viewCount = (topic.viewCount || 0) + 1;
+  if (saveFunction) {
+    try {
+      await saveFunction(topics); // Save the updated topics list with new view count
+    } catch (error) {
+      console.error(`Error saving updated view count for topic ${topicId} in category ${slugToUse}:`, error);
+      // Continue even if save fails, to return the topic data
     }
-    // Process post authors
-    if (topic.posts && topic.posts.length > 0) {
-      topic.posts = topic.posts.map(post => {
-        if (post.createdByUserId.startsWith('admin-')) {
-          return {
-            ...post,
-            authorName: "Admin",
-            authorAvatarUrl: adminAvatarMap.get(post.createdByUserId) || ADMIN_DEFAULT_AVATAR,
-            authorIsVerified: true, // Admins are "verified"
-          };
-        } else {
-          const postAuthor = usersMap.get(post.createdByUserId);
-          return {
-            ...post,
-            authorName: postAuthor?.name || post.authorName,
-            authorAvatarUrl: postAuthor?.avatarUrl || post.authorAvatarUrl,
-            authorIsVerified: postAuthor?.isVerified || false,
-          };
-        }
-      });
-    }
+  } else {
+      console.warn(`No save function determined for category ${slugToUse} when incrementing view count.`);
+  }
+
+
+  // Process author details
+  if (topic.createdByUserId.startsWith('admin-')) {
+    topic = {
+      ...topic,
+      authorName: "Admin",
+      authorAvatarUrl: adminAvatarMap.get(topic.createdByUserId) || ADMIN_DEFAULT_AVATAR,
+      authorIsVerified: true,
+    };
+  } else {
+    const author = usersMap.get(topic.createdByUserId);
+    topic = {
+      ...topic,
+      authorName: author?.name || topic.authorName,
+      authorAvatarUrl: author?.avatarUrl || topic.authorAvatarUrl,
+      authorIsVerified: author?.isVerified || false,
+    };
+  }
+
+  // Process post authors
+  if (topic.posts && topic.posts.length > 0) {
+    topic.posts = topic.posts.map(post => {
+      if (post.createdByUserId.startsWith('admin-')) {
+        return {
+          ...post,
+          authorName: "Admin",
+          authorAvatarUrl: adminAvatarMap.get(post.createdByUserId) || ADMIN_DEFAULT_AVATAR,
+          authorIsVerified: true,
+        };
+      } else {
+        const postAuthor = usersMap.get(post.createdByUserId);
+        return {
+          ...post,
+          authorName: postAuthor?.name || post.authorName,
+          authorAvatarUrl: postAuthor?.avatarUrl || post.authorAvatarUrl,
+          authorIsVerified: postAuthor?.isVerified || false,
+        };
+      }
+    });
   }
   return topic;
 }
@@ -2200,7 +2222,7 @@ export async function createForumTopicAction(
         authorIsVerified,
         createdAt: new Date().toISOString(),
         lastRepliedAt: new Date().toISOString(),
-        viewCount: 0,
+        viewCount: 0, // Initialize viewCount
         replyCount: 0,
         posts: [],
     };
@@ -2457,22 +2479,24 @@ export async function searchAllForumTopicsAction(term: string): Promise<ForumTop
     const allTopics = [...generalTopics, ...announcementTopics, ...supportTopics];
 
     const processedTopics = allTopics.map(topic => {
+      let finalTopic = { ...topic, viewCount: topic.viewCount || 0 }; // Ensure viewCount
       if (topic.createdByUserId.startsWith('admin-')) {
-        return {
-          ...topic,
+        finalTopic = {
+          ...finalTopic,
           authorName: "Admin",
           authorAvatarUrl: adminAvatarMap.get(topic.createdByUserId) || ADMIN_DEFAULT_AVATAR,
           authorIsVerified: true, // Admins are "verified"
         };
       } else {
         const author = usersMap.get(topic.createdByUserId);
-        return {
-          ...topic,
+        finalTopic = {
+          ...finalTopic,
           authorName: author?.name || topic.authorName,
           authorAvatarUrl: author?.avatarUrl || topic.authorAvatarUrl,
           authorIsVerified: author?.isVerified || false,
         };
       }
+       return finalTopic;
     });
 
     const filteredTopics = processedTopics.filter(topic =>
@@ -2487,3 +2511,4 @@ export async function searchAllForumTopicsAction(term: string): Promise<ForumTop
     return [];
   }
 }
+

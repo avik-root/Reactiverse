@@ -15,6 +15,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import SealCheckIcon from '@/components/icons/SealCheckIcon';
+
 
 const LucideIcons = {
   MessagesSquare,
@@ -234,6 +236,7 @@ export default function CommunityForumPage() {
                                   </Avatar>
                                   <span>{authorDisplayName}</span>
                                   {isAuthorAdmin && <BadgeCheck className="h-3.5 w-3.5 text-primary ml-1" />}
+                                  {!isAuthorAdmin && topic.authorIsVerified && <SealCheckIcon className="ml-1.5 h-4 w-4 text-blue-500" />}
                               </div>
                               <div className="flex items-center">
                                   <CalendarDays className="h-3.5 w-3.5 mr-1" />
@@ -252,7 +255,7 @@ export default function CommunityForumPage() {
                                   <MessagesSquare className="h-4 w-4 mr-1.5 text-accent" /> {topic.replyCount} Replies
                               </div>
                               <div className="flex items-center justify-end">
-                                  <Eye className="h-4 w-4 mr-1.5 text-accent" /> {topic.viewCount} Views
+                                  <Eye className="h-4 w-4 mr-1.5 text-accent" /> {topic.viewCount || 0} Views
                               </div>
                           </div>
                         </div>

@@ -3,6 +3,8 @@
 
 import React, { useEffect, useRef, useCallback, useMemo } from "react";
 import "./ProfileCard.css";
+import { Badge } from "@/components/ui/badge";
+import { Crown, Trophy, Medal, Star } from "lucide-react";
 
 interface ProfileCardProps {
   avatarUrl: string;
@@ -21,6 +23,7 @@ interface ProfileCardProps {
   contactText?: string;
   showUserInfo?: boolean;
   onContactClick?: () => void;
+  rank?: number; // Added rank prop
 }
 
 const DEFAULT_BEHIND_GRADIENT =
@@ -54,10 +57,39 @@ const adjust = (
 const easeInOutCubic = (x: number): number =>
   x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
 
+const RankingBadgeDisplay: React.FC<{ rank?: number }> = ({ rank }) => {
+  if (!rank || rank === 0 || rank > 10) return null; // Only show for ranks 1-10
+
+  let icon: React.ReactElement | null = null;
+  let badgeClasses = "pc-rank-badge text-xs px-2 py-0.5 font-bold flex items-center gap-1"; // Using CSS class for positioning
+  let rankText = `#${rank}`;
+
+  if (rank === 1) {
+    icon = <Crown className="h-3 w-3 fill-yellow-500 text-yellow-600" />;
+    badgeClasses += " bg-yellow-400/20 text-yellow-600 border border-yellow-500/50";
+  } else if (rank === 2) {
+    icon = <Trophy className="h-3 w-3 fill-slate-500 text-slate-600" />;
+    badgeClasses += " bg-slate-400/20 text-slate-600 border border-slate-400/50";
+  } else if (rank === 3) {
+    icon = <Medal className="h-3 w-3 fill-orange-500 text-orange-600" />;
+    badgeClasses += " bg-orange-400/20 text-orange-600 border border-orange-400/50";
+  } else { // Ranks 4-10
+    icon = <Star className="h-3 w-3 fill-sky-500 text-sky-600" />;
+    badgeClasses += " bg-sky-400/20 text-sky-600 border border-sky-500/50";
+  }
+
+  return (
+    <Badge variant="secondary" className={badgeClasses}>
+      {icon} {rankText}
+    </Badge>
+  );
+};
+
+
 const ProfileCardComponent: React.FC<ProfileCardProps> = ({
-  avatarUrl = "https://placehold.co/128x128.png?text=AV", // Default placeholder
-  iconUrl, // Default placeholder removed, will be undefined if not provided
-  grainUrl, // Default placeholder removed
+  avatarUrl = "https://placehold.co/128x128.png?text=AV",
+  iconUrl,
+  grainUrl,
   behindGradient,
   innerGradient,
   showBehindGradient = true,
@@ -71,6 +103,7 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
   contactText = "Contact",
   showUserInfo = true,
   onContactClick,
+  rank, // Destructure rank
 }) => {
   const wrapRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -103,8 +136,8 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
         "--pointer-from-center": `${clamp(Math.hypot(percentY - 50, percentX - 50) / 50, 0, 1)}`,
         "--pointer-from-top": `${percentY / 100}`,
         "--pointer-from-left": `${percentX / 100}`,
-        "--rotate-x": `${round(-(centerY / 5))}deg`, // Adjusted for more noticeable tilt
-        "--rotate-y": `${round(centerX / 4)}deg`,  // Adjusted for more noticeable tilt
+        "--rotate-x": `${round(-(centerY / 5))}deg`,
+        "--rotate-y": `${round(centerX / 4)}deg`,
       };
 
       Object.entries(properties).forEach(([property, value]) => {
@@ -218,22 +251,19 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
     card.addEventListener("pointermove", pointerMoveHandler);
     card.addEventListener("pointerleave", pointerLeaveHandler);
 
-    // Initial animation from a corner
-    // Ensure wrap has dimensions before calculating initialX
     if (wrap.clientWidth > 0 && wrap.clientHeight > 0) {
-        const initialX = wrap.clientWidth - ANIMATION_CONFIG.INITIAL_X_OFFSET;
-        const initialY = ANIMATION_CONFIG.INITIAL_Y_OFFSET;
+      const initialX = wrap.clientWidth - ANIMATION_CONFIG.INITIAL_X_OFFSET;
+      const initialY = ANIMATION_CONFIG.INITIAL_Y_OFFSET;
 
-        animationHandlers.updateCardTransform(initialX, initialY, card, wrap);
-        animationHandlers.createSmoothAnimation(
-          ANIMATION_CONFIG.INITIAL_DURATION,
-          initialX,
-          initialY,
-          card,
-          wrap
-        );
+      animationHandlers.updateCardTransform(initialX, initialY, card, wrap);
+      animationHandlers.createSmoothAnimation(
+        ANIMATION_CONFIG.INITIAL_DURATION,
+        initialX,
+        initialY,
+        card,
+        wrap
+      );
     }
-
 
     return () => {
       card.removeEventListener("pointerenter", pointerEnterHandler);
@@ -258,7 +288,7 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
           ? (behindGradient ?? DEFAULT_BEHIND_GRADIENT)
           : "none",
         "--inner-gradient": innerGradient ?? DEFAULT_INNER_GRADIENT,
-        "--card-opacity": "var(--card-opacity-val, 0.15)", // Default opacity
+        "--card-opacity": "var(--card-opacity-val, 0.15)",
       }) as React.CSSProperties,
     [iconUrl, grainUrl, showBehindGradient, behindGradient, innerGradient]
   );
@@ -274,6 +304,7 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
       style={cardStyle}
     >
       <section ref={cardRef} className="pc-card">
+        <RankingBadgeDisplay rank={rank} />
         <div className="pc-inside">
           <div className="pc-shine" />
           <div className="pc-glare" />
@@ -285,9 +316,8 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
               loading="lazy"
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
-                // Fallback to a generic placeholder if avatarUrl fails
-                target.src = "https://placehold.co/128x128.png?text=??"; 
-                target.style.display = "block"; // Ensure it's visible
+                target.src = "https://placehold.co/128x128.png?text=??";
+                target.style.display = "block";
               }}
             />
             {showUserInfo && (
@@ -300,8 +330,8 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
                       loading="lazy"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
-                        target.src = avatarUrl; // Fallback to main avatar if mini fails
-                         if (target.src === avatarUrl) { // If main avatar also failed
+                        target.src = avatarUrl;
+                         if (target.src === avatarUrl) {
                             target.src = "https://placehold.co/32x32.png?text=?";
                          }
                       }}
@@ -326,7 +356,7 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
               </div>
             )}
           </div>
-          <div className="pc-content pc-details-content"> {/* Added a wrapper class for easier targeting */}
+          <div className="pc-content pc-details-content">
             <div className="pc-details">
               <h3>{name}</h3>
               <p>{title}</p>
@@ -339,5 +369,4 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
 };
 
 const ProfileCard = React.memo(ProfileCardComponent);
-
 export default ProfileCard;

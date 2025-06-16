@@ -4,8 +4,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import type { User, Design } from '@/lib/types';
 import { getAllUsersAdminAction, getAllDesignsAction, getPageContentAction } from '@/lib/actions';
-import DesignerCard from '@/components/designer/DesignerCard'; // Keep for ranks > 10
-import ProfileCard from '@/components/core/ProfileCard'; // New card for top 1-10
+import DesignerCard from '@/components/designer/DesignerCard'; 
+import ProfileCard from '@/components/core/ProfileCard'; 
 import DesignerDetailDialog from '@/components/designer/DesignerDetailDialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -100,18 +100,18 @@ export default function DesignersPage() {
   };
 
   const getPercentileCategory = (rank: number, total: number): string => {
-    if (total === 0) return "Contributor";
+    if (total === 0 || rank === 0) return "Contributor"; // Handle rank 0 for safety
     const percentile = ((total - rank + 1) / total) * 100;
-    if (percentile >= 90) return "Top 10%";
-    if (percentile >= 75) return "Top 25%";
-    if (percentile >= 50) return "Top 50%";
+    if (percentile >= 90) return "Top 10% Elite";
+    if (percentile >= 75) return "Top 25% Pro";
+    if (percentile >= 50) return "Top 50% Creator";
     return "Valued Contributor";
   };
   
   const getPercentileIcon = (category: string) => {
-    if (category === "Top 10%") return <Crown className="h-4 w-4 text-yellow-500" />;
-    if (category === "Top 25%") return <Trophy className="h-4 w-4 text-orange-400" />;
-    if (category === "Top 50%") return <Medal className="h-4 w-4 text-sky-400" />;
+    if (category.includes("Elite")) return <Crown className="h-4 w-4 text-yellow-500" />;
+    if (category.includes("Pro")) return <Trophy className="h-4 w-4 text-orange-400" />;
+    if (category.includes("Creator")) return <Medal className="h-4 w-4 text-sky-400" />;
     return <PercentSquare className="h-4 w-4 text-muted-foreground" />;
   };
 
@@ -178,13 +178,15 @@ export default function DesignersPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-8">
             {topDesignersForCards.map((designer, index) => {
               const rank = index + 1;
+              const percentileCategory = getPercentileCategory(rank, fullDesignerStatsList.length > 0 ? fullDesignerStatsList.length : topDesignersForCards.length);
+              
               if (rank <= 10) {
                 return (
                   <div key={designer.id} className="pc-card-wrapper-container">
                     <ProfileCard
                       avatarUrl={designer.avatarUrl || `https://placehold.co/128x128.png?text=${getInitials(designer.name)}`}
                       name={designer.name}
-                      title={`Rank #${rank} Designer`}
+                      title={percentileCategory}
                       handle={designer.username.startsWith('@') ? designer.username.substring(1) : designer.username}
                       status={`Likes: ${designer.totalLikes} | Designs: ${designer.totalDesignsUploaded}`}
                       contactText="View Profile"
@@ -192,12 +194,11 @@ export default function DesignersPage() {
                       showUserInfo={true}
                       enableTilt={true}
                       miniAvatarUrl={designer.avatarUrl}
-                      // Note: isVerified badge isn't directly supported by ProfileCard's props.
-                      // It will be shown in the DesignerDetailDialog.
+                      rank={rank}
                     />
                   </div>
                 );
-              } else { // For ranks 11-20 (or however many are in topDesignersForCards)
+              } else { 
                 return (
                   <DesignerCard
                     key={designer.id}
@@ -292,3 +293,4 @@ export default function DesignersPage() {
     </div>
   );
 }
+

@@ -7,33 +7,56 @@ import { Layers3 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 const Logo = () => {
-  const [useFallbackLogo, setUseFallbackLogo] = useState(true);
+  const [useFallbackLogo, setUseFallbackLogo] = useState(true); // True if no custom logo exists or current version failed
   const [isLoading, setIsLoading] = useState(true);
-  const [logoVersionKey, setLogoVersionKey] = useState(Date.now().toString()); // Ensure it's a string
-
-  const checkLogoExistence = () => {
-    setIsLoading(true);
-    const customLogoPath = "/site_logo.png";
-    const checkSrc = `${customLogoPath}?check=${Date.now()}`;
-
-    const img = new window.Image();
-    img.src = checkSrc;
-    img.onload = () => {
-      setUseFallbackLogo(false);
-      setLogoVersionKey(Date.now().toString()); // Update key to force re-render
-      setIsLoading(false);
-    };
-    img.onerror = () => {
-      setUseFallbackLogo(true);
-      setIsLoading(false);
-    };
-  };
+  const [logoVersionKey, setLogoVersionKey] = useState(Date.now().toString());
+  const [imageError, setImageError] = useState(false); // Tracks if the current version of the logo failed to load
 
   useEffect(() => {
+    // Initial check for logo existence on component mount
+    const checkLogoExistence = () => {
+      setIsLoading(true);
+      setImageError(false); // Reset error state on check
+      const customLogoPath = "/site_logo.png";
+      // Use a cache-busting query for the existence check itself
+      const checkSrc = `${customLogoPath}?check=${Date.now()}`;
+
+      const img = new window.Image();
+      img.src = checkSrc;
+      img.onload = () => {
+        setUseFallbackLogo(false); // Custom logo exists
+        // Update version key to ensure the Image component tries to load it with a fresh query
+        // This also helps if the component remounts for other reasons.
+        setLogoVersionKey(Date.now().toString());
+        setIsLoading(false);
+      };
+      img.onerror = () => {
+        setUseFallbackLogo(true); // Custom logo does not exist or is not loadable
+        setIsLoading(false);
+      };
+    };
+
     checkLogoExistence();
 
     const handleLogoUpdatedEvent = () => {
-      checkLogoExistence(); // This will update logoVersionKey if the logo exists
+      // When logo is updated, generate a new version key to force re-fetch
+      // and reset error state to allow re-attempting to load the custom logo.
+      setLogoVersionKey(Date.now().toString());
+      setUseFallbackLogo(false); // Assume the new logo might exist
+      setImageError(false);      // Reset error state for the new attempt
+      setIsLoading(true);        // Briefly set loading while we re-evaluate
+
+      // Re-check existence to confirm, this will update isLoading when done
+      const reCheckImg = new window.Image();
+      reCheckImg.src = `/site_logo.png?check=${Date.now()}`;
+      reCheckImg.onload = () => {
+        // setUseFallbackLogo(false); // Already set
+        setIsLoading(false);
+      };
+      reCheckImg.onerror = () => {
+        setUseFallbackLogo(true); // New logo couldn't be loaded either
+        setIsLoading(false);
+      };
     };
 
     window.addEventListener('logoUpdated', handleLogoUpdatedEvent);
@@ -41,9 +64,10 @@ const Logo = () => {
     return () => {
       window.removeEventListener('logoUpdated', handleLogoUpdatedEvent);
     };
-  }, []);
+  }, []); // Empty dependency array, runs once on mount and cleans up
 
-  const logoSrc = useFallbackLogo ? '' : `/site_logo.png?v=${logoVersionKey}`;
+  const displayFallback = useFallbackLogo || imageError;
+  const logoSrc = `/site_logo.png?v=${logoVersionKey}`;
 
   return (
     <Link href="/" className="flex items-center gap-2 text-primary hover:text-primary/80 transition-colors">
@@ -55,19 +79,18 @@ const Logo = () => {
       ) : (
         <>
           <div style={{ width: '32px', height: '32px', position: 'relative', flexShrink: 0 }}>
-            {useFallbackLogo || !logoSrc ? (
+            {displayFallback ? (
               <Layers3 size={28} className="text-primary w-full h-full" />
             ) : (
               <Image
                 src={logoSrc}
-                key={logoVersionKey}
+                key={logoVersionKey} // Force re-render when version changes
                 alt="Reactiverse Site Logo"
                 layout="fill"
                 objectFit="contain"
-                priority
                 data-ai-hint="site logo icon"
                 onError={() => {
-                  setUseFallbackLogo(true); // Fallback if even the versioned src fails
+                  setImageError(true); // If this specific version fails, note the error
                 }}
               />
             )}
@@ -80,3 +103,4 @@ const Logo = () => {
 };
 
 export default Logo;
+

@@ -7,36 +7,33 @@ import { Layers3 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 const Logo = () => {
-  const [useFallbackLogo, setUseFallbackLogo] = useState(true); // Default to true until checked
+  const [useFallbackLogo, setUseFallbackLogo] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
-  const [logoVersionKey, setLogoVersionKey] = useState(Date.now()); // Key to force re-render of Image
+  const [logoVersionKey, setLogoVersionKey] = useState(Date.now().toString()); // Ensure it's a string
 
   const checkLogoExistence = () => {
     setIsLoading(true);
     const customLogoPath = "/site_logo.png";
-    // Use a unique query param for each check to bypass browser cache for the check itself
-    const checkSrc = `${customLogoPath}?check=${new Date().getTime()}`;
+    const checkSrc = `${customLogoPath}?check=${Date.now()}`;
 
     const img = new window.Image();
     img.src = checkSrc;
     img.onload = () => {
-      setUseFallbackLogo(false); // Custom logo exists
-      setLogoVersionKey(Date.now()); // Update key to ensure next/image re-evaluates
+      setUseFallbackLogo(false);
+      setLogoVersionKey(Date.now().toString()); // Update key to force re-render
       setIsLoading(false);
     };
     img.onerror = () => {
-      setUseFallbackLogo(true); // Custom logo does not exist or error
+      setUseFallbackLogo(true);
       setIsLoading(false);
     };
   };
 
   useEffect(() => {
-    checkLogoExistence(); // Initial check on mount
+    checkLogoExistence();
 
     const handleLogoUpdatedEvent = () => {
-      // When 'logoUpdated' event is dispatched, re-check the logo existence
-      // and update the key to force next/image to refresh.
-      checkLogoExistence();
+      checkLogoExistence(); // This will update logoVersionKey if the logo exists
     };
 
     window.addEventListener('logoUpdated', handleLogoUpdatedEvent);
@@ -44,7 +41,9 @@ const Logo = () => {
     return () => {
       window.removeEventListener('logoUpdated', handleLogoUpdatedEvent);
     };
-  }, []); // Empty dependency array: runs once on mount to set up listener and initial check.
+  }, []);
+
+  const logoSrc = useFallbackLogo ? '' : `/site_logo.png?v=${logoVersionKey}`;
 
   return (
     <Link href="/" className="flex items-center gap-2 text-primary hover:text-primary/80 transition-colors">
@@ -56,21 +55,19 @@ const Logo = () => {
       ) : (
         <>
           <div style={{ width: '32px', height: '32px', position: 'relative', flexShrink: 0 }}>
-            {useFallbackLogo ? (
+            {useFallbackLogo || !logoSrc ? (
               <Layers3 size={28} className="text-primary w-full h-full" />
             ) : (
               <Image
-                src="/site_logo.png" // Base path, next/image handles optimization and caching
-                key={logoVersionKey}  // Changing key forces re-evaluation by next/image
+                src={logoSrc}
+                key={logoVersionKey}
                 alt="Reactiverse Site Logo"
                 layout="fill"
-                objectFit="contain" // Ensures aspect ratio is maintained within the 32x32 box
-                priority // If it's critical for LCP
+                objectFit="contain"
+                priority
                 data-ai-hint="site logo icon"
                 onError={() => {
-                  // This internal onError for next/image can also set fallback if needed,
-                  // though the primary check should handle most cases.
-                  setUseFallbackLogo(true);
+                  setUseFallbackLogo(true); // Fallback if even the versioned src fails
                 }}
               />
             )}

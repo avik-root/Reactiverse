@@ -74,7 +74,7 @@ export default function EditSiteLogoPage() {
         // Dispatch custom event to notify other components (like Header/Logo)
         window.dispatchEvent(new CustomEvent('logoUpdated'));
         // Update local preview path to reflect the new logo with a cache buster
-        setCurrentLogoPath(state.filePath + '?' + new Date().getTime());
+        setCurrentLogoPath(state.filePath + '?v=' + new Date().getTime());
       }
     }
   }, [state, toast]);
@@ -99,7 +99,7 @@ export default function EditSiteLogoPage() {
                 alt="Current Site Logo" 
                 width={160} height={32} 
                 className="object-contain rounded border p-2 bg-muted/30" 
-                key={currentLogoPath} 
+                key={currentLogoPath} // Key change will force re-render of preview
                 data-ai-hint="current logo"
               />
             ) : (

@@ -5,6 +5,7 @@ import React, { useEffect, useRef, useCallback, useMemo } from "react";
 import "./ProfileCard.css";
 import { Badge } from "@/components/ui/badge";
 import { Crown, Trophy, Medal, Star } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface ProfileCardProps {
   avatarUrl: string;
@@ -61,21 +62,24 @@ const easeInOutCubic = (x: number): number =>
 const RankingBadgeDisplay: React.FC<{ rank?: number }> = ({ rank }) => {
   if (!rank || rank === 0 || rank > 10) return null;
 
-  let badgeClasses = "pc-rank-badge text-xs px-2 py-0.5 font-bold"; // Removed flex items-center gap-1
+  // Base classes for the badge itself (padding, border radius, etc.)
+  // Color and specific text styles will be added based on rank
+  let badgeBaseClasses = "pc-rank-badge text-sm px-2.5 py-1 font-bold border";
+  let colorClasses = "";
   let rankText = `#${rank}`;
 
   if (rank === 1) {
-    badgeClasses += " bg-yellow-400/20 text-yellow-600 border border-yellow-500/50";
+    colorClasses = "bg-yellow-400/20 text-yellow-700 border-yellow-500/50";
   } else if (rank === 2) {
-    badgeClasses += " bg-slate-400/20 text-slate-600 border border-slate-400/50";
+    colorClasses = "bg-slate-400/20 text-slate-700 border-slate-500/50";
   } else if (rank === 3) {
-    badgeClasses += " bg-orange-400/20 text-orange-600 border border-orange-400/50";
+    colorClasses = "bg-orange-400/20 text-orange-700 border-orange-500/50";
   } else { // Ranks 4-10
-    badgeClasses += " bg-sky-400/20 text-sky-600 border border-sky-500/50";
+    colorClasses = "bg-sky-400/20 text-sky-700 border-sky-500/50";
   }
 
   return (
-    <Badge variant="secondary" className={badgeClasses}>
+    <Badge className={cn(badgeBaseClasses, colorClasses)}>
       {rankText}
     </Badge>
   );
@@ -383,4 +387,3 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
 
 const ProfileCard = React.memo(ProfileCardComponent);
 export default ProfileCard;
-

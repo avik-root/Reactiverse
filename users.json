@@ -25,17 +25,16 @@
     "email": "dj@gmail.com",
     "phone": "+919192929292",
     "passwordHash": "$2a$10$nBP03fofdSqA8iyN4GdNDulwLUPZ.yGqfcdIzKvbUG.IHV56wW8Ti",
-    "avatarUrl": "https://placehold.co/100x100.png?text=D",
-    "twoFactorEnabled": true,
-    "failedPinAttempts": 5,
-    "isLocked": true,
+    "avatarUrl": "/avatars/user-user-1749999187706-1750112586756.jpg",
+    "twoFactorEnabled": false,
+    "failedPinAttempts": 0,
+    "isLocked": false,
     "canSetPrice": false,
     "githubUrl": "",
     "linkedinUrl": "",
     "figmaUrl": "",
     "isEmailPublic": true,
     "isPhonePublic": false,
-    "isVerified": false,
-    "twoFactorPinHash": "$2a$10$j8xw5PDmYEaCtsaLI6dSp.RMYo/uUEGbSzlF7gevMAyamfoZ/Qz4C"
+    "isVerified": false
   }
 ]

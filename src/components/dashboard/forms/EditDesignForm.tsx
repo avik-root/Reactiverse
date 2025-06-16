@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 
 const LANGUAGES = [
-  "HTML", "CSS", "Tailwind CSS", "SCSS", "JavaScript", 
+  "HTML", "CSS", "Tailwind CSS", "SCSS", "JavaScript", "TypeScript",
   "Bootstrap", "Material UI", "Animations", "React", 
   "Vue.js", "Angular", "Other"
 ];

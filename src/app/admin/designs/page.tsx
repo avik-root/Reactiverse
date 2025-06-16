@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import type { Design, DeleteDesignResult } from '@/lib/types';
 import { getAllDesignsAction, deleteDesignAction } from '@/lib/actions';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,9 +11,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { Palette, Trash2, Eye, IndianRupee, Filter as FilterIcon, Tag, UserSquare2 } from 'lucide-react';
+import { Palette, Trash2, Eye, IndianRupee, Filter as FilterIcon, Tag, UserSquare2, Search, ListFilter, XCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+type DesignSortOption = 
+  | 'newest' | 'oldest' 
+  | 'title-asc' | 'title-desc' 
+  | 'designer-asc' | 'designer-desc'
+  | 'price-asc' | 'price-desc'
+  | 'category-asc' | 'category-desc';
 
 export default function ManageDesignsPage() {
   const { isAdmin } = useAuth();
@@ -24,7 +33,10 @@ export default function ManageDesignsPage() {
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [deleteConfirmationText, setDeleteConfirmationText] = useState(''); // For typed confirmation
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState<DesignSortOption>('newest');
 
   useEffect(() => {
     async function fetchDesigns() {
@@ -42,6 +54,54 @@ export default function ManageDesignsPage() {
     fetchDesigns();
   }, [isAdmin, toast]);
 
+  const filteredAndSortedDesigns = useMemo(() => {
+    let filtered = [...designs];
+
+    if (searchTerm) {
+      const lowerSearchTerm = searchTerm.toLowerCase();
+      filtered = filtered.filter(design =>
+        design.title.toLowerCase().includes(lowerSearchTerm) ||
+        design.designer.name.toLowerCase().includes(lowerSearchTerm) ||
+        design.filterCategory.toLowerCase().includes(lowerSearchTerm) ||
+        design.tags.some(tag => tag.toLowerCase().includes(lowerSearchTerm))
+      );
+    }
+
+    switch (sortBy) {
+      case 'newest':
+        filtered.sort((a, b) => b.id.localeCompare(a.id));
+        break;
+      case 'oldest':
+        filtered.sort((a, b) => a.id.localeCompare(b.id));
+        break;
+      case 'title-asc':
+        filtered.sort((a, b) => a.title.localeCompare(b.title));
+        break;
+      case 'title-desc':
+        filtered.sort((a, b) => b.title.localeCompare(a.title));
+        break;
+      case 'designer-asc':
+        filtered.sort((a, b) => a.designer.name.localeCompare(b.designer.name));
+        break;
+      case 'designer-desc':
+        filtered.sort((a, b) => b.designer.name.localeCompare(a.designer.name));
+        break;
+      case 'price-asc':
+        filtered.sort((a, b) => (a.price || 0) - (b.price || 0));
+        break;
+      case 'price-desc':
+        filtered.sort((a, b) => (b.price || 0) - (a.price || 0));
+        break;
+      case 'category-asc':
+        filtered.sort((a,b) => a.filterCategory.localeCompare(b.filterCategory));
+        break;
+      case 'category-desc':
+        filtered.sort((a,b) => b.filterCategory.localeCompare(a.filterCategory));
+        break;
+    }
+    return filtered;
+  }, [designs, searchTerm, sortBy]);
+
   const handleOpenDetail = (design: Design) => {
     setSelectedDesignForView(design);
     setIsDetailDialogOpen(true);
@@ -49,7 +109,7 @@ export default function ManageDesignsPage() {
 
   const handleDeleteClick = (design: Design) => {
     setDesignToDelete(design);
-    setDeleteConfirmationText(''); // Reset confirmation text
+    setDeleteConfirmationText('');
     setIsDeleteAlertOpen(true);
   };
 
@@ -113,7 +173,43 @@ export default function ManageDesignsPage() {
         <CardDescription>View, manage, and delete submitted designs.</CardDescription>
       </CardHeader>
       <CardContent>
-        {designs.length > 0 ? (
+        <div className="flex flex-col sm:flex-row gap-4 mb-6 items-center">
+          <div className="relative flex-grow w-full sm:w-auto">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Search by title, designer, category, tags..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 w-full"
+            />
+          </div>
+          <Select value={sortBy} onValueChange={(value: DesignSortOption) => setSortBy(value)}>
+            <SelectTrigger className="w-full sm:w-auto min-w-[200px]">
+              <ListFilter className="mr-2 h-4 w-4" />
+              <SelectValue placeholder="Sort by" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="newest">Newest First</SelectItem>
+              <SelectItem value="oldest">Oldest First</SelectItem>
+              <SelectItem value="title-asc">Title (A-Z)</SelectItem>
+              <SelectItem value="title-desc">Title (Z-A)</SelectItem>
+              <SelectItem value="designer-asc">Designer (A-Z)</SelectItem>
+              <SelectItem value="designer-desc">Designer (Z-A)</SelectItem>
+              <SelectItem value="price-asc">Price (Low to High)</SelectItem>
+              <SelectItem value="price-desc">Price (High to Low)</SelectItem>
+              <SelectItem value="category-asc">Category (A-Z)</SelectItem>
+              <SelectItem value="category-desc">Category (Z-A)</SelectItem>
+            </SelectContent>
+          </Select>
+          {searchTerm && (
+            <Button variant="ghost" onClick={() => setSearchTerm('')} className="w-full sm:w-auto">
+              <XCircle className="mr-2 h-4 w-4" /> Clear
+            </Button>
+          )}
+        </div>
+
+        {filteredAndSortedDesigns.length > 0 ? (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -127,7 +223,7 @@ export default function ManageDesignsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {designs.map((design) => (
+                {filteredAndSortedDesigns.map((design) => (
                   <TableRow key={design.id}>
                     <TableCell className="font-medium">{design.title}</TableCell>
                     <TableCell>
@@ -175,7 +271,9 @@ export default function ManageDesignsPage() {
             </Table>
           </div>
         ) : (
-          <p className="text-muted-foreground text-center py-10">No designs found.</p>
+          <p className="text-muted-foreground text-center py-10">
+            {searchTerm ? `No designs match your search for "${searchTerm}".` : "No designs found."}
+          </p>
         )}
       </CardContent>
 
@@ -222,3 +320,5 @@ export default function ManageDesignsPage() {
     </Card>
   );
 }
+
+    

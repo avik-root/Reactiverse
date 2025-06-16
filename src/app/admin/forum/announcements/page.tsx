@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import type { ForumTopic, AdminDeleteTopicResult } from '@/lib/types';
 import { getTopicsByCategoryIdAction, getCategoryBySlugAction, adminDeleteTopicAction } from '@/lib/actions';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,12 +10,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { Megaphone, Trash2, Eye, CalendarDays, User as UserIcon, MessageCircle as ReplyIcon, PlusCircle, Edit } from 'lucide-react';
+import { Megaphone, Trash2, Eye, CalendarDays, User as UserIcon, MessageCircle as ReplyIcon, PlusCircle, Edit, Search, ListFilter, XCircle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import Link from 'next/link';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const CATEGORY_SLUG = 'announcements'; 
+
+type TopicSortOption = 'title-asc' | 'title-desc' | 'author-asc' | 'author-desc' | 'newest' | 'oldest' | 'replies-desc' | 'replies-asc';
 
 export default function AdminManageAnnouncementsPage() {
   const { isAdmin } = useAuth();
@@ -24,6 +28,9 @@ export default function AdminManageAnnouncementsPage() {
   const [topicToDelete, setTopicToDelete] = useState<ForumTopic | null>(null);
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState<TopicSortOption>('newest');
 
   const fetchTopics = useCallback(async () => {
     if (!isAdmin) return;
@@ -46,6 +53,30 @@ export default function AdminManageAnnouncementsPage() {
   useEffect(() => {
     fetchTopics();
   }, [fetchTopics]);
+
+  const filteredAndSortedTopics = useMemo(() => {
+    let filtered = [...topics];
+    if (searchTerm) {
+        const lowerSearchTerm = searchTerm.toLowerCase();
+        filtered = filtered.filter(topic =>
+            topic.title.toLowerCase().includes(lowerSearchTerm) ||
+            topic.authorName.toLowerCase().includes(lowerSearchTerm) ||
+            topic.content.toLowerCase().includes(lowerSearchTerm)
+        );
+    }
+
+    switch(sortBy) {
+        case 'title-asc': filtered.sort((a,b) => a.title.localeCompare(b.title)); break;
+        case 'title-desc': filtered.sort((a,b) => b.title.localeCompare(a.title)); break;
+        case 'author-asc': filtered.sort((a,b) => a.authorName.localeCompare(b.authorName)); break;
+        case 'author-desc': filtered.sort((a,b) => b.authorName.localeCompare(a.authorName)); break;
+        case 'newest': filtered.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()); break;
+        case 'oldest': filtered.sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()); break;
+        case 'replies-desc': filtered.sort((a,b) => (b.replyCount || 0) - (a.replyCount || 0)); break;
+        case 'replies-asc': filtered.sort((a,b) => (a.replyCount || 0) - (b.replyCount || 0)); break;
+    }
+    return filtered;
+  }, [topics, searchTerm, sortBy]);
 
   const handleDeleteClick = (topic: ForumTopic) => {
     setTopicToDelete(topic);
@@ -97,7 +128,7 @@ export default function AdminManageAnnouncementsPage() {
 
   return (
     <Card className="shadow-lg border-border">
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
             <div className="flex items-center gap-3">
                 <Megaphone className="h-8 w-8 text-primary" />
@@ -105,14 +136,48 @@ export default function AdminManageAnnouncementsPage() {
             </div>
             <CardDescription>Create, edit, and manage topics within the Announcements forum category.</CardDescription>
         </div>
-        <Button asChild>
+        <Button asChild className="w-full sm:w-auto">
           <Link href="/admin/forum/announcements/create">
             <PlusCircle className="mr-2 h-4 w-4" /> Create New Announcement
           </Link>
         </Button>
       </CardHeader>
       <CardContent>
-        {topics.length > 0 ? (
+        <div className="flex flex-col sm:flex-row gap-4 mb-6 items-center">
+            <div className="relative flex-grow w-full sm:w-auto">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                    type="search"
+                    placeholder="Search announcements..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 w-full"
+                />
+            </div>
+            <Select value={sortBy} onValueChange={(value: TopicSortOption) => setSortBy(value)}>
+                <SelectTrigger className="w-full sm:w-auto min-w-[180px]">
+                    <ListFilter className="mr-2 h-4 w-4" />
+                    <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="newest">Newest First</SelectItem>
+                    <SelectItem value="oldest">Oldest First</SelectItem>
+                    <SelectItem value="title-asc">Title (A-Z)</SelectItem>
+                    <SelectItem value="title-desc">Title (Z-A)</SelectItem>
+                    <SelectItem value="author-asc">Author (A-Z)</SelectItem>
+                    <SelectItem value="author-desc">Author (Z-A)</SelectItem>
+                    <SelectItem value="replies-desc">Replies (Most)</SelectItem>
+                    <SelectItem value="replies-asc">Replies (Least)</SelectItem>
+                </SelectContent>
+            </Select>
+            {searchTerm && (
+                <Button variant="ghost" onClick={() => setSearchTerm('')} className="w-full sm:w-auto">
+                    <XCircle className="mr-2 h-4 w-4" /> Clear
+                </Button>
+            )}
+        </div>
+
+        {filteredAndSortedTopics.length > 0 ? (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -125,7 +190,7 @@ export default function AdminManageAnnouncementsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {topics.map((topic) => (
+                {filteredAndSortedTopics.map((topic) => (
                   <TableRow key={topic.id}>
                     <TableCell className="font-medium max-w-xs truncate" title={topic.title}>{topic.title}</TableCell>
                     <TableCell>
@@ -167,7 +232,9 @@ export default function AdminManageAnnouncementsPage() {
             </Table>
           </div>
         ) : (
-          <p className="text-muted-foreground text-center py-10">No announcements found.</p>
+          <p className="text-muted-foreground text-center py-10">
+            {searchTerm ? `No announcements match your search for "${searchTerm}".` : "No announcements found."}
+          </p>
         )}
       </CardContent>
 
@@ -197,3 +264,4 @@ export default function AdminManageAnnouncementsPage() {
   );
 }
 
+    

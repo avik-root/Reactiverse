@@ -1,19 +1,27 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { getNewsletterSubscribersAction } from '@/lib/actions';
 import type { NewsletterSubscriber } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Mail, Users, CalendarDays } from 'lucide-react';
+import { Mail, Users, CalendarDays, Search, ListFilter, XCircle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+
+type SubscriberSortOption = 'email-asc' | 'email-desc' | 'newest' | 'oldest';
 
 export default function NewsletterSubscribersPage() {
   const [subscribers, setSubscribers] = useState<NewsletterSubscriber[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState<SubscriberSortOption>('newest');
 
   useEffect(() => {
     async function fetchSubscribers() {
@@ -30,6 +38,25 @@ export default function NewsletterSubscribersPage() {
     }
     fetchSubscribers();
   }, []);
+
+  const filteredAndSortedSubscribers = useMemo(() => {
+    let filtered = [...subscribers];
+    if (searchTerm) {
+        const lowerSearchTerm = searchTerm.toLowerCase();
+        filtered = filtered.filter(subscriber =>
+            subscriber.email.toLowerCase().includes(lowerSearchTerm)
+        );
+    }
+
+    switch(sortBy) {
+        case 'email-asc': filtered.sort((a,b) => a.email.localeCompare(b.email)); break;
+        case 'email-desc': filtered.sort((a,b) => b.email.localeCompare(a.email)); break;
+        case 'newest': filtered.sort((a,b) => new Date(b.subscribedAt).getTime() - new Date(a.subscribedAt).getTime()); break;
+        case 'oldest': filtered.sort((a,b) => new Date(a.subscribedAt).getTime() - new Date(b.subscribedAt).getTime()); break;
+    }
+    return filtered;
+  }, [subscribers, searchTerm, sortBy]);
+
 
   if (isLoading) {
     return (
@@ -75,7 +102,37 @@ export default function NewsletterSubscribersPage() {
         <CardDescription>View users who have subscribed to newsletter updates.</CardDescription>
       </CardHeader>
       <CardContent>
-        {subscribers.length > 0 ? (
+        <div className="flex flex-col sm:flex-row gap-4 mb-6 items-center">
+            <div className="relative flex-grow w-full sm:w-auto">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                    type="search"
+                    placeholder="Search by email..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 w-full"
+                />
+            </div>
+            <Select value={sortBy} onValueChange={(value: SubscriberSortOption) => setSortBy(value)}>
+                <SelectTrigger className="w-full sm:w-auto min-w-[180px]">
+                    <ListFilter className="mr-2 h-4 w-4" />
+                    <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="newest">Newest First</SelectItem>
+                    <SelectItem value="oldest">Oldest First</SelectItem>
+                    <SelectItem value="email-asc">Email (A-Z)</SelectItem>
+                    <SelectItem value="email-desc">Email (Z-A)</SelectItem>
+                </SelectContent>
+            </Select>
+            {searchTerm && (
+                <Button variant="ghost" onClick={() => setSearchTerm('')} className="w-full sm:w-auto">
+                    <XCircle className="mr-2 h-4 w-4" /> Clear
+                </Button>
+            )}
+        </div>
+
+        {filteredAndSortedSubscribers.length > 0 ? (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -93,7 +150,7 @@ export default function NewsletterSubscribersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {subscribers.map((subscriber) => (
+                {filteredAndSortedSubscribers.map((subscriber) => (
                   <TableRow key={subscriber.email}>
                     <TableCell className="font-medium">{subscriber.email}</TableCell>
                     <TableCell>
@@ -105,9 +162,13 @@ export default function NewsletterSubscribersPage() {
             </Table>
           </div>
         ) : (
-          <p className="text-muted-foreground text-center py-10">No newsletter subscribers yet.</p>
+          <p className="text-muted-foreground text-center py-10">
+             {searchTerm ? `No subscribers match your search for "${searchTerm}".` : "No newsletter subscribers yet."}
+          </p>
         )}
       </CardContent>
     </Card>
   );
 }
+
+    

@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState, useActionState, useCallback, startTransition, useRef } from 'react';
+import { useEffect, useState, useActionState, useCallback, startTransition, useRef, useMemo } from 'react';
 import type { User, StoredUser, AdminSetUser2FAStatusFormState, AdminSetUserCanSetPriceFormState, AdminSetUserVerificationStatusFormState } from '@/lib/types';
 import { getAllUsersAdminAction, deleteUserAdminAction, adminSetUser2FAStatusAction, adminSetUserCanSetPriceAction, adminSetUserVerificationStatusAction } from '@/lib/actions';
 import { useAuth } from '@/contexts/AuthContext';
@@ -12,13 +12,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { Users, Trash2, Eye, ShieldCheck, ShieldOff, Phone, Mail, UserSquare2, User as UserIcon, AlertTriangle, LockIcon, UnlockIcon, IndianRupee, XCircle, Github, Linkedin, EyeOff } from 'lucide-react';
+import { Users, Trash2, Eye, ShieldCheck, ShieldOff, Phone, Mail, UserSquare2, User as UserIconLucide, AlertTriangle, LockIcon, UnlockIcon, IndianRupee, XCircle, Github, Linkedin, EyeOff, Search, ListFilter } from 'lucide-react';
 import SealCheckIcon from '@/components/icons/SealCheckIcon';
 import FigmaIcon from '@/components/icons/FigmaIcon';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 
 const sanitizeUser = (user: StoredUser): User => {
   const { passwordHash, twoFactorPinHash, ...sanitized } = user;
@@ -37,6 +40,14 @@ const sanitizeUser = (user: StoredUser): User => {
   };
 };
 
+type UserSortOption = 
+  | 'name-asc' | 'name-desc' 
+  | 'username-asc' | 'username-desc'
+  | 'email-asc' | 'email-desc'
+  | 'status-verified' | 'status-unverified' 
+  | 'status-2fa-enabled' | 'status-2fa-disabled'
+  | 'status-locked' | 'status-active';
+
 export default function ManageUsersPage() {
   const { user: adminUser, isAdmin } = useAuth();
   const { toast } = useToast();
@@ -51,7 +62,6 @@ export default function ManageUsersPage() {
   const [is2FADialogOpen, setIs2FADialogOpen] = useState(false);
   const [current2FAAction, setCurrent2FAAction] = useState<'disable' | null>(null);
 
-
   const [userForPriceSetting, setUserForPriceSetting] = useState<User | null>(null);
   const [isPriceSettingDialogOpen, setIsPriceSettingDialogOpen] = useState(false);
   const [currentPriceSettingAction, setCurrentPriceSettingAction] = useState<'enable' | 'disable' | null>(null);
@@ -64,6 +74,8 @@ export default function ManageUsersPage() {
   const lastProcessedPriceSettingMessageRef = useRef<string | null | undefined>(null);
   const lastProcessedVerificationMessageRef = useRef<string | null | undefined>(null);
 
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState<UserSortOption>('name-asc');
 
   const initial2FAState: AdminSetUser2FAStatusFormState = { message: null, success: false, errors: {} };
   const [set2FAFormState, set2FAFormAction] = useActionState(adminSetUser2FAStatusAction, initial2FAState);
@@ -73,7 +85,6 @@ export default function ManageUsersPage() {
 
   const initialVerificationState: AdminSetUserVerificationStatusFormState = { message: null, success: false, errors: {} };
   const [setVerificationFormState, setVerificationFormAction] = useActionState(adminSetUserVerificationStatusAction, initialVerificationState);
-
 
   const fetchUsers = useCallback(async () => {
     if (!isAdmin) return;
@@ -91,6 +102,35 @@ export default function ManageUsersPage() {
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
+
+  const filteredAndSortedUsers = useMemo(() => {
+    let filtered = [...users];
+    if (searchTerm) {
+        const lowerSearchTerm = searchTerm.toLowerCase();
+        filtered = filtered.filter(user =>
+            user.name.toLowerCase().includes(lowerSearchTerm) ||
+            user.username.toLowerCase().includes(lowerSearchTerm) ||
+            (user.email && user.email.toLowerCase().includes(lowerSearchTerm))
+        );
+    }
+
+    switch(sortBy) {
+        case 'name-asc': filtered.sort((a,b) => a.name.localeCompare(b.name)); break;
+        case 'name-desc': filtered.sort((a,b) => b.name.localeCompare(a.name)); break;
+        case 'username-asc': filtered.sort((a,b) => a.username.localeCompare(b.username)); break;
+        case 'username-desc': filtered.sort((a,b) => b.username.localeCompare(a.username)); break;
+        case 'email-asc': filtered.sort((a,b) => (a.email || '').localeCompare(b.email || '')); break;
+        case 'email-desc': filtered.sort((a,b) => (b.email || '').localeCompare(a.email || '')); break;
+        case 'status-verified': filtered.sort((a,b) => (b.isVerified ? 1 : 0) - (a.isVerified ? 1 : 0)); break;
+        case 'status-unverified': filtered.sort((a,b) => (a.isVerified ? 1 : 0) - (b.isVerified ? 1 : 0)); break;
+        case 'status-2fa-enabled': filtered.sort((a,b) => (b.twoFactorEnabled ? 1 : 0) - (a.twoFactorEnabled ? 1 : 0)); break;
+        case 'status-2fa-disabled': filtered.sort((a,b) => (a.twoFactorEnabled ? 1 : 0) - (b.twoFactorEnabled ? 1 : 0)); break;
+        case 'status-locked': filtered.sort((a,b) => (b.isLocked ? 1 : 0) - (a.isLocked ? 1 : 0)); break;
+        case 'status-active': filtered.sort((a,b) => (a.isLocked ? 1 : 0) - (b.isLocked ? 1 : 0)); break;
+    }
+    return filtered;
+  }, [users, searchTerm, sortBy]);
+
 
   const processFormStateUpdate = (
     formState: AdminSetUser2FAStatusFormState | AdminSetUserCanSetPriceFormState | AdminSetUserVerificationStatusFormState,
@@ -259,7 +299,45 @@ export default function ManageUsersPage() {
         <CardDescription>View, manage user accounts, their 2FA status, pricing permissions, and verification status.</CardDescription>
       </CardHeader>
       <CardContent>
-        {users.length > 0 ? (
+        <div className="flex flex-col sm:flex-row gap-4 mb-6 items-center">
+            <div className="relative flex-grow w-full sm:w-auto">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                    type="search"
+                    placeholder="Search by name, username, email..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 w-full"
+                />
+            </div>
+            <Select value={sortBy} onValueChange={(value: UserSortOption) => setSortBy(value)}>
+                <SelectTrigger className="w-full sm:w-auto min-w-[200px]">
+                    <ListFilter className="mr-2 h-4 w-4" />
+                    <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="name-asc">Name (A-Z)</SelectItem>
+                    <SelectItem value="name-desc">Name (Z-A)</SelectItem>
+                    <SelectItem value="username-asc">Username (A-Z)</SelectItem>
+                    <SelectItem value="username-desc">Username (Z-A)</SelectItem>
+                    <SelectItem value="email-asc">Email (A-Z)</SelectItem>
+                    <SelectItem value="email-desc">Email (Z-A)</SelectItem>
+                    <SelectItem value="status-verified">Verified First</SelectItem>
+                    <SelectItem value="status-unverified">Unverified First</SelectItem>
+                    <SelectItem value="status-2fa-enabled">2FA Enabled First</SelectItem>
+                    <SelectItem value="status-2fa-disabled">2FA Disabled First</SelectItem>
+                    <SelectItem value="status-locked">Locked First</SelectItem>
+                    <SelectItem value="status-active">Active First</SelectItem>
+                </SelectContent>
+            </Select>
+            {searchTerm && (
+                <Button variant="ghost" onClick={() => setSearchTerm('')} className="w-full sm:w-auto">
+                    <XCircle className="mr-2 h-4 w-4" /> Clear
+                </Button>
+            )}
+        </div>
+
+        {filteredAndSortedUsers.length > 0 ? (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -276,7 +354,7 @@ export default function ManageUsersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.map((user) => (
+                {filteredAndSortedUsers.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell>
                       <Avatar className="h-10 w-10">
@@ -345,7 +423,9 @@ export default function ManageUsersPage() {
             </Table>
           </div>
         ) : (
-          <p className="text-muted-foreground text-center py-10">No users found.</p>
+            <p className="text-muted-foreground text-center py-10">
+                {searchTerm ? `No users match your search for "${searchTerm}".` : "No users found."}
+            </p>
         )}
       </CardContent>
 
@@ -354,7 +434,7 @@ export default function ManageUsersPage() {
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle className="flex items-center">
-                <UserIcon className="mr-2 h-5 w-5 text-primary" />
+                <UserIconLucide className="mr-2 h-5 w-5 text-primary" />
                 User Details: {selectedUserForView.name}
                 {selectedUserForView.isVerified && (
                   <SealCheckIcon className="ml-2 h-5 w-5 text-blue-500" />
@@ -370,7 +450,7 @@ export default function ManageUsersPage() {
                     </Avatar>
                 </div>
                 <InfoItem icon={<UserSquare2 />} label="Full Name" value={selectedUserForView.name} />
-                <InfoItem icon={<UserIcon />} label="Username" value={selectedUserForView.username} />
+                <InfoItem icon={<UserIconLucide />} label="Username" value={selectedUserForView.username} />
                 <InfoItem icon={<Mail />} label="Email" value={selectedUserForView.email || 'N/A'} />
                 <InfoItem icon={<Phone />} label="Phone" value={selectedUserForView.phone || 'N/A'} />
 
@@ -563,3 +643,5 @@ const InfoItem: React.FC<InfoItemProps> = ({ icon, label, value, isLink }) => (
         </div>
     </div>
 );
+
+    

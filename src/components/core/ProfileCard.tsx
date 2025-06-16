@@ -23,7 +23,7 @@ interface ProfileCardProps {
   contactText?: string;
   showUserInfo?: boolean;
   onContactClick?: () => void;
-  contactEmail?: string; // Added this prop
+  contactEmail?: string;
   rank?: number;
 }
 
@@ -59,10 +59,10 @@ const easeInOutCubic = (x: number): number =>
   x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
 
 const RankingBadgeDisplay: React.FC<{ rank?: number }> = ({ rank }) => {
-  if (!rank || rank === 0 || rank > 10) return null; 
+  if (!rank || rank === 0 || rank > 10) return null;
 
   let icon: React.ReactElement | null = null;
-  let badgeClasses = "pc-rank-badge text-xs px-2 py-0.5 font-bold flex items-center gap-1"; 
+  let badgeClasses = "pc-rank-badge text-xs px-2 py-0.5 font-bold flex items-center gap-1";
   let rankText = `#${rank}`;
 
   if (rank === 1) {
@@ -74,7 +74,7 @@ const RankingBadgeDisplay: React.FC<{ rank?: number }> = ({ rank }) => {
   } else if (rank === 3) {
     icon = <Medal className="h-3 w-3 fill-orange-500 text-orange-600" />;
     badgeClasses += " bg-orange-400/20 text-orange-600 border border-orange-400/50";
-  } else { 
+  } else {
     icon = <Star className="h-3 w-3 fill-sky-500 text-sky-600" />;
     badgeClasses += " bg-sky-400/20 text-sky-600 border border-sky-500/50";
   }
@@ -88,7 +88,7 @@ const RankingBadgeDisplay: React.FC<{ rank?: number }> = ({ rank }) => {
 
 
 const ProfileCardComponent: React.FC<ProfileCardProps> = ({
-  avatarUrl = "https://placehold.co/128x128.png?text=AV",
+  avatarUrl = "https://placehold.co/128x128.png?text=U",
   iconUrl,
   grainUrl,
   behindGradient,
@@ -104,7 +104,7 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
   contactText = "Contact",
   showUserInfo = true,
   onContactClick,
-  contactEmail, // Destructure new prop
+  contactEmail,
   rank,
 }) => {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -257,7 +257,6 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
     card.addEventListener("pointermove", pointerMoveHandler);
     card.addEventListener("pointerleave", pointerLeaveHandler);
 
-    // Ensure wrap has dimensions before initial animation
     if (wrap.clientWidth > 0 && wrap.clientHeight > 0) {
       const initialX = wrap.clientWidth - ANIMATION_CONFIG.INITIAL_X_OFFSET;
       const initialY = ANIMATION_CONFIG.INITIAL_Y_OFFSET;
@@ -296,7 +295,7 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
           ? (behindGradient ?? DEFAULT_BEHIND_GRADIENT)
           : "none",
         "--inner-gradient": innerGradient ?? DEFAULT_INNER_GRADIENT,
-        "--card-opacity": "var(--card-opacity-val, 0.15)", // Ensure default is set
+        "--card-opacity": "var(--card-opacity-val, 0.15)",
       }) as React.CSSProperties,
     [iconUrl, grainUrl, showBehindGradient, behindGradient, innerGradient]
   );
@@ -322,17 +321,20 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
         <div className="pc-inside">
           <div className="pc-shine" />
           <div className="pc-glare" />
-          <div className="pc-content pc-avatar-content">
-            <img
-              className="avatar"
-              src={avatarUrl}
-              alt={`${name || "User"} avatar`}
-              loading="lazy"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.src = "https://placehold.co/128x128.png?text=??";
-              }}
-            />
+
+          <div className="pc-avatar-section">
+            <div className="pc-content pc-avatar-content">
+              <img
+                className="avatar"
+                src={avatarUrl}
+                alt={`${name || "User"} avatar`}
+                loading="lazy"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.src = "https://placehold.co/128x128.png?text=??";
+                }}
+              />
+            </div>
             {showUserInfo && (
               <div className="pc-user-info">
                 <div className="pc-user-details">
@@ -343,8 +345,8 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
                       loading="lazy"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
-                        target.src = avatarUrl; // Try main avatar
-                         if (target.src === avatarUrl) { // If main avatar also fails or is the same
+                        target.src = avatarUrl;
+                         if (target.src === avatarUrl) {
                             target.src = "https://placehold.co/32x32.png?text=?";
                          }
                       }}
@@ -355,26 +357,29 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
                     <div className="pc-status">{status}</div>
                   </div>
                 </div>
-                {(onContactClick || contactEmail) && contactText && (
-                    <button
-                        className="pc-contact-btn"
-                        onClick={internalHandleContactClick}
-                        style={{ pointerEvents: "auto" }}
-                        type="button"
-                        aria-label={`Contact ${name || "user"}`}
-                    >
-                        {contactText}
-                    </button>
-                )}
               </div>
             )}
           </div>
-          <div className="pc-content pc-details-content">
-            <div className="pc-details">
-              <h3>{name}</h3>
-              <p>{title}</p>
+
+          <div className="pc-details-section">
+            <div className="pc-content pc-details-content">
+              <div className="pc-details">
+                <h3>{name}</h3>
+                <p>{title}</p>
+              </div>
             </div>
           </div>
+          
+          {(onContactClick || contactEmail) && contactText && (
+            <button
+              className="pc-contact-btn"
+              onClick={internalHandleContactClick}
+              type="button"
+              aria-label={`Contact ${name || "user"}`}
+            >
+              {contactText}
+            </button>
+          )}
         </div>
       </section>
     </div>

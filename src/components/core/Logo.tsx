@@ -8,10 +8,9 @@ import { useState, useEffect } from 'react';
 
 const Logo = () => {
   const [useFallbackLogo, setUseFallbackLogo] = useState(false);
-  const [isLoading, setIsLoading] = useState(true); // To prevent flash of fallback during initial check
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check if custom logo exists. This effect runs only on client.
     const img = new window.Image();
     img.src = "/site_logo.png";
     img.onload = () => {
@@ -24,35 +23,31 @@ const Logo = () => {
     };
   }, []);
 
-  if (isLoading) {
-    // Render a placeholder or nothing to avoid layout shift / hydration issues
-    return (
-      <div className="flex items-center gap-2 text-primary hover:text-primary/80 transition-colors h-[32px] w-[160px]">
-        {/* Placeholder can be a simple div matching dimensions or a skeleton */}
-      </div>
-    );
-  }
-
   return (
     <Link href="/" className="flex items-center gap-2 text-primary hover:text-primary/80 transition-colors">
-      {useFallbackLogo ? (
+      {isLoading ? (
+        // Placeholder for the logo area itself, matching the dimensions of the image container
+        <div className="h-[32px] w-[160px] bg-muted/20 animate-pulse rounded-sm"></div>
+      ) : useFallbackLogo ? (
         <>
           <Layers3 size={28} />
           <span className="text-2xl font-headline font-semibold">Reactiverse</span>
         </>
       ) : (
-        <Image 
-          src="/site_logo.png" 
-          alt="Reactiverse Logo" 
-          width={160} 
-          height={32} 
-          priority 
-          className="object-contain" // This ensures the logo is contained and scaled correctly
-          data-ai-hint="site logo"
-          onError={() => {
-            setUseFallbackLogo(true);
-          }}
-        />
+        // Explicit container for the image with defined dimensions
+        <div style={{ width: '160px', height: '32px', position: 'relative' }}>
+          <Image
+            src="/site_logo.png"
+            alt="Reactiverse Logo"
+            layout="fill"         // Image will fill this div
+            objectFit="contain"  // Equivalent to className="object-contain" for layout="fill"
+            priority
+            data-ai-hint="site logo"
+            onError={() => {
+              setUseFallbackLogo(true);
+            }}
+          />
+        </div>
       )}
     </Link>
   );

@@ -7,24 +7,44 @@ import { Layers3 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 const Logo = () => {
-  const [useFallbackLogo, setUseFallbackLogo] = useState(false);
+  const [useFallbackLogo, setUseFallbackLogo] = useState(true); // Default to true until checked
   const [isLoading, setIsLoading] = useState(true);
+  const [logoVersionKey, setLogoVersionKey] = useState(Date.now()); // Key to force re-render of Image
 
-  useEffect(() => {
-    // Ensure this runs only client-side
-    if (typeof window === 'undefined') return;
+  const checkLogoExistence = () => {
+    setIsLoading(true);
+    const customLogoPath = "/site_logo.png";
+    // Use a unique query param for each check to bypass browser cache for the check itself
+    const checkSrc = `${customLogoPath}?check=${new Date().getTime()}`;
 
     const img = new window.Image();
-    img.src = "/site_logo.png"; // Path to the custom logo
+    img.src = checkSrc;
     img.onload = () => {
-      setUseFallbackLogo(false);
+      setUseFallbackLogo(false); // Custom logo exists
+      setLogoVersionKey(Date.now()); // Update key to ensure next/image re-evaluates
       setIsLoading(false);
     };
     img.onerror = () => {
-      setUseFallbackLogo(true);
+      setUseFallbackLogo(true); // Custom logo does not exist or error
       setIsLoading(false);
     };
-  }, []);
+  };
+
+  useEffect(() => {
+    checkLogoExistence(); // Initial check on mount
+
+    const handleLogoUpdatedEvent = () => {
+      // When 'logoUpdated' event is dispatched, re-check the logo existence
+      // and update the key to force next/image to refresh.
+      checkLogoExistence();
+    };
+
+    window.addEventListener('logoUpdated', handleLogoUpdatedEvent);
+
+    return () => {
+      window.removeEventListener('logoUpdated', handleLogoUpdatedEvent);
+    };
+  }, []); // Empty dependency array: runs once on mount to set up listener and initial check.
 
   return (
     <Link href="/" className="flex items-center gap-2 text-primary hover:text-primary/80 transition-colors">
@@ -35,23 +55,26 @@ const Logo = () => {
         </>
       ) : (
         <>
-          {useFallbackLogo ? (
-            <Layers3 size={28} className="shrink-0" />
-          ) : (
-            <div style={{ height: '32px', width: '32px', position: 'relative', flexShrink: 0 }}>
+          <div style={{ width: '32px', height: '32px', position: 'relative', flexShrink: 0 }}>
+            {useFallbackLogo ? (
+              <Layers3 size={28} className="text-primary w-full h-full" />
+            ) : (
               <Image
-                src="/site_logo.png"
+                src="/site_logo.png" // Base path, next/image handles optimization and caching
+                key={logoVersionKey}  // Changing key forces re-evaluation by next/image
                 alt="Reactiverse Site Logo"
                 layout="fill"
-                objectFit="contain"
-                priority
+                objectFit="contain" // Ensures aspect ratio is maintained within the 32x32 box
+                priority // If it's critical for LCP
                 data-ai-hint="site logo icon"
                 onError={() => {
+                  // This internal onError for next/image can also set fallback if needed,
+                  // though the primary check should handle most cases.
                   setUseFallbackLogo(true);
                 }}
               />
-            </div>
-          )}
+            )}
+          </div>
           <span className="text-2xl font-headline font-semibold">Reactiverse</span>
         </>
       )}

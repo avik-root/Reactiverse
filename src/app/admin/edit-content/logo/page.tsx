@@ -25,7 +25,7 @@ function SubmitButton() {
 export default function EditSiteLogoPage() {
   const { toast } = useToast();
   const [preview, setPreview] = useState<string | null>(null);
-  const [currentLogoPath, setCurrentLogoPath] = useState<string | null>('/site_logo.png'); // Default or fetched
+  const [currentLogoPath, setCurrentLogoPath] = useState<string | null>('/site_logo.png');
 
   const initialState: SiteLogoUploadState = { message: null, errors: {}, success: false, filePath: null };
   const [state, formAction] = useActionState(updateSiteLogoAction, initialState);
@@ -35,7 +35,7 @@ export default function EditSiteLogoPage() {
     if (file) {
       if (file.size > 2 * 1024 * 1024) { // 2MB limit
         toast({ title: "Error", description: "File size exceeds 2MB limit.", variant: "destructive"});
-        event.target.value = ""; // Clear the input
+        event.target.value = ""; 
         setPreview(null);
         return;
       }
@@ -49,13 +49,13 @@ export default function EditSiteLogoPage() {
     }
   };
   
-  // Effect to check if current logo exists (client-side)
   useEffect(() => {
     const img = new window.Image();
-    img.src = '/site_logo.png'; // Attempt to load current logo
-    img.onload = () => setCurrentLogoPath('/site_logo.png?' + new Date().getTime()); // Cache bust
-    img.onerror = () => setCurrentLogoPath(null); // Logo doesn't exist or error
-  }, [state?.success]); // Re-check if upload was successful
+    const checkSrc = '/site_logo.png?v=' + new Date().getTime(); // Cache bust for check
+    img.src = checkSrc; 
+    img.onload = () => setCurrentLogoPath(checkSrc); // Use cache-busted path for preview
+    img.onerror = () => setCurrentLogoPath(null);
+  }, [state?.success]);
 
 
   useEffect(() => {
@@ -66,13 +66,15 @@ export default function EditSiteLogoPage() {
         variant: state.success ? 'default' : 'destructive',
       });
       if (state.success && state.filePath) {
-        setPreview(null); // Clear preview after successful upload
-        // Force re-fetch of logo in Logo component by appending a timestamp or similar
-        setCurrentLogoPath(state.filePath + '?' + new Date().getTime());
-         const logoUploadForm = document.getElementById('logoUploadForm') as HTMLFormElement;
-         if (logoUploadForm) {
+        setPreview(null); 
+        const logoUploadForm = document.getElementById('logoUploadForm') as HTMLFormElement;
+        if (logoUploadForm) {
             logoUploadForm.reset();
-         }
+        }
+        // Dispatch custom event to notify other components (like Header/Logo)
+        window.dispatchEvent(new CustomEvent('logoUpdated'));
+        // Update local preview path to reflect the new logo with a cache buster
+        setCurrentLogoPath(state.filePath + '?' + new Date().getTime());
       }
     }
   }, [state, toast]);
@@ -95,9 +97,9 @@ export default function EditSiteLogoPage() {
               <Image 
                 src={currentLogoPath} 
                 alt="Current Site Logo" 
-                width={200} height={60} 
+                width={160} height={32} 
                 className="object-contain rounded border p-2 bg-muted/30" 
-                key={currentLogoPath} // Force re-render on path change
+                key={currentLogoPath} 
                 data-ai-hint="current logo"
               />
             ) : (
@@ -125,13 +127,15 @@ export default function EditSiteLogoPage() {
             {preview && (
               <div className="mt-4">
                 <Label>New Logo Preview:</Label>
-                <Image 
-                    src={preview} 
-                    alt="New logo preview" 
-                    width={200} height={60} 
-                    className="object-contain mt-2 rounded border p-2 bg-muted/30"
-                    data-ai-hint="logo preview"
-                />
+                <div className="relative w-[160px] h-[32px] mt-2 rounded border p-1 bg-muted/30">
+                  <Image 
+                      src={preview} 
+                      alt="New logo preview" 
+                      layout="fill"
+                      objectFit="contain"
+                      data-ai-hint="logo preview"
+                  />
+                </div>
               </div>
             )}
           </section>

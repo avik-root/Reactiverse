@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { toggleLikeDesignAction, type ToggleLikeDesignResult } from '@/lib/actions';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/contexts/AuthContext';
 
 interface LikeButtonProps {
   designId: string;
@@ -15,6 +14,7 @@ interface LikeButtonProps {
   initialIsLiked: boolean;
   onLikeToggle?: (newLikeCount: number, newIsLiked: boolean) => void;
   className?: string;
+  currentUserId?: string; // Added currentUserId prop
 }
 
 const LikeButton: React.FC<LikeButtonProps> = ({
@@ -23,36 +23,33 @@ const LikeButton: React.FC<LikeButtonProps> = ({
   initialIsLiked,
   onLikeToggle,
   className,
+  currentUserId, // Use the passed prop
 }) => {
-  const { user: authUser } = useAuth();
   const { toast } = useToast();
   const [isTransitionPending, startTransition] = useTransition();
-
-  const currentUserId = authUser && 'id' in authUser ? authUser.id : undefined;
 
   const [optimisticState, toggleOptimisticState] = useOptimistic(
     { isLiked: initialIsLiked, likeCount: initialLikeCount },
     (state) => ({
       isLiked: !state.isLiked,
-      likeCount: state.isLiked ? state.likeCount - 1 : state.likeCount + 1,
+      likeCount: state.isLiked ? Math.max(0, state.likeCount - 1) : state.likeCount + 1,
     })
   );
 
-  // Effect to ensure optimistic state is re-based if props change from parent
+  // This effect ensures that if the initial props change (e.g., parent re-fetches data),
+  // the optimistic state's base is updated.
   useEffect(() => {
-    // This is a bit of a trick to re-trigger the optimistic hook's base state
-    // if the parent's understanding of the like state changes externally.
-    // Note: useOptimistic primarily reconciles with its base state.
-    // If initialIsLiked or initialLikeCount props change, it should re-base.
-    // This effect is more of a safeguard or for scenarios where that re-basing isn't happening as expected.
-    // It's often not strictly necessary if the parent component correctly updates these props.
+    // Check if optimistic state is out of sync with new initial props
     if (optimisticState.isLiked !== initialIsLiked || optimisticState.likeCount !== initialLikeCount) {
-        // This directly sets the optimistic state to match the props.
-        // This is generally NOT how useOptimistic is meant to be updated after its initial setup,
-        // as it's designed to reconcile with its base props.
-        // However, if there are sync issues, this can be a way to force it.
-        // Consider if the parent component is reliably updating initialIsLiked/initialLikeCount.
-        // For now, we rely on the default behavior of useOptimistic re-basing on prop changes.
+      // This is a bit of a manual way to reset the base for useOptimistic if props change.
+      // A more direct way would be for useOptimistic to naturally re-base,
+      // but this explicit call can help ensure it reflects external changes.
+      // We are essentially telling the optimistic hook "your new base reality is this".
+      // We're not calling toggleOptimisticState with an action, but rather providing
+      // a new state object directly. This is not standard use of the second argument of useOptimistic.
+      // A cleaner way might be to re-key the component or ensure the parent updates props reliably.
+      // For now, let's rely on useOptimistic's default behavior to re-base when its initial input props change.
+      // The `key` prop on the LikeButton (if parent changes it) or just prop changes should cause re-basing.
     }
   }, [initialIsLiked, initialLikeCount]);
 
@@ -78,19 +75,14 @@ const LikeButton: React.FC<LikeButtonProps> = ({
         if (onLikeToggle) {
           onLikeToggle(result.newLikeCount, result.isLikedByCurrentUser);
         }
-        // The optimistic state should reconcile with the new props passed down
-        // after onLikeToggle updates the parent component.
       } else if (!result.success) {
         toast({
           title: 'Error',
           description: result.message || 'Could not update like status.',
           variant: 'destructive',
         });
-        // If the action fails, useOptimistic will revert to its base state (from props)
-        // If props haven't changed yet, it might revert to the state before optimistic update.
-        // It's important that parent updates props correctly even on failure if server state changed.
-        // However, for a simple like toggle, if server fails, client should ideally revert the optimistic change.
-        // `useOptimistic` handles this reversion if the actual data source it's bound to doesn't change as predicted.
+        // Optimistic state will automatically revert if the action fails or if the underlying data source
+        // it's based on (initialLikeCount, initialIsLiked) doesn't change as expected.
       }
     });
   };
@@ -111,7 +103,7 @@ const LikeButton: React.FC<LikeButtonProps> = ({
         )}
       />
       <span className={cn("text-xs", optimisticState.isLiked ? "text-primary font-medium" : "text-muted-foreground")}>
-        {optimisticState.likeCount < 0 ? 0 : optimisticState.likeCount} {/* Ensure count doesn't go negative */}
+        {optimisticState.likeCount < 0 ? 0 : optimisticState.likeCount}
       </span>
       <span className="sr-only">{optimisticState.isLiked ? 'Unlike' : 'Like'}</span>
     </Button>
@@ -119,4 +111,3 @@ const LikeButton: React.FC<LikeButtonProps> = ({
 };
 
 export default LikeButton;
-

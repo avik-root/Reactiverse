@@ -14,9 +14,10 @@ import LikeButton from './LikeButton';
 interface DesignCardProps {
   design: Design;
   onOpenDetail: (design: Design) => void;
+  onLikeChange?: (designId: string, newIsLiked: boolean, newLikeCount: number) => void; // Added
 }
 
-const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
+const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail, onLikeChange }) => {
   const { user: currentUser } = useAuth();
 
   const getInitials = (name?: string) => {
@@ -26,6 +27,8 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
 
   const isPriced = design.price && design.price > 0;
   const currentUserId = currentUser && 'id' in currentUser ? currentUser.id : undefined;
+  
+  // These are derived from the current design prop, which should be updated by the parent
   const initialIsLiked = currentUserId ? design.likedBy.includes(currentUserId) : false;
   const initialLikeCount = design.likedBy.length;
 
@@ -67,6 +70,12 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
       </html>
     `;
   }, [design.codeBlocks]);
+
+  const handleInternalLikeToggle = (newLikeCount: number, newIsLiked: boolean) => {
+    if (onLikeChange) {
+      onLikeChange(design.id, newIsLiked, newLikeCount);
+    }
+  };
 
   return (
     <Card
@@ -142,6 +151,7 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
             initialLikeCount={initialLikeCount}
             initialIsLiked={initialIsLiked}
             currentUserId={currentUserId}
+            onLikeToggle={handleInternalLikeToggle} // Use internal handler
         />
       </CardFooter>
     </Card>

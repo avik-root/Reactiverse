@@ -98,6 +98,26 @@ export default function MyDesignsPage() {
     setDeleteConfirmationText('');
   };
 
+  const handleLikeChange = (designId: string, newIsLiked: boolean, serverLikeCount: number) => {
+    const currentUserId = user && 'id' in user ? user.id : undefined;
+    setUserDesigns(prevDesigns =>
+      prevDesigns.map(d => {
+        if (d.id === designId) {
+          let updatedLikedBy = [...d.likedBy];
+          if (currentUserId) {
+            if (newIsLiked && !updatedLikedBy.includes(currentUserId)) {
+              updatedLikedBy.push(currentUserId);
+            } else if (!newIsLiked && updatedLikedBy.includes(currentUserId)) {
+              updatedLikedBy = updatedLikedBy.filter(id => id !== currentUserId);
+            }
+          }
+          return { ...d, likedBy: updatedLikedBy };
+        }
+        return d;
+      })
+    );
+  };
+
 
   return (
     <Card className="shadow-lg">
@@ -134,7 +154,7 @@ export default function MyDesignsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {userDesigns.map((design) => (
               <div key={design.id} className="flex flex-col">
-                <DesignCard design={design} onOpenDetail={handleOpenDetail} />
+                <DesignCard design={design} onOpenDetail={handleOpenDetail} onLikeChange={handleLikeChange} />
                 <div className="mt-auto flex gap-2 p-2 bg-card border border-t-0 rounded-b-lg">
                   <Button variant="outline" size="sm" asChild className="flex-1">
                     <Link href={`/dashboard/designs/edit/${design.id}`}>

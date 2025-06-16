@@ -20,6 +20,7 @@ import { Card } from '@/components/ui/card';
 import { Search, ListFilter, Palette, Loader2, Sparkles, Wand2, MousePointerClick, ToggleLeft, CheckSquare, Navigation, CreditCard, LayoutGrid, XCircle } from 'lucide-react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext'; // Import useAuth
 
 type SortOption = 'newest' | 'oldest' | 'price-asc' | 'price-desc' | 'title-asc' | 'title-desc';
 
@@ -49,6 +50,7 @@ export default function HomePage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const designerIdParam = searchParams.get('designerId');
+  const { user: currentUser } = useAuth(); // Get current user from AuthContext
 
   useEffect(() => {
     async function fetchDesigns() {
@@ -67,6 +69,28 @@ export default function HomePage() {
   const handleOpenDetail = (design: Design) => {
     setSelectedDesign(design);
     setIsDialogOpen(true);
+  };
+
+  const handleLikeChange = (designId: string, newIsLiked: boolean, serverLikeCount: number) => {
+    const currentUserId = currentUser && 'id' in currentUser ? currentUser.id : undefined;
+    setDesigns(prevDesigns =>
+      prevDesigns.map(d => {
+        if (d.id === designId) {
+          let updatedLikedBy = [...d.likedBy];
+          if (currentUserId) {
+            if (newIsLiked && !updatedLikedBy.includes(currentUserId)) {
+              updatedLikedBy.push(currentUserId);
+            } else if (!newIsLiked && updatedLikedBy.includes(currentUserId)) {
+              updatedLikedBy = updatedLikedBy.filter(id => id !== currentUserId);
+            }
+          }
+          // The serverLikeCount is the most accurate total. We update likedBy for the heart icon state.
+          // The LikeButton itself manages its displayed count optimistically.
+          return { ...d, likedBy: updatedLikedBy };
+        }
+        return d;
+      })
+    );
   };
 
   const filteredAndSortedDesigns = useMemo(() => {
@@ -181,7 +205,7 @@ export default function HomePage() {
             ) : featuredDesigns.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {featuredDesigns.map((design) => (
-                  <DesignCard key={design.id} design={design} onOpenDetail={handleOpenDetail} />
+                  <DesignCard key={design.id} design={design} onOpenDetail={handleOpenDetail} onLikeChange={handleLikeChange} />
                 ))}
               </div>
             ) : (
@@ -264,7 +288,7 @@ export default function HomePage() {
         ) : filteredAndSortedDesigns.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredAndSortedDesigns.map((design) => (
-              <DesignCard key={design.id} design={design} onOpenDetail={handleOpenDetail} />
+              <DesignCard key={design.id} design={design} onOpenDetail={handleOpenDetail} onLikeChange={handleLikeChange} />
             ))}
           </div>
         ) : (

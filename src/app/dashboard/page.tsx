@@ -11,6 +11,7 @@ import type { Design } from '@/lib/types';
 import { getAllDesignsAction } from '@/lib/actions';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import LikeButton from '@/components/design/LikeButton'; // Import LikeButton
 
 interface DashboardActionCardProps {
   title: string;
@@ -61,9 +62,11 @@ function StatCard({ title, value, icon, description }: StatCardProps) {
 
 interface MostLikedDesignPreviewCardProps {
   design: Design;
+  onLikeChange: (designId: string, newIsLiked: boolean, newLikeCount: number) => void;
+  currentUserId?: string;
 }
 
-function MostLikedDesignPreviewCard({ design }: MostLikedDesignPreviewCardProps) {
+function MostLikedDesignPreviewCard({ design, onLikeChange, currentUserId }: MostLikedDesignPreviewCardProps) {
   const previewSrcDoc = useMemo(() => {
     if (!design.codeBlocks || design.codeBlocks.length === 0) return null;
     const htmlBlock = design.codeBlocks.find(block => block.language.toLowerCase() === 'html');
@@ -88,6 +91,14 @@ function MostLikedDesignPreviewCard({ design }: MostLikedDesignPreviewCardProps)
     `;
   }, [design.codeBlocks]);
 
+  const initialIsLiked = currentUserId ? design.likedBy.includes(currentUserId) : false;
+  const initialLikeCount = design.likedBy.length;
+
+  const handleInternalLikeToggle = (newLikeCount: number, newIsLiked: boolean) => {
+    onLikeChange(design.id, newIsLiked, newLikeCount);
+  };
+
+
   return (
     <Card key={design.id} className="flex flex-col overflow-hidden hover:shadow-md transition-shadow">
       <div className="relative aspect-video bg-muted/30 flex items-center justify-center overflow-hidden">
@@ -111,10 +122,14 @@ function MostLikedDesignPreviewCard({ design }: MostLikedDesignPreviewCardProps)
       <CardContent className="flex-grow py-0">
         <p className="text-xs text-muted-foreground line-clamp-2">{design.description}</p>
       </CardContent>
-      <CardFooter className="pt-3 pb-3 text-xs justify-between">
-        <div className="flex items-center text-muted-foreground">
-          <Heart className="h-3.5 w-3.5 mr-1 text-red-500 fill-red-500" /> {design.likedBy?.length || 0} Likes
-        </div>
+      <CardFooter className="pt-3 pb-3 text-xs justify-between items-center">
+         <LikeButton
+            designId={design.id}
+            initialLikeCount={initialLikeCount}
+            initialIsLiked={initialIsLiked}
+            currentUserId={currentUserId}
+            onLikeToggle={handleInternalLikeToggle}
+        />
         <Button variant="outline" size="sm" asChild>
           <Link href={`/dashboard/designs/edit/${design.id}`}>
               <Eye className="mr-1 h-3 w-3"/> View/Edit
@@ -130,6 +145,7 @@ export default function UserDashboardPage() {
   const { user } = useAuth();
   const [userDesigns, setUserDesigns] = useState<Design[]>([]);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
+  const currentUserId = user && 'id' in user ? user.id : undefined;
 
   useEffect(() => {
     async function fetchUserStats() {
@@ -149,6 +165,25 @@ export default function UserDashboardPage() {
     }
     fetchUserStats();
   }, [user]);
+
+  const handleLikeChange = (designId: string, newIsLiked: boolean, serverLikeCount: number) => {
+    setUserDesigns(prevDesigns =>
+      prevDesigns.map(d => {
+        if (d.id === designId) {
+          let updatedLikedBy = [...d.likedBy];
+          if (currentUserId) {
+            if (newIsLiked && !updatedLikedBy.includes(currentUserId)) {
+              updatedLikedBy.push(currentUserId);
+            } else if (!newIsLiked && updatedLikedBy.includes(currentUserId)) {
+              updatedLikedBy = updatedLikedBy.filter(id => id !== currentUserId);
+            }
+          }
+          return { ...d, likedBy: updatedLikedBy };
+        }
+        return d;
+      })
+    );
+  };
 
   const totalLikes = useMemo(() => {
     return userDesigns.reduce((acc, design) => acc + (design.likedBy?.length || 0), 0);
@@ -228,7 +263,12 @@ export default function UserDashboardPage() {
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {mostLikedDesigns.map(design => (
-              <MostLikedDesignPreviewCard key={design.id} design={design} />
+              <MostLikedDesignPreviewCard 
+                key={design.id} 
+                design={design} 
+                onLikeChange={handleLikeChange}
+                currentUserId={currentUserId}
+              />
             ))}
           </CardContent>
         </Card>

@@ -8,10 +8,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { FileText, MessageSquare, PlusCircle, Info, Users, CalendarDays, Eye, Tag, ShieldAlert, LogIn, ArrowLeft } from 'lucide-react';
+import { FileText, MessageSquare, PlusCircle, Info, Users, CalendarDays, Eye, Tag, ShieldAlert, LogIn, ArrowLeft, BadgeCheck } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
-import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -21,16 +20,18 @@ import { useParams } from 'next/navigation';
 const getInitials = (name?: string) => {
     if (!name) return '?';
     const parts = name.split(' ');
-    if (parts.length > 1) {
+    if (parts.length > 1 && parts[0] && parts[parts.length - 1]) {
         return parts[0][0] + parts[parts.length - 1][0];
     }
-    return name.substring(0, 2);
+    return name.substring(0, 2).toUpperCase();
 };
+
+const ADMIN_AVATAR_URL = "https://placehold.co/32x32.png?text=A";
 
 export default function CategoryPage() {
   const params = useParams();
   const slugFromParams = typeof params.slug === 'string' ? params.slug : null;
-  const slug = slugFromParams ? slugFromParams.toLowerCase() : null; // Convert to lowercase
+  const slug = slugFromParams ? slugFromParams.toLowerCase() : null;
 
   const { user, isAdmin, isLoading: authIsLoading } = useAuth();
   const [category, setCategory] = useState<ForumCategory | null>(null);
@@ -48,7 +49,7 @@ export default function CategoryPage() {
       setIsLoadingPageData(true);
       setError(null);
       try {
-        const fetchedCategory = await getCategoryBySlugAction(slug); // Use lowercase slug
+        const fetchedCategory = await getCategoryBySlugAction(slug);
         if (fetchedCategory) {
           setCategory(fetchedCategory);
           const fetchedTopics = await getTopicsByCategoryIdAction(fetchedCategory.id);
@@ -66,15 +67,13 @@ export default function CategoryPage() {
   }, [slug]);
 
   const getCreateTopicButtonInfo = () => {
-    if (!category || !slug) return null; 
+    if (!category || !slug) return null;
 
     const baseHref = `/community/category/${slug}/new-topic`;
 
     if (category.slug === 'announcements') {
-      if (isAdmin) {
-        return { text: "Create New Announcement", disabled: false, href: `/admin/forum/announcements/create`, icon: <PlusCircle className="mr-2 h-5 w-5" />};
-      }
-      return null; // Don't show button for announcements to non-admins
+      // Announcements are created from admin panel, so no button here for public.
+      return null;
     }
     
     if (user) {
@@ -201,52 +200,62 @@ export default function CategoryPage() {
 
           {topics.length > 0 ? (
             <ul className="space-y-4">
-              {topics.map((topic) => (
-                <li key={topic.id} className="border p-4 rounded-lg hover:shadow-md transition-shadow bg-card">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
-                    <div>
-                      <h3 className="text-xl font-semibold mb-1">
-                        <Link
-                          href={`/community/topic/${topic.id}?categorySlug=${category.slug}`}
-                          className="text-primary hover:underline"
-                        >
-                          {topic.title}
-                        </Link>
-                      </h3>
-                      <div className="flex items-center text-xs text-muted-foreground space-x-3">
-                        <div className="flex items-center">
-                            <Avatar className="h-5 w-5 mr-1.5">
-                                <AvatarImage src={topic.authorAvatarUrl || `https://placehold.co/32x32.png?text=${getInitials(topic.authorName)}`} alt={topic.authorName} data-ai-hint="author avatar" />
-                                <AvatarFallback className="text-xs">{getInitials(topic.authorName)}</AvatarFallback>
-                            </Avatar>
-                            <span>{topic.authorName}</span>
-                        </div>
-                        <div className="flex items-center">
-                            <CalendarDays className="h-3.5 w-3.5 mr-1" />
-                            <span>{format(new Date(topic.createdAt), "MMM d, yyyy")}</span>
+              {topics.map((topic) => {
+                const isAuthorAdmin = topic.createdByUserId.startsWith('admin-');
+                const authorDisplayName = isAuthorAdmin ? "Admin" : topic.authorName;
+                const authorDisplayAvatar = isAuthorAdmin
+                  ? ADMIN_AVATAR_URL
+                  : topic.authorAvatarUrl || `https://placehold.co/32x32.png?text=${getInitials(topic.authorName)}`;
+                const authorFallbackInitials = isAuthorAdmin ? "A" : getInitials(topic.authorName);
+
+                return (
+                  <li key={topic.id} className="border p-4 rounded-lg hover:shadow-md transition-shadow bg-card">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                      <div>
+                        <h3 className="text-xl font-semibold mb-1">
+                          <Link
+                            href={`/community/topic/${topic.id}?categorySlug=${category.slug}`}
+                            className="text-primary hover:underline"
+                          >
+                            {topic.title}
+                          </Link>
+                        </h3>
+                        <div className="flex items-center text-xs text-muted-foreground space-x-3">
+                          <div className="flex items-center">
+                              <Avatar className="h-5 w-5 mr-1.5">
+                                  <AvatarImage src={authorDisplayAvatar} alt={authorDisplayName} data-ai-hint={isAuthorAdmin ? "admin avatar" : "author avatar"} />
+                                  <AvatarFallback className="text-xs">{authorFallbackInitials}</AvatarFallback>
+                              </Avatar>
+                              <span>{authorDisplayName}</span>
+                              {isAuthorAdmin && <BadgeCheck className="h-3.5 w-3.5 text-primary ml-1" />}
+                          </div>
+                          <div className="flex items-center">
+                              <CalendarDays className="h-3.5 w-3.5 mr-1" />
+                              <span>{format(new Date(topic.createdAt), "MMM d, yyyy")}</span>
+                          </div>
                         </div>
                       </div>
+                      <div className="mt-2 sm:mt-0 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-muted-foreground text-right">
+                          <div className="flex items-center justify-end">
+                              <MessageSquare className="h-4 w-4 mr-1.5 text-accent" /> {topic.replyCount} Replies
+                          </div>
+                          <div className="flex items-center justify-end">
+                              <Eye className="h-4 w-4 mr-1.5 text-accent" /> {topic.viewCount} Views
+                          </div>
+                      </div>
                     </div>
-                    <div className="mt-2 sm:mt-0 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-muted-foreground text-right">
-                        <div className="flex items-center justify-end">
-                            <MessageSquare className="h-4 w-4 mr-1.5 text-accent" /> {topic.replyCount} Replies
-                        </div>
-                        <div className="flex items-center justify-end">
-                            <Eye className="h-4 w-4 mr-1.5 text-accent" /> {topic.viewCount} Views
-                        </div>
+                    <p className="text-sm text-muted-foreground mt-2 line-clamp-2">{topic.content}</p>
+                    <div className="mt-3">
+                          <Link
+                            href={`/community/topic/${topic.id}?categorySlug=${category.slug}`}
+                            className="text-primary text-sm font-medium hover:underline"
+                          >
+                              Read More & Reply &rarr;
+                          </Link>
                     </div>
-                  </div>
-                   <p className="text-sm text-muted-foreground mt-2 line-clamp-2">{topic.content}</p>
-                   <div className="mt-3">
-                        <Link
-                          href={`/community/topic/${topic.id}?categorySlug=${category.slug}`}
-                          className="text-primary text-sm font-medium hover:underline"
-                        >
-                            Read More & Reply &rarr;
-                        </Link>
-                   </div>
-                </li>
-              ))}
+                  </li>
+                );
+              })}
             </ul>
           ) : (
             <Alert>

@@ -6,29 +6,33 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { MessageCircle, PlusCircle, Info, CalendarDays, User as UserIcon, ArrowLeft, Edit3 } from 'lucide-react';
+import { MessageCircle, PlusCircle, Info, CalendarDays, User as UserIcon, ArrowLeft, Edit3, BadgeCheck } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
-import { Badge } from '@/components/ui/badge';
 
 export const dynamic = 'force-dynamic';
 
 interface TopicPageProps {
   params: { topicId: string };
+  searchParams: { categorySlug?: string };
 }
 
 const getInitials = (name?: string) => {
     if (!name) return '?';
     const parts = name.split(' ');
-    if (parts.length > 1) {
+    if (parts.length > 1 && parts[0] && parts[parts.length - 1]) {
         return parts[0][0] + parts[parts.length - 1][0];
     }
-    return name.substring(0, 2);
+    return name.substring(0, 2).toUpperCase();
 };
 
-export default async function TopicPage({ params }: TopicPageProps) {
+const ADMIN_AVATAR_URL = "https://placehold.co/40x40.png?text=A";
+
+export default async function TopicPage({ params, searchParams }: TopicPageProps) {
   const { topicId } = params;
-  const topic = await getTopicDetailsAction(topicId);
+  const categorySlug = searchParams.categorySlug;
+
+  const topic = await getTopicDetailsAction(topicId, categorySlug);
 
   if (!topic) {
     return (
@@ -47,16 +51,21 @@ export default async function TopicPage({ params }: TopicPageProps) {
     );
   }
 
-  const posts = await getPostsByTopicIdAction(topicId);
-  // Note: In a real app, author details for posts might be fetched in batch or joined if using a DB
-  // For JSON, if posts don't embed author, we might need another fetch or pass user list.
-  // Assuming posts have authorName and authorAvatarUrl for now.
+  const posts = topic.posts || []; // Posts are now embedded in the topic
+
+  const isTopicAuthorAdmin = topic.createdByUserId.startsWith('admin-');
+  const topicAuthorDisplayName = isTopicAuthorAdmin ? "Admin" : topic.authorName;
+  const topicAuthorDisplayAvatar = isTopicAuthorAdmin
+    ? ADMIN_AVATAR_URL
+    : topic.authorAvatarUrl || `https://placehold.co/32x32.png?text=${getInitials(topic.authorName)}`;
+  const topicAuthorFallbackInitials = isTopicAuthorAdmin ? "A" : getInitials(topic.authorName);
+
 
   return (
     <div className="container mx-auto py-12 space-y-8">
       <div className="mb-6">
         <Button asChild variant="outline" size="sm">
-            <Link href={`/community/category/${topic.categoryId}`}><ArrowLeft className="mr-2 h-4 w-4"/>Back to Category</Link>
+            <Link href={`/community/category/${categorySlug || topic.categoryId}`}><ArrowLeft className="mr-2 h-4 w-4"/>Back to Category</Link>
         </Button>
       </div>
 
@@ -67,10 +76,11 @@ export default async function TopicPage({ params }: TopicPageProps) {
           <div className="flex items-center text-sm text-muted-foreground space-x-4 pt-2">
             <div className="flex items-center">
               <Avatar className="h-6 w-6 mr-2">
-                <AvatarImage src={topic.authorAvatarUrl || `https://placehold.co/32x32.png?text=${getInitials(topic.authorName)}`} alt={topic.authorName} data-ai-hint="author avatar" />
-                <AvatarFallback className="text-xs">{getInitials(topic.authorName)}</AvatarFallback>
+                <AvatarImage src={topicAuthorDisplayAvatar} alt={topicAuthorDisplayName} data-ai-hint={isTopicAuthorAdmin ? "admin avatar" : "author avatar"} />
+                <AvatarFallback className="text-xs">{topicAuthorFallbackInitials}</AvatarFallback>
               </Avatar>
-              <span>{topic.authorName}</span>
+              <span>{topicAuthorDisplayName}</span>
+              {isTopicAuthorAdmin && <BadgeCheck className="h-4 w-4 text-primary ml-1" />}
             </div>
             <div className="flex items-center">
               <CalendarDays className="h-4 w-4 mr-1.5" />
@@ -94,29 +104,41 @@ export default async function TopicPage({ params }: TopicPageProps) {
         <h2 className="text-2xl font-semibold font-headline">Replies ({posts.length})</h2>
         {posts.length > 0 ? (
           <ul className="space-y-6">
-            {posts.map((post) => (
-              <li key={post.id}>
-                <Card className="bg-card/80 shadow-md">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                            <Avatar className="h-8 w-8">
-                                <AvatarImage src={post.authorAvatarUrl || `https://placehold.co/32x32.png?text=${getInitials(post.authorName)}`} alt={post.authorName} data-ai-hint="author avatar" />
-                                <AvatarFallback className="text-xs">{getInitials(post.authorName)}</AvatarFallback>
-                            </Avatar>
-                            <span className="font-medium text-sm">{post.authorName}</span>
-                        </div>
-                        <span className="text-xs text-muted-foreground">
-                            {format(new Date(post.createdAt), "MMM d, yyyy 'at' h:mm a")}
-                        </span>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="prose prose-sm dark:prose-invert max-w-none leading-relaxed whitespace-pre-wrap break-words">
-                    {post.content}
-                  </CardContent>
-                </Card>
-              </li>
-            ))}
+            {posts.map((post) => {
+              const isPostAuthorAdmin = post.createdByUserId.startsWith('admin-');
+              const postAuthorDisplayName = isPostAuthorAdmin ? "Admin" : post.authorName;
+              const postAuthorDisplayAvatar = isPostAuthorAdmin
+                ? ADMIN_AVATAR_URL
+                : post.authorAvatarUrl || `https://placehold.co/32x32.png?text=${getInitials(post.authorName)}`;
+              const postAuthorFallbackInitials = isPostAuthorAdmin ? "A" : getInitials(post.authorName);
+
+              return (
+                <li key={post.id}>
+                  <Card className="bg-card/80 shadow-md">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                              <Avatar className="h-8 w-8">
+                                  <AvatarImage src={postAuthorDisplayAvatar} alt={postAuthorDisplayName} data-ai-hint={isPostAuthorAdmin ? "admin avatar" : "author avatar"} />
+                                  <AvatarFallback className="text-xs">{postAuthorFallbackInitials}</AvatarFallback>
+                              </Avatar>
+                              <span className="font-medium text-sm flex items-center">
+                                {postAuthorDisplayName}
+                                {isPostAuthorAdmin && <BadgeCheck className="h-4 w-4 text-primary ml-1.5" />}
+                              </span>
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                              {format(new Date(post.createdAt), "MMM d, yyyy 'at' h:mm a")}
+                          </span>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="prose prose-sm dark:prose-invert max-w-none leading-relaxed whitespace-pre-wrap break-words">
+                      {post.content}
+                    </CardContent>
+                  </Card>
+                </li>
+              );
+            })}
           </ul>
         ) : (
           <Alert>

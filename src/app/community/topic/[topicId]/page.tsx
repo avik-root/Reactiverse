@@ -1,21 +1,20 @@
 
 // src/app/community/topic/[topicId]/page.tsx
+'use client'; // Make this a client component
+
 import type { ForumTopic, ForumPost } from '@/lib/types';
-import { getTopicDetailsAction, getPostsByTopicIdAction, getUserByIdAction } from '@/lib/actions';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { getTopicDetailsAction } from '@/lib/actions';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { MessageCircle, PlusCircle, Info, CalendarDays, User as UserIcon, ArrowLeft, Edit3, BadgeCheck } from 'lucide-react';
+import { MessageCircle, Info, CalendarDays, User as UserIcon, ArrowLeft, BadgeCheck, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
-
-export const dynamic = 'force-dynamic';
-
-interface TopicPageProps {
-  params: { topicId: string };
-  searchParams: { categorySlug?: string };
-}
+import { useParams, useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import CreatePostForm from '@/components/forum/CreatePostForm';
 
 const getInitials = (name?: string) => {
     if (!name) return '?';
@@ -28,11 +27,83 @@ const getInitials = (name?: string) => {
 
 const ADMIN_AVATAR_URL = "https://placehold.co/40x40.png?text=A";
 
-export default async function TopicPage({ params, searchParams }: TopicPageProps) {
-  const { topicId } = params;
-  const categorySlug = searchParams.categorySlug;
+export default function TopicPage() {
+  const params = useParams();
+  const searchParamsHook = useSearchParams(); 
 
-  const topic = await getTopicDetailsAction(topicId, categorySlug);
+  const topicId = typeof params.topicId === 'string' ? params.topicId : null;
+  const categorySlug = searchParamsHook.get('categorySlug');
+
+  const [topic, setTopic] = useState<ForumTopic | null>(null);
+  const [posts, setPosts] = useState<ForumPost[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { user: currentUser, isLoading: authIsLoading } = useAuth();
+
+  useEffect(() => {
+    async function fetchTopicData() {
+      if (!topicId) {
+        setError("Topic ID is missing.");
+        setIsLoading(false);
+        return;
+      }
+      setIsLoading(true);
+      setError(null);
+      try {
+        const fetchedTopic = await getTopicDetailsAction(topicId, categorySlug || undefined);
+        if (fetchedTopic) {
+          setTopic(fetchedTopic);
+          setPosts(fetchedTopic.posts || []);
+        } else {
+          setError("Topic not found or could not be loaded.");
+        }
+      } catch (e) {
+        console.error("Error fetching topic details:", e);
+        setError("Failed to load topic. Please try again later.");
+      }
+      setIsLoading(false);
+    }
+    fetchTopicData();
+  }, [topicId, categorySlug]);
+
+  const handlePostCreated = (newPost: ForumPost) => {
+    setPosts(prevPosts => [...prevPosts, newPost]);
+    setTopic(prevTopic => {
+        if (!prevTopic) return null;
+        return {
+            ...prevTopic,
+            replyCount: (prevTopic.replyCount || 0) + 1,
+            lastRepliedAt: newPost.createdAt,
+        };
+    });
+  };
+
+
+  if (isLoading || authIsLoading) {
+    return (
+      <div className="container mx-auto py-12 flex justify-center items-center min-h-[calc(100vh-200px)]">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="ml-4 text-lg text-muted-foreground">Loading Topic...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto py-12">
+        <Alert variant="destructive">
+          <Info className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+        <div className="mt-6">
+            <Button asChild variant="outline">
+                <Link href={categorySlug ? `/community/category/${categorySlug}` : "/community"}><ArrowLeft className="mr-2 h-4 w-4"/>Back</Link>
+            </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (!topic) {
     return (
@@ -42,24 +113,21 @@ export default async function TopicPage({ params, searchParams }: TopicPageProps
           <AlertTitle>Topic Not Found</AlertTitle>
           <AlertDescription>The forum topic you are looking for does not exist or could not be loaded.</AlertDescription>
         </Alert>
-        <div className="mt-6">
+         <div className="mt-6">
             <Button asChild variant="outline">
-                <Link href="/community"><ArrowLeft className="mr-2 h-4 w-4"/>Back to Forum</Link>
+                <Link href={categorySlug ? `/community/category/${categorySlug}` : "/community"}><ArrowLeft className="mr-2 h-4 w-4"/>Back</Link>
             </Button>
         </div>
       </div>
     );
   }
 
-  const posts = topic.posts || []; // Posts are now embedded in the topic
-
   const isTopicAuthorAdmin = topic.createdByUserId.startsWith('admin-');
   const topicAuthorDisplayName = isTopicAuthorAdmin ? "Admin" : topic.authorName;
   const topicAuthorDisplayAvatar = isTopicAuthorAdmin
     ? ADMIN_AVATAR_URL
-    : topic.authorAvatarUrl || `https://placehold.co/32x32.png?text=${getInitials(topic.authorName)}`;
+    : topic.authorAvatarUrl || `https://placehold.co/40x40.png?text=${getInitials(topic.authorName)}`;
   const topicAuthorFallbackInitials = isTopicAuthorAdmin ? "A" : getInitials(topic.authorName);
-
 
   return (
     <div className="container mx-auto py-12 space-y-8">
@@ -69,11 +137,10 @@ export default async function TopicPage({ params, searchParams }: TopicPageProps
         </Button>
       </div>
 
-      {/* Topic Card */}
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="text-3xl font-headline text-primary">{topic.title}</CardTitle>
-          <div className="flex items-center text-sm text-muted-foreground space-x-4 pt-2">
+          <div className="flex flex-wrap items-center text-sm text-muted-foreground gap-x-4 gap-y-1 pt-2">
             <div className="flex items-center">
               <Avatar className="h-6 w-6 mr-2">
                 <AvatarImage src={topicAuthorDisplayAvatar} alt={topicAuthorDisplayName} data-ai-hint={isTopicAuthorAdmin ? "admin avatar" : "author avatar"} />
@@ -99,7 +166,6 @@ export default async function TopicPage({ params, searchParams }: TopicPageProps
         </CardContent>
       </Card>
 
-      {/* Posts Section */}
       <section className="space-y-6">
         <h2 className="text-2xl font-semibold font-headline">Replies ({posts.length})</h2>
         {posts.length > 0 ? (
@@ -141,31 +207,44 @@ export default async function TopicPage({ params, searchParams }: TopicPageProps
             })}
           </ul>
         ) : (
-          <Alert>
-            <Info className="h-4 w-4" />
-            <AlertTitle>No Replies Yet</AlertTitle>
-            <AlertDescription>
-              Be the first to reply to this topic! (Replying functionality coming soon).
-            </AlertDescription>
-          </Alert>
+          !currentUser && ( // Only show this specific "No Replies Yet" if not logged in, otherwise CreatePostForm implies it for logged-in users
+            <Alert>
+                <Info className="h-4 w-4" />
+                <AlertTitle>No Replies Yet</AlertTitle>
+                <AlertDescription>
+                    Be the first to reply to this topic!
+                </AlertDescription>
+            </Alert>
+          )
         )}
       </section>
 
-      {/* Reply Form Placeholder */}
-      <section className="pt-8 border-t">
-        <h3 className="text-xl font-semibold mb-4">Leave a Reply</h3>
-        <Card className="bg-muted/30">
-            <CardContent className="p-6 text-center">
-                <MessageCircle className="h-12 w-12 text-primary/50 mx-auto mb-3" />
-                <p className="text-muted-foreground">
-                    Replying to topics is coming soon. Check back later to share your thoughts!
-                </p>
-                <Button className="mt-4 pointer-events-none opacity-60 cursor-not-allowed" variant="outline">
-                    <Edit3 className="mr-2 h-4 w-4"/> Submit Reply (Soon)
-                </Button>
-            </CardContent>
-        </Card>
-      </section>
+      {currentUser && 'id' in currentUser && topicId && categorySlug ? (
+        <section className="pt-8 border-t">
+          <h3 className="text-xl font-semibold mb-4">Leave a Reply</h3>
+          <CreatePostForm
+            topicId={topicId}
+            categorySlug={categorySlug}
+            userId={currentUser.id}
+            userName={currentUser.name || 'User'}
+            userAvatarUrl={currentUser.avatarUrl}
+            onPostCreated={handlePostCreated}
+          />
+        </section>
+      ) : (
+         <section className="pt-8 border-t text-center">
+             <Alert className="max-w-md mx-auto">
+                <Info className="h-4 w-4" />
+                <AlertTitle>Login to Reply</AlertTitle>
+                <AlertDescription>
+                    You must be logged in to post a reply.
+                    <Button asChild variant="link" className="px-1 py-0 h-auto text-accent">
+                        <Link href={`/auth/login?redirect=${encodeURIComponent(`/community/topic/${topicId}?categorySlug=${categorySlug}`)}`}>Login here</Link>
+                    </Button>
+                </AlertDescription>
+            </Alert>
+        </section>
+      )}
     </div>
   );
 }

@@ -385,3 +385,12 @@ export type AdminDeleteTopicResult = {
   message: string;
 };
 
+export interface CreatePostFormState {
+  message?: string | null;
+  success?: boolean;
+  errors?: {
+    content?: string[];
+    general?: string[];
+  };
+  newPost?: ForumPost | null;
+}

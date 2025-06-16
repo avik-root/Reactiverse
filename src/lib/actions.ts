@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { z } from 'zod';
@@ -27,20 +26,28 @@ import {
   saveAdminAvatar,
   savePageContentImage,
   getForumCategoriesFromFile,
-  addForumCategoryToFile as addForumCategoryToServerData, // Renamed to avoid conflict
+  addForumCategoryToFile as addForumCategoryToServerData,
   saveForumCategoriesToFile,
   getNewsletterSubscribersFromFile,
   addSubscriberToFile,
-  // New forum data functions from server-data
   getUsersForumData,
   saveUsersForumData,
   getAnnouncementsData,
   saveAnnouncementsData,
   getSupportForumData,
   saveSupportForumData,
-  addForumTopicToFile as addForumTopicToServerFile, // Renamed to avoid conflict
+  addForumTopicToFile as addForumTopicToServerFile,
+  addPostToTopic,
   deleteTopic as deleteTopicFromServerData,
 } from './server-data';
+import {
+  pageContentSchemasMap,
+  ValidImageFileSchema,
+  AvatarFileSchema,
+  HSLColorSchema,
+  CodeBlockSchema,
+  FAQItemSchema
+} from './form-schemas';
 import type {
   AdminUser,
   User,
@@ -71,7 +78,7 @@ import type {
   UpdateProfileFormState as UserUpdateProfileFormState,
   IncrementCopyCountResult,
   ToggleLikeDesignResult,
-  FAQItem,
+  // FAQItem, // Now imported from form-schemas
   ForumCategory,
   AddForumCategoryFormState,
   NewsletterSubscriber,
@@ -80,6 +87,7 @@ import type {
   CreateTopicFormState,
   ForumPost,
   AdminDeleteTopicResult,
+  CreatePostFormState,
 } from './types';
 import { revalidatePath } from 'next/cache';
 import { hashPassword, comparePassword, hashPin, comparePin } from './auth-utils';
@@ -87,340 +95,8 @@ import { hashPassword, comparePassword, hashPin, comparePin } from './auth-utils
 const ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS = 'admin-auth-token';
 const MAX_PIN_ATTEMPTS = 5;
 
-const LoginSchema = z.object({
-  identifier: z.string().min(1, { message: 'Username or email is required.' }),
-  password: z.string().min(1, { message: 'Password is required.' }),
-  pin: z.string().length(6, { message: 'PIN must be 6 digits.' }).regex(/^\d{6}$/, "PIN must be 6 digits.").optional(),
-  userIdForPin: z.string().optional(),
-});
-
-const SignupSchema = z.object({
-  name: z.string().min(2, { message: 'Full name must be at least 2 characters.' }),
-  username: z.string()
-    .min(4, { message: 'Username must be at least 3 characters plus @.' })
-    .regex(/^@[a-zA-Z0-9_]+$/, { message: 'Username must start with @ and contain only letters, numbers, or underscores.'}),
-  email: z.string().email({ message: 'Invalid email address.' }),
-  phone: z.string().min(10, { message: 'Please enter a valid phone number with country code.' })
-    .regex(/^\+[1-9]\d{1,14}$/, { message: 'Phone number must start with + and country code (e.g., +1234567890).' }),
-  password: z.string().min(8, { message: 'Password must be at least 8 characters.' }),
-});
-
-const AdminLoginSchema = z.object({
-  username: z.string().min(1, { message: 'Username is required.' }).optional(),
-  password: z.string().min(1, { message: 'Password is required.' }).optional(),
-  pin: z.string().length(6, { message: 'PIN must be 6 digits.' }).regex(/^\d{6}$/, "PIN must be 6 digits.").optional(),
-  adminIdForPin: z.string().optional(),
-});
-
-const AdminCreateAccountSchema = z.object({
-  name: z.string().min(2, { message: 'Full name must be at least 2 characters.' }),
-  username: z.string().min(4, { message: 'Username must be at least 4 characters.' }).regex(/^[a-zA-Z0-9_]+$/, { message: 'Username can only contain letters, numbers, or underscores.'}),
-  email: z.string().email({ message: 'Invalid email address.' }),
-  phone: z.string().min(10, { message: 'Please enter a valid phone number with country code.' })
-    .regex(/^\+[1-9]\d{1,14}$/, { message: 'Phone number must start with + and country code (e.g., +1234567890).' }),
-  password: z.string().min(8, { message: 'Password must be at least 8 characters.' }),
-  confirmPassword: z.string(),
-}).refine(data => data.password === data.confirmPassword, {
-  message: "Passwords don't match.",
-  path: ['confirmPassword'],
-});
-
-
-const CodeBlockSchema = z.object({
-  language: z.string().min(1, "Language is required."),
-  code: z.string().min(10, "Code must be at least 10 characters.")
-});
-
-const AddDesignSchema = z.object({
-  title: z.string().min(3, { message: 'Title must be at least 3 characters.' }),
-  filterCategory: z.string().min(3, {message: 'Filter category must be at least 3 characters.'}),
-  description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
-  codeBlocksJSON: z.string().refine(
-    (val) => {
-      try {
-        const arr = JSON.parse(val);
-        if (!Array.isArray(arr) || arr.length === 0) return false;
-        return arr.every(
-          (item) => CodeBlockSchema.safeParse(item).success
-        );
-      } catch {
-        return false;
-      }
-    },
-    { message: 'At least one valid code block (language and snippet with min 10 chars) is required.' }
-  ),
-  tags: z.string().min(1, {message: 'Please add at least one tag.'}),
-  price: z.coerce.number().min(0, { message: 'Price cannot be negative.' }).default(0),
-  submittedByUserId: z.string(),
-});
-
-const UpdateDesignSchema = AddDesignSchema.extend({
-  designId: z.string().min(1, { message: 'Design ID is required for update.' }),
-});
-
-const MAX_IMAGE_SIZE_MB = 5;
-const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
-const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/jpg'];
-
-const ValidImageFileSchema = z.instanceof(File, { message: "Image file is required." })
-  .refine(file => file.size > 0, "Image file cannot be empty.")
-  .refine(file => file.size <= MAX_IMAGE_SIZE_BYTES, `Image must be ${MAX_IMAGE_SIZE_MB}MB or less.`)
-  .refine(file => ALLOWED_IMAGE_TYPES.includes(file.type), 'Invalid file type. Must be JPG, JPEG, or PNG.')
-  .optional();
-
-const AvatarFileSchema = ValidImageFileSchema;
-
-
-const UpdateProfileSchema = z.object({
-  userId: z.string(),
-  name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
-  avatarFile: AvatarFileSchema,
-  githubUrl: z.string().url("Invalid GitHub URL format.").or(z.literal('')).optional(),
-  linkedinUrl: z.string().url("Invalid LinkedIn URL format.").or(z.literal('')).optional(),
-  figmaUrl: z.string().url("Invalid Figma URL format.").or(z.literal('')).optional(),
-  isEmailPublic: z.preprocess((val) => String(val).toLowerCase() === 'on' || String(val).toLowerCase() === 'true', z.boolean().default(false)),
-  isPhonePublic: z.preprocess((val) => String(val).toLowerCase() === 'on' || String(val).toLowerCase() === 'true', z.boolean().default(false)),
-});
-
-
-const ChangePasswordSchema = z.object({
-  userId: z.string(),
-  currentPassword: z.string().min(1, {message: "Current password is required."}),
-  newPassword: z.string().min(8, { message: 'New password must be at least 8 characters.' }),
-  confirmPassword: z.string(),
-}).refine(data => data.newPassword === data.confirmPassword, {
-  message: "New passwords don't match.",
-  path: ['confirmPassword'],
-});
-
-const EnableTwoFactorSchema = z.object({
-  userId: z.string(),
-  pin: z.string().length(6, { message: 'PIN must be 6 digits.' }).regex(/^\d{6}$/, "PIN must be 6 digits."),
-  confirmPin: z.string(),
-  currentPasswordFor2FA: z.string().min(1, {message: "Current password is required to enable 2FA."}),
-}).refine(data => data.pin === data.confirmPin, {
-  message: "PINs don't match.",
-  path: ['confirmPin'],
-});
-
-const DisableTwoFactorSchema = z.object({
-  userId: z.string(),
-  currentPasswordFor2FA: z.string().min(1, {message: "Current password is required to disable 2FA."}),
-});
-
-const HSLColorSchema = z.string()
-  .regex(
-    /^\d{1,3}\s+\d{1,3}%\s+\d{1,3}(?:\.\d+)?%$/,
-    "Invalid HSL format. Example: '271 100% 75.3%'"
-  )
-  .optional();
-
-const SiteSettingsSchema = z.object({
-  siteTitle: z.string().min(3, { message: 'Site title must be at least 3 characters.' }),
-  allowNewUserRegistrations: z.preprocess((val) => val === 'on' || val === true, z.boolean()),
-  primaryHSL: HSLColorSchema,
-  accentHSL: HSLColorSchema,
-});
-
-const UpdateAdminProfileSchema = z.object({
-  adminId: z.string(),
-  name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
-  avatarFile: AvatarFileSchema,
-});
-
-const ChangeAdminPasswordSchema = z.object({
-  adminId: z.string(),
-  currentPassword: z.string().min(1, { message: "Current password is required." }),
-  newPassword: z.string().min(8, { message: 'New password must be at least 8 characters.' }),
-  confirmPassword: z.string(),
-}).refine(data => data.newPassword === data.confirmPassword, {
-  message: "New passwords don't match.",
-  path: ['confirmPassword'],
-});
-
-const EnableAdminTwoFactorSchema = z.object({
-  adminId: z.string(),
-  pin: z.string().length(6, { message: 'PIN must be 6 digits.' }).regex(/^\d{6}$/, "PIN must be 6 digits."),
-  confirmPin: z.string(),
-  currentPasswordFor2FA: z.string().min(1, { message: "Current password is required to enable 2FA." }),
-}).refine(data => data.pin === data.confirmPin, {
-  message: "PINs don't match.",
-  path: ['confirmPin'],
-});
-
-const DisableAdminTwoFactorSchema = z.object({
-  adminId: z.string(),
-  currentPasswordFor2FA: z.string().min(1, { message: "Current password is required to disable 2FA." }),
-});
-
-const AdminSetUser2FAStatusSchema = z.object({
-    userId: z.string().min(1, "User ID is required."),
-    enable: z.preprocess((val) => String(val).toLowerCase() === 'true', z.boolean()),
-    adminId: z.string().min(1, "Admin ID is required for authorization."),
-});
-
-const AdminSetUserCanSetPriceSchema = z.object({
-    userId: z.string().min(1, "User ID is required."),
-    canSetPrice: z.preprocess((val) => String(val).toLowerCase() === 'true', z.boolean()),
-    adminId: z.string().min(1, "Admin ID is required for authorization."),
-});
-
-
-const AboutUsContentSchema = z.object({
-  title: z.string().min(1, "Title is required"),
-  description: z.string().min(1, "Description is required"),
-  missionTitle: z.string().min(1, "Mission title is required"),
-  missionContentP1: z.string().min(1, "Mission paragraph 1 is required"),
-  missionContentP2: z.string().min(1, "Mission paragraph 2 is required"),
-  image1File: ValidImageFileSchema,
-  existingImage1Url: z.string().optional(),
-  image1Alt: z.string().optional(),
-  image1DataAiHint: z.string().max(30, "AI hint too long").optional(),
-  offerTitle: z.string().min(1, "Offer title is required"),
-  offerItems: z.preprocess(
-    (val) => {
-      const items: { title: string; description: string }[] = [];
-      const data = val as Record<string, any>;
-      let i = 0;
-      while(data[`offerItems[${i}].title`] !== undefined || data[`offerItems[${i}].description`] !== undefined) {
-        items.push({
-          title: data[`offerItems[${i}].title`] || '',
-          description: data[`offerItems[${i}].description`] || ''
-        });
-        delete data[`offerItems[${i}].title`];
-        delete data[`offerItems[${i}].description`];
-        i++;
-      }
-      if (items.length > 0) return items;
-      return val;
-    },
-    z.array(
-      z.object({
-        title: z.string().min(1, "Offer item title is required"),
-        description: z.string().min(1, "Offer item description is required")
-      })
-    ).min(1, "At least one offer item is required")
-  ),
-  joinTitle: z.string().min(1, "Join title is required"),
-  joinContent: z.string().min(1, "Join content is required"),
-  image2File: ValidImageFileSchema,
-  existingImage2Url: z.string().optional(),
-  image2Alt: z.string().optional(),
-  image2DataAiHint: z.string().max(30, "AI hint too long").optional(),
-});
-
-
-const FAQItemSchema = z.object({
-  question: z.string().min(1, "FAQ question cannot be empty."),
-  answer: z.string().min(1, "FAQ answer cannot be empty.")
-});
-
-const SupportPageContentSchema = z.object({
-  title: z.string().min(1, "Title is required"),
-  description: z.string().min(1, "Description is required"),
-  emailSupportTitle: z.string().min(1, "Email support title is required"),
-  emailSupportDescription: z.string().min(1, "Email support description is required"),
-  emailAddress: z.string().email("Invalid email address"),
-  forumTitle: z.string().min(1, "Forum title is required"),
-  forumDescription: z.string().min(1, "Forum description is required"),
-  forumLinkText: z.string().min(1, "Forum link text is required"),
-  forumLinkUrl: z.string().url("Invalid URL for forum link").or(z.literal('#')),
-  faqTitle: z.string().min(1, "FAQ title is required"),
-  faqsJSON: z.string().refine(val => {
-    try {
-      const parsed = JSON.parse(val);
-      return z.array(FAQItemSchema).min(1, "At least one FAQ item is required.").safeParse(parsed).success;
-    } catch {
-      return false;
-    }
-  }, "Invalid JSON format for FAQs or FAQs array is empty. Ensure it's an array of objects with 'question' and 'answer'.")
-});
-
-const GuidelinesPageContentSchema = z.object({
-  title: z.string().min(1, "Title is required"),
-  description: z.string().min(1, "Description is required"),
-  mainPlaceholderTitle: z.string().min(1, "Placeholder title is required"),
-  mainPlaceholderContent: z.string().min(1, "Placeholder content is required"),
-  keyAreasTitle: z.string().min(1, "Key areas title is required"),
-  keyAreas: z.array(z.string().min(1, "Key area item cannot be empty"))
-              .min(1, "At least one key area is required"),
-  keyAreasJSON: z.string().optional(),
-}).transform(data => {
-  if (data.keyAreasJSON) {
-    try {
-      const parsedKeyAreas = JSON.parse(data.keyAreasJSON);
-      if (Array.isArray(parsedKeyAreas) && parsedKeyAreas.every(item => typeof item === 'string')) {
-        data.keyAreas = parsedKeyAreas;
-      }
-    } catch (e) {
-    }
-  }
-  const { keyAreasJSON, ...rest } = data;
-  return rest;
-});
-
-
-const TopDesignersPageContentSchema = z.object({
-  title: z.string().min(1, "Title is required"),
-  description: z.string().min(1, "Description is required"),
-  mainPlaceholderTitle: z.string().min(1, "Placeholder title is required"),
-  mainPlaceholderContent: z.string().min(1, "Placeholder content is required"),
-});
-
-const TeamMemberSchemaClient = z.object({
-  name: z.string().min(1, "Name is required"),
-  title: z.string().min(1, "Title is required"),
-  bio: z.string().min(10, "Bio must be at least 10 characters"),
-  imageUrl: z.string().optional(),
-  imageAlt: z.string().optional(),
-  imageDataAiHint: z.string().max(30, "AI hint too long").optional(),
-  githubUrl: z.string().url("Invalid GitHub URL").or(z.literal("")).optional(),
-  linkedinUrl: z.string().url("Invalid LinkedIn URL").or(z.literal("")).optional(),
-  emailAddress: z.string().email("Invalid Email Address").or(z.literal("")).optional(),
-});
-
-const TeamMembersContentSchemaClient = z.object({
-  title: z.string().min(1, "Section title is required"),
-  founder: TeamMemberSchemaClient,
-  coFounder: TeamMemberSchemaClient,
-  founderImageFile: ValidImageFileSchema,
-  coFounderImageFile: ValidImageFileSchema,
-  "founder.existingImageUrl": z.string().optional(),
-  "coFounder.existingImageUrl": z.string().optional(),
-});
-
-
-const SiteLogoSchema = z.object({
-  logoFile: ValidImageFileSchema.refine(file => file !== undefined, "Logo file is required."),
-});
-
-const NewsletterSubscriptionSchema = z.object({
-  email: z.string().email({ message: 'Please enter a valid email address.' }),
-});
-
-const AddForumCategorySchema = z.object({
-  name: z.string().min(3, "Category name must be at least 3 characters."),
-  description: z.string().min(10, "Description must be at least 10 characters."),
-  slug: z.string().min(3, "Slug must be at least 3 characters.").regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug can only contain lowercase letters, numbers, and hyphens."),
-  iconName: z.enum(['MessagesSquare', 'Palette', 'Code2', 'Lightbulb', 'Megaphone', 'HelpCircle', 'Users', 'Info', 'Filter', 'LayoutList'], {
-    errorMap: () => ({ message: "Please select a valid icon." })
-  }),
-});
-
-const CreateTopicFormSchema = z.object({
-  title: z.string().min(5, { message: "Title must be at least 5 characters long." }).max(150, { message: "Title cannot exceed 150 characters." }),
-  content: z.string().min(10, { message: "Content must be at least 10 characters long." }).max(5000, { message: "Content cannot exceed 5000 characters." }),
-});
-
-
-const pageContentSchemasMap = {
-  aboutUs: AboutUsContentSchema,
-  support: SupportPageContentSchema,
-  guidelines: GuidelinesPageContentSchema,
-  topDesigners: TopDesignersPageContentSchema,
-  teamMembers: TeamMembersContentSchemaClient,
-};
-
+// Schemas specific to actions will be defined inside the action functions.
+// Types specific to action state/results are exported above.
 
 export type LoginFormState = {
   message?: string | null;
@@ -486,9 +162,13 @@ export type UpdateDesignFormState = AddDesignFormState & {
 };
 
 
-
-
 export async function loginUser(prevState: LoginFormState, formData: FormData): Promise<LoginFormState> {
+  const LoginSchema = z.object({
+    identifier: z.string().min(1, { message: 'Username or email is required.' }),
+    password: z.string().min(1, { message: 'Password is required.' }),
+    pin: z.string().length(6, { message: 'PIN must be 6 digits.' }).regex(/^\d{6}$/, "PIN must be 6 digits.").optional(),
+    userIdForPin: z.string().optional(),
+  });
   const validatedFields = LoginSchema.safeParse(Object.fromEntries(formData.entries()));
 
   if (!validatedFields.success) {
@@ -575,6 +255,16 @@ export async function loginUser(prevState: LoginFormState, formData: FormData): 
 }
 
 export async function signupUser(prevState: SignupFormState, formData: FormData): Promise<SignupFormState> {
+  const SignupSchema = z.object({
+    name: z.string().min(2, { message: 'Full name must be at least 2 characters.' }),
+    username: z.string()
+      .min(4, { message: 'Username must be at least 3 characters plus @.' })
+      .regex(/^@[a-zA-Z0-9_]+$/, { message: 'Username must start with @ and contain only letters, numbers, or underscores.'}),
+    email: z.string().email({ message: 'Invalid email address.' }),
+    phone: z.string().min(10, { message: 'Please enter a valid phone number with country code.' })
+      .regex(/^\+[1-9]\d{1,14}$/, { message: 'Phone number must start with + and country code (e.g., +1234567890).' }),
+    password: z.string().min(8, { message: 'Password must be at least 8 characters.' }),
+  });
   const validatedFields = SignupSchema.safeParse(Object.fromEntries(formData.entries()));
 
   if (!validatedFields.success) {
@@ -629,6 +319,12 @@ export async function signupUser(prevState: SignupFormState, formData: FormData)
 }
 
 export async function loginAdmin(prevState: AdminLoginFormState, formData: FormData): Promise<AdminLoginFormState> {
+  const AdminLoginSchema = z.object({
+    username: z.string().min(1, { message: 'Username is required.' }).optional(),
+    password: z.string().min(1, { message: 'Password is required.' }).optional(),
+    pin: z.string().length(6, { message: 'PIN must be 6 digits.' }).regex(/^\d{6}$/, "PIN must be 6 digits.").optional(),
+    adminIdForPin: z.string().optional(),
+  });
   const validatedFields = AdminLoginSchema.safeParse(Object.fromEntries(formData.entries()));
 
   if (!validatedFields.success) {
@@ -688,7 +384,7 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     path: '/admin',
-    maxAge: 0,
+    maxAge: 0, // Session cookie
     sameSite: 'lax',
   });
 
@@ -714,6 +410,28 @@ export async function logoutAdminAction(): Promise<{ success: boolean }> {
 }
 
 export async function submitDesignAction(prevState: AddDesignFormState, formData: FormData): Promise<AddDesignFormState> {
+  const AddDesignSchema = z.object({
+    title: z.string().min(3, { message: 'Title must be at least 3 characters.' }),
+    filterCategory: z.string().min(3, {message: 'Filter category must be at least 3 characters.'}),
+    description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
+    codeBlocksJSON: z.string().refine(
+      (val) => {
+        try {
+          const arr = JSON.parse(val);
+          if (!Array.isArray(arr) || arr.length === 0) return false;
+          return arr.every(
+            (item) => CodeBlockSchema.safeParse(item).success // CodeBlockSchema imported from form-schemas
+          );
+        } catch {
+          return false;
+        }
+      },
+      { message: 'At least one valid code block (language and snippet with min 10 chars) is required.' }
+    ),
+    tags: z.string().min(1, {message: 'Please add at least one tag.'}),
+    price: z.coerce.number().min(0, { message: 'Price cannot be negative.' }).default(0),
+    submittedByUserId: z.string(),
+  });
   const validatedFields = AddDesignSchema.safeParse(Object.fromEntries(formData.entries()));
 
   if (!validatedFields.success) {
@@ -738,6 +456,7 @@ export async function submitDesignAction(prevState: AddDesignFormState, formData
                 }
             }
         } catch (e) {
+           // Fall through to generic error
         }
     }
     return {
@@ -801,6 +520,29 @@ export async function submitDesignAction(prevState: AddDesignFormState, formData
 
 
 export async function updateDesignAction(prevState: UpdateDesignFormState, formData: FormData): Promise<UpdateDesignFormState> {
+  const UpdateDesignSchema = z.object({
+    title: z.string().min(3, { message: 'Title must be at least 3 characters.' }),
+    filterCategory: z.string().min(3, {message: 'Filter category must be at least 3 characters.'}),
+    description: z.string().min(10, { message: 'Description must be at least 10 characters.' }),
+    codeBlocksJSON: z.string().refine(
+      (val) => {
+        try {
+          const arr = JSON.parse(val);
+          if (!Array.isArray(arr) || arr.length === 0) return false;
+          return arr.every(
+            (item) => CodeBlockSchema.safeParse(item).success // CodeBlockSchema imported
+          );
+        } catch {
+          return false;
+        }
+      },
+      { message: 'At least one valid code block (language and snippet with min 10 chars) is required.' }
+    ),
+    tags: z.string().min(1, {message: 'Please add at least one tag.'}),
+    price: z.coerce.number().min(0, { message: 'Price cannot be negative.' }).default(0),
+    submittedByUserId: z.string(),
+    designId: z.string().min(1, { message: 'Design ID is required for update.' }),
+  });
   const validatedFields = UpdateDesignSchema.safeParse(Object.fromEntries(formData.entries()));
 
   if (!validatedFields.success) {
@@ -825,6 +567,7 @@ export async function updateDesignAction(prevState: UpdateDesignFormState, formD
                 }
             }
         } catch (e) {
+           // Fall through
         }
     }
     return {
@@ -898,6 +641,17 @@ export async function updateDesignAction(prevState: UpdateDesignFormState, formD
 
 
 export async function updateProfileAction(prevState: UserUpdateProfileFormState, formData: FormData): Promise<UserUpdateProfileFormState> {
+  const UpdateProfileSchema = z.object({
+    userId: z.string(),
+    name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
+    avatarFile: AvatarFileSchema, // Imported from form-schemas
+    githubUrl: z.string().url("Invalid GitHub URL format.").or(z.literal('')).optional(),
+    linkedinUrl: z.string().url("Invalid LinkedIn URL format.").or(z.literal('')).optional(),
+    figmaUrl: z.string().url("Invalid Figma URL format.").or(z.literal('')).optional(),
+    isEmailPublic: z.preprocess((val) => String(val).toLowerCase() === 'on' || String(val).toLowerCase() === 'true', z.boolean().default(false)),
+    isPhonePublic: z.preprocess((val) => String(val).toLowerCase() === 'on' || String(val).toLowerCase() === 'true', z.boolean().default(false)),
+  });
+
   const rawData = Object.fromEntries(formData.entries());
   const avatarFile = formData.get('avatarFile') as File | null;
 
@@ -965,6 +719,15 @@ export async function updateProfileAction(prevState: UserUpdateProfileFormState,
 }
 
 export async function changePasswordAction(prevState: ChangeAdminPasswordFormState, formData: FormData): Promise<ChangeAdminPasswordFormState> {
+  const ChangePasswordSchema = z.object({
+    userId: z.string(),
+    currentPassword: z.string().min(1, {message: "Current password is required."}),
+    newPassword: z.string().min(8, { message: 'New password must be at least 8 characters.' }),
+    confirmPassword: z.string(),
+  }).refine(data => data.newPassword === data.confirmPassword, {
+    message: "New passwords don't match.",
+    path: ['confirmPassword'],
+  });
   const validatedFields = ChangePasswordSchema.safeParse(Object.fromEntries(formData.entries()));
 
   if (!validatedFields.success) {
@@ -1007,6 +770,15 @@ export async function changePasswordAction(prevState: ChangeAdminPasswordFormSta
 }
 
 export async function enableTwoFactorAction(prevState: AdminTwoFactorAuthFormState, formData: FormData): Promise<AdminTwoFactorAuthFormState> {
+  const EnableTwoFactorSchema = z.object({
+    userId: z.string(),
+    pin: z.string().length(6, { message: 'PIN must be 6 digits.' }).regex(/^\d{6}$/, "PIN must be 6 digits."),
+    confirmPin: z.string(),
+    currentPasswordFor2FA: z.string().min(1, {message: "Current password is required to enable 2FA."}),
+  }).refine(data => data.pin === data.confirmPin, {
+    message: "PINs don't match.",
+    path: ['confirmPin'],
+  });
   const validatedFields = EnableTwoFactorSchema.safeParse(Object.fromEntries(formData.entries()));
   if (!validatedFields.success) {
     return { errors: validatedFields.error.flatten().fieldErrors, message: 'Invalid fields.', success: false, actionType: 'enable' };
@@ -1043,6 +815,10 @@ export async function enableTwoFactorAction(prevState: AdminTwoFactorAuthFormSta
 }
 
 export async function disableTwoFactorAction(prevState: AdminTwoFactorAuthFormState, formData: FormData): Promise<AdminTwoFactorAuthFormState> {
+  const DisableTwoFactorSchema = z.object({
+    userId: z.string(),
+    currentPasswordFor2FA: z.string().min(1, {message: "Current password is required to disable 2FA."}),
+  });
   const validatedFields = DisableTwoFactorSchema.safeParse(Object.fromEntries(formData.entries()));
   if (!validatedFields.success) {
     return { errors: validatedFields.error.flatten().fieldErrors, message: 'Invalid fields.', success: false, actionType: 'disable' };
@@ -1214,6 +990,18 @@ export async function checkAdminDataExistsAction(): Promise<{ adminExists: boole
 }
 
 export async function createAdminAccountAction(prevState: AdminCreateAccountFormState, formData: FormData): Promise<AdminCreateAccountFormState> {
+  const AdminCreateAccountSchema = z.object({
+    name: z.string().min(2, { message: 'Full name must be at least 2 characters.' }),
+    username: z.string().min(4, { message: 'Username must be at least 4 characters.' }).regex(/^[a-zA-Z0-9_]+$/, { message: 'Username can only contain letters, numbers, or underscores.'}),
+    email: z.string().email({ message: 'Invalid email address.' }),
+    phone: z.string().min(10, { message: 'Please enter a valid phone number with country code.' })
+      .regex(/^\+[1-9]\d{1,14}$/, { message: 'Phone number must start with + and country code (e.g., +1234567890).' }),
+    password: z.string().min(8, { message: 'Password must be at least 8 characters.' }),
+    confirmPassword: z.string(),
+  }).refine(data => data.password === data.confirmPassword, {
+    message: "Passwords don't match.",
+    path: ['confirmPassword'],
+  });
   const validatedFields = AdminCreateAccountSchema.safeParse(Object.fromEntries(formData.entries()));
 
   if (!validatedFields.success) {
@@ -1312,6 +1100,12 @@ export async function updateSiteSettingsAction(
   prevState: SiteSettingsFormState,
   formData: FormData
 ): Promise<SiteSettingsFormState> {
+  const SiteSettingsSchema = z.object({
+    siteTitle: z.string().min(3, { message: 'Site title must be at least 3 characters.' }),
+    allowNewUserRegistrations: z.preprocess((val) => val === 'on' || val === true, z.boolean()),
+    primaryHSL: HSLColorSchema, // Imported from form-schemas
+    accentHSL: HSLColorSchema,   // Imported from form-schemas
+  });
   const validatedFields = SiteSettingsSchema.safeParse(Object.fromEntries(formData.entries()));
 
   if (!validatedFields.success) {
@@ -1352,6 +1146,11 @@ export async function updateAdminProfileAction(
   prevState: UpdateAdminProfileFormState,
   formData: FormData
 ): Promise<UpdateAdminProfileFormState> {
+  const UpdateAdminProfileSchema = z.object({
+    adminId: z.string(),
+    name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
+    avatarFile: AvatarFileSchema, // Imported from form-schemas
+  });
   const rawData = Object.fromEntries(formData.entries());
   const avatarFile = formData.get('avatarFile') as File | null;
 
@@ -1414,6 +1213,15 @@ export async function changeAdminPasswordAction(
   prevState: ChangeAdminPasswordFormState,
   formData: FormData
 ): Promise<ChangeAdminPasswordFormState> {
+  const ChangeAdminPasswordSchema = z.object({
+    adminId: z.string(),
+    currentPassword: z.string().min(1, { message: "Current password is required." }),
+    newPassword: z.string().min(8, { message: 'New password must be at least 8 characters.' }),
+    confirmPassword: z.string(),
+  }).refine(data => data.newPassword === data.confirmPassword, {
+    message: "New passwords don't match.",
+    path: ['confirmPassword'],
+  });
   const validatedFields = ChangeAdminPasswordSchema.safeParse(Object.fromEntries(formData.entries()));
 
   if (!validatedFields.success) {
@@ -1457,6 +1265,15 @@ export async function enableAdminTwoFactorAction(
   prevState: AdminTwoFactorAuthFormState,
   formData: FormData
 ): Promise<AdminTwoFactorAuthFormState> {
+  const EnableAdminTwoFactorSchema = z.object({
+    adminId: z.string(),
+    pin: z.string().length(6, { message: 'PIN must be 6 digits.' }).regex(/^\d{6}$/, "PIN must be 6 digits."),
+    confirmPin: z.string(),
+    currentPasswordFor2FA: z.string().min(1, { message: "Current password is required to enable 2FA." }),
+  }).refine(data => data.pin === data.confirmPin, {
+    message: "PINs don't match.",
+    path: ['confirmPin'],
+  });
   const validatedFields = EnableAdminTwoFactorSchema.safeParse(Object.fromEntries(formData.entries()));
   if (!validatedFields.success) {
     return { errors: validatedFields.error.flatten().fieldErrors, message: 'Invalid fields.', success: false, actionType: 'enable' };
@@ -1496,6 +1313,10 @@ export async function disableAdminTwoFactorAction(
   prevState: AdminTwoFactorAuthFormState,
   formData: FormData
 ): Promise<AdminTwoFactorAuthFormState> {
+  const DisableAdminTwoFactorSchema = z.object({
+    adminId: z.string(),
+    currentPasswordFor2FA: z.string().min(1, { message: "Current password is required to disable 2FA." }),
+  });
   const validatedFields = DisableAdminTwoFactorSchema.safeParse(Object.fromEntries(formData.entries()));
   if (!validatedFields.success) {
     return { errors: validatedFields.error.flatten().fieldErrors, message: 'Invalid fields.', success: false, actionType: 'disable' };
@@ -1720,6 +1541,9 @@ export async function updatePageContentAction<T extends PageContentKeys>(
 }
 
 export async function updateSiteLogoAction(prevState: SiteLogoUploadState, formData: FormData): Promise<SiteLogoUploadState> {
+  const SiteLogoSchema = z.object({
+    logoFile: ValidImageFileSchema.refine(file => file !== undefined, "Logo file is required."), // ValidImageFileSchema imported
+  });
   const validatedFields = SiteLogoSchema.safeParse({ logoFile: formData.get('logoFile') });
 
   if (!validatedFields.success) {
@@ -1752,6 +1576,11 @@ export async function adminSetUser2FAStatusAction(
   prevState: AdminSetUser2FAStatusFormState,
   formData: FormData
 ): Promise<AdminSetUser2FAStatusFormState> {
+  const AdminSetUser2FAStatusSchema = z.object({
+    userId: z.string().min(1, "User ID is required."),
+    enable: z.preprocess((val) => String(val).toLowerCase() === 'true', z.boolean()),
+    adminId: z.string().min(1, "Admin ID is required for authorization."),
+  });
   const adminToken = cookies().get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
   if (!adminToken) {
     return { message: "Admin authorization failed.", success: false, errors: { general: ["Not authorized."] } };
@@ -1793,6 +1622,11 @@ export async function adminSetUserCanSetPriceAction(
   prevState: AdminSetUserCanSetPriceFormState,
   formData: FormData
 ): Promise<AdminSetUserCanSetPriceFormState> {
+  const AdminSetUserCanSetPriceSchema = z.object({
+    userId: z.string().min(1, "User ID is required."),
+    canSetPrice: z.preprocess((val) => String(val).toLowerCase() === 'true', z.boolean()),
+    adminId: z.string().min(1, "Admin ID is required for authorization."),
+  });
   const adminToken = cookies().get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
   if (!adminToken) {
     return { message: "Admin authorization failed.", success: false, errors: { general: ["Not authorized."] } };
@@ -1914,6 +1748,14 @@ export async function addForumCategoryAction(
   prevState: AddForumCategoryFormState,
   formData: FormData
 ): Promise<AddForumCategoryFormState> {
+  const AddForumCategorySchema = z.object({
+    name: z.string().min(3, "Category name must be at least 3 characters."),
+    description: z.string().min(10, "Description must be at least 10 characters."),
+    slug: z.string().min(3, "Slug must be at least 3 characters.").regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Slug can only contain lowercase letters, numbers, and hyphens."),
+    iconName: z.enum(['MessagesSquare', 'Palette', 'Code2', 'Lightbulb', 'Megaphone', 'HelpCircle', 'Users', 'Info', 'Filter', 'LayoutList'], {
+      errorMap: () => ({ message: "Please select a valid icon." })
+    }),
+  });
   const validatedFields = AddForumCategorySchema.safeParse(Object.fromEntries(formData.entries()));
 
   if (!validatedFields.success) {
@@ -1971,7 +1813,7 @@ export async function addForumCategoryAction(
 export async function getCategoryBySlugAction(slug: string): Promise<ForumCategory | undefined> {
   try {
     const categories = await getForumCategoriesFromFile();
-    return categories.find(category => category.slug === slug);
+    return categories.find(category => category.slug.toLowerCase() === slug.toLowerCase());
   } catch (error) {
     console.error(`Error fetching category by slug "${slug}":`, error);
     return undefined;
@@ -2011,48 +1853,60 @@ export async function getTopicsByCategoryIdAction(categoryId: string): Promise<F
 export async function getTopicDetailsAction(topicId: string, categorySlug?: string): Promise<ForumTopic | undefined> {
   let topics: ForumTopic[] = [];
   let slugToUse = categorySlug;
+  let determinedSlug = false;
 
   if (!slugToUse) {
-    const allKnownTopics = [
-        ...(await getUsersForumData()),
-        ...(await getAnnouncementsData()),
-        ...(await getSupportForumData())
-    ];
-    const topic = allKnownTopics.find(t => t.id === topicId);
-    if (topic) {
-        const category = (await getForumCategoriesFromFile()).find(c => c.id === topic.categoryId);
-        slugToUse = category?.slug;
-    } else {
-        console.warn(`getTopicDetailsAction: Topic with ID ${topicId} not found across all categories.`);
-        return undefined;
+    const allCategories = await getForumCategoriesFromFile();
+    for (const cat of allCategories) {
+      let potentialTopics: ForumTopic[] = [];
+      switch (cat.slug) {
+        case 'general-discussion': potentialTopics = await getUsersForumData(); break;
+        case 'announcements': potentialTopics = await getAnnouncementsData(); break;
+        case 'support-qa': potentialTopics = await getSupportForumData(); break;
+      }
+      const foundTopic = potentialTopics.find(t => t.id === topicId);
+      if (foundTopic) {
+        slugToUse = cat.slug;
+        topics = potentialTopics;
+        determinedSlug = true;
+        break;
+      }
+    }
+    if (!determinedSlug) {
+      console.warn(`getTopicDetailsAction: Topic with ID ${topicId} not found across all categories.`);
+      return undefined;
     }
   }
+
   if (!slugToUse) {
       console.warn(`getTopicDetailsAction: Could not determine category slug for topic ID ${topicId}.`);
       return undefined;
   }
 
-  try {
-    switch (slugToUse) {
-      case 'general-discussion':
-        topics = await getUsersForumData();
-        break;
-      case 'announcements':
-        topics = await getAnnouncementsData();
-        break;
-      case 'support-qa':
-        topics = await getSupportForumData();
-        break;
-      default:
-        console.warn(`Unknown category slug for fetching topic details: ${slugToUse}`);
+  if (!determinedSlug) {
+    try {
+        switch (slugToUse) {
+        case 'general-discussion':
+            topics = await getUsersForumData();
+            break;
+        case 'announcements':
+            topics = await getAnnouncementsData();
+            break;
+        case 'support-qa':
+            topics = await getSupportForumData();
+            break;
+        default:
+            console.warn(`Unknown category slug for fetching topic details: ${slugToUse}`);
+            return undefined;
+        }
+    } catch (error) {
+        console.error(`Error fetching topics for category slug "${slugToUse}" in getTopicDetailsAction:`, error);
         return undefined;
     }
-    const topic = topics.find(t => t.id === topicId);
-    return topic;
-  } catch (error) {
-    console.error(`Error fetching topic details for ID "${topicId}" in category "${slugToUse}":`, error);
-    return undefined;
   }
+
+  const topic = topics.find(t => t.id === topicId);
+  return topic;
 }
 
 export async function getPostsByTopicIdAction(topicId: string, categorySlug: string): Promise<ForumPost[]> {
@@ -2065,6 +1919,9 @@ export async function subscribeToNewsletterAction(
   prevState: SubscribeToNewsletterFormState,
   formData: FormData
 ): Promise<SubscribeToNewsletterFormState> {
+  const NewsletterSubscriptionSchema = z.object({
+    email: z.string().email({ message: 'Please enter a valid email address.' }),
+  });
   const validatedFields = NewsletterSubscriptionSchema.safeParse(
     Object.fromEntries(formData.entries())
   );
@@ -2127,6 +1984,10 @@ export async function createForumTopicAction(
     userName: string,
     userAvatarUrl?: string
 ): Promise<CreateTopicFormState> {
+    const CreateTopicFormSchema = z.object({
+      title: z.string().min(5, { message: "Title must be at least 5 characters long." }).max(150, { message: "Title cannot exceed 150 characters." }),
+      content: z.string().min(10, { message: "Content must be at least 10 characters long." }).max(5000, { message: "Content cannot exceed 5000 characters." }),
+    });
     const validatedFields = CreateTopicFormSchema.safeParse(Object.fromEntries(formData.entries()));
 
     if (!validatedFields.success) {
@@ -2149,7 +2010,7 @@ export async function createForumTopicAction(
     if (category.slug === 'announcements') {
         const adminUsers = await getAdminUsers();
         const userIsAdmin = adminUsers.some(admin => admin.id === userId);
-        if(!userIsAdmin) { 
+        if(!userIsAdmin) {
              return { message: 'You are not authorized to post in Announcements.', success: false, errors: { general: ['Authorization failed.'] } };
         }
     }
@@ -2166,11 +2027,11 @@ export async function createForumTopicAction(
         lastRepliedAt: new Date().toISOString(),
         viewCount: 0,
         replyCount: 0,
-        posts: [], 
+        posts: [],
     };
 
     try {
-        await addForumTopicToServerFile(newTopic, category.slug); 
+        await addForumTopicToServerFile(newTopic, category.slug);
 
         category.topicCount = (category.topicCount || 0) + 1;
         await saveForumCategoriesToFile(categories);
@@ -2184,6 +2045,67 @@ export async function createForumTopicAction(
         return { message: 'Failed to create topic. Please try again.', success: false, errors: { general: ['Server error.'] } };
     }
 }
+
+export async function createForumPostAction(
+    prevState: CreatePostFormState,
+    formData: FormData,
+    topicId: string,
+    categorySlug: string,
+    userId: string,
+    userName: string,
+    userAvatarUrl?: string
+): Promise<CreatePostFormState> {
+    const CreatePostFormSchema = z.object({
+      content: z.string().min(1, { message: "Reply content cannot be empty." }).max(2000, { message: "Reply cannot exceed 2000 characters." }),
+    });
+    const validatedFields = CreatePostFormSchema.safeParse(Object.fromEntries(formData.entries()));
+
+    if (!validatedFields.success) {
+        return {
+            errors: validatedFields.error.flatten().fieldErrors,
+            message: 'Invalid reply. Please check your input.',
+            success: false,
+        };
+    }
+
+    const { content } = validatedFields.data;
+
+    const newPost: ForumPost = {
+        id: `post-${Date.now()}`,
+        topicId,
+        content,
+        createdByUserId: userId,
+        authorName: userName,
+        authorAvatarUrl: userAvatarUrl || `https://placehold.co/40x40.png?text=${userName.charAt(0).toUpperCase()}`,
+        createdAt: new Date().toISOString(),
+    };
+
+    try {
+        const result = await addPostToTopic(topicId, categorySlug, newPost);
+        if (!result.success || !result.updatedTopic) {
+            return { message: 'Failed to save reply. Topic not found or error saving.', success: false, errors: { general: ['Failed to save reply.'] } };
+        }
+
+        revalidatePath(`/community/topic/${topicId}`);
+        revalidatePath(`/community/category/${categorySlug}`);
+        revalidatePath('/community');
+
+        if (categorySlug === 'announcements' && userId.startsWith('admin-')) {
+            revalidatePath('/admin/forum/announcements');
+        } else if (categorySlug === 'general-discussion' && userId.startsWith('admin-')) {
+            revalidatePath('/admin/forum/general-discussion');
+        } else if (categorySlug === 'support-qa' && userId.startsWith('admin-')) {
+             revalidatePath('/admin/forum/support-qa');
+        }
+
+
+        return { message: 'Reply posted successfully!', success: true, newPost };
+    } catch (error) {
+        console.error("Error creating forum post:", error);
+        return { message: 'Failed to post reply. Please try again.', success: false, errors: { general: ['Server error.'] } };
+    }
+}
+
 
 export async function getUserByIdAction(userId: string): Promise<User | null> {
     try {

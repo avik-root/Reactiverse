@@ -587,7 +587,7 @@ export async function getForumCategoriesFromFile(): Promise<ForumCategory[]> {
   try {
     if (!(await fileExists(FORUM_CATEGORIES_FILE_PATH))) {
       const defaultCategories: ForumCategory[] = [
-        { id: "cat-001", name: "General Discussion", description: "Talk about anything UI/UX.", iconName: "MessagesSquare", slug:"general-discussion", topicCount: 0, postCount: 0 },
+        { id: "cat-001", name: "General Discussion", description: "Talk about anything related to UI/UX design, development, and Reactiverse.", iconName: "MessagesSquare", slug:"general-discussion", topicCount: 0, postCount: 0 },
         { id: "cat-005", name: "Announcements", description: "Stay updated with the latest news and announcements from the Reactiverse team.", iconName: "Megaphone", slug: "announcements", topicCount: 0, postCount: 0 },
         { id: "cat-006", name: "Support & Q/A", description: "Got questions about using Reactiverse? Find answers and support.", iconName: "HelpCircle", slug: "support-qa", topicCount: 0, postCount: 0 }
       ];
@@ -690,6 +690,66 @@ export async function addForumTopicToFile(newTopic: ForumTopic, categorySlug: st
   await saveFunction(topics);
 }
 
+export async function addPostToTopic(
+  topicId: string,
+  categorySlug: string,
+  newPost: ForumPost
+): Promise<{ success: boolean; updatedTopic?: ForumTopic }> {
+  let topics: ForumTopic[];
+  let saveFunction: (topics: ForumTopic[]) => Promise<void>;
+  let filePath: string; // For debugging or direct access if needed, though saveFunction encapsulates it.
+
+  switch (categorySlug) {
+    case 'general-discussion':
+      filePath = USERS_FORUM_FILE_PATH;
+      topics = await getUsersForumData();
+      saveFunction = saveUsersForumData;
+      break;
+    case 'announcements':
+      filePath = ANNOUNCEMENT_FILE_PATH;
+      topics = await getAnnouncementsData();
+      saveFunction = saveAnnouncementsData;
+      break;
+    case 'support-qa':
+      filePath = SUPPORT_FORUM_FILE_PATH;
+      topics = await getSupportForumData();
+      saveFunction = saveSupportForumData;
+      break;
+    default:
+      console.error(`Unknown category slug for adding post: ${categorySlug}`);
+      return { success: false };
+  }
+
+  const topicIndex = topics.findIndex(t => t.id === topicId);
+  if (topicIndex === -1) {
+    console.error(`Topic with ID ${topicId} not found in category ${categorySlug} (file: ${filePath})`);
+    return { success: false };
+  }
+
+  const topicToUpdate = topics[topicIndex];
+  if (!topicToUpdate.posts) {
+    topicToUpdate.posts = [];
+  }
+  topicToUpdate.posts.push(newPost);
+  topicToUpdate.replyCount = (topicToUpdate.replyCount || 0) + 1;
+  topicToUpdate.lastRepliedAt = newPost.createdAt;
+
+  await saveFunction(topics);
+
+  // Update category counts
+  const categories = await getForumCategoriesFromFile();
+  const categoryIndex = categories.findIndex(c => c.slug === categorySlug);
+  if (categoryIndex !== -1) {
+    categories[categoryIndex].postCount = (categories[categoryIndex].postCount || 0) + 1;
+    await saveForumCategoriesToFile(categories);
+  } else {
+    console.warn(`Category with slug ${categorySlug} not found in forum_categories.json during post count update.`);
+  }
+
+  return { success: true, updatedTopic: topicToUpdate };
+}
+
+
 // Post data functions (posts are now embedded, so these are mainly for direct manipulation if needed)
 export async function getForumPostsFromFile(): Promise<ForumPost[]> {
     console.warn("getForumPostsFromFile is deprecated as posts are now embedded in topics.");
@@ -779,4 +839,3 @@ export async function addSubscriberToFile(newSubscriber: NewsletterSubscriber): 
     throw error;
   }
 }
-

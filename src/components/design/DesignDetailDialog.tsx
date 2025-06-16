@@ -7,6 +7,7 @@ import CodeBlock from './CodeBlock';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { IndianRupee, Filter, Code2, Eye, Info, ThumbsUp, Heart } from 'lucide-react';
+import SealCheckIcon from '@/components/icons/SealCheckIcon'; // Import the SealCheckIcon
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -132,7 +133,12 @@ const DesignDetailDialog: React.FC<DesignDetailDialogProps> = ({ design: initial
               <AvatarImage src={internalDesign.designer.avatarUrl || `https://placehold.co/40x40.png?text=${getInitials(internalDesign.designer.name)}`} alt={internalDesign.designer.name} data-ai-hint="designer avatar"/>
               <AvatarFallback>{getInitials(internalDesign.designer.name)}</AvatarFallback>
             </Avatar>
-            <span className="text-sm text-muted-foreground">By {internalDesign.designer.name}</span>
+            <span className="text-sm text-muted-foreground flex items-center">
+              By {internalDesign.designer.name}
+              {internalDesign.designer.isVerified && (
+                <SealCheckIcon className="ml-1.5 h-4 w-4 text-blue-500" />
+              )}
+            </span>
             
             <div className="ml-auto flex items-center gap-4">
                 <LikeButton

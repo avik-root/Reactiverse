@@ -1,4 +1,3 @@
-
 // src/components/forum/CreateTopicForm.tsx
 'use client';
 
@@ -67,10 +66,15 @@ export default function CreateTopicForm({
         variant: state.success ? 'default' : 'destructive',
       });
       if (state.success && state.newTopicId) {
-        router.push(`/community/topic/${state.newTopicId}`);
+        // For admin announcements, redirect to the admin announcements list
+        if (categorySlug === 'announcements') {
+            router.push(`/admin/forum/announcements`);
+        } else { // For other categories, redirect to the public topic page
+            router.push(`/community/topic/${state.newTopicId}?categorySlug=${categorySlug}`);
+        }
       }
     }
-  }, [state, toast, router]);
+  }, [state, toast, router, categorySlug]);
 
   return (
     <form action={formAction} className="space-y-6">
@@ -125,4 +129,3 @@ export default function CreateTopicForm({
     </form>
   );
 }
-```

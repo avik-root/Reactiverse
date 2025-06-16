@@ -15,7 +15,8 @@
     "linkedinUrl": "https://linkedin.com/in/test",
     "figmaUrl": "https://www.figma.com/",
     "isEmailPublic": true,
-    "isPhonePublic": false
+    "isPhonePublic": false,
+    "isVerified": true
   },
   {
     "id": "user-1749999187706",
@@ -33,6 +34,7 @@
     "linkedinUrl": "",
     "figmaUrl": "",
     "isEmailPublic": true,
-    "isPhonePublic": false
+    "isPhonePublic": false,
+    "isVerified": false
   }
 ]

@@ -1,8 +1,8 @@
 
-
 'use client';
 
 import type { User } from '@/lib/types';
+import React from 'react'; // Added React import
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AtSign, Github, Linkedin, Mail, Palette, BadgePercent, Star, CheckCircle, Crown, Trophy, Medal } from 'lucide-react';
@@ -166,4 +166,3 @@ const DesignerCard: React.FC<DesignerCardProps> = ({ user, rank, highlightMetric
 };
 
 export default DesignerCard;
-

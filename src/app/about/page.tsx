@@ -1,11 +1,12 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Layers3, Sparkles, Users, Info, Github, Linkedin, Mail } from 'lucide-react';
+import { Layers3, Sparkles, Users, Info } from 'lucide-react'; // Removed Github, Linkedin, Mail as ProfileCard handles contact
 import Image from 'next/image';
 import Link from 'next/link';
 import { getPageContentAction } from '@/lib/actions';
 import type { AboutUsContent, TeamMembersContent, TeamMember } from '@/lib/types';
+import ProfileCard from '@/components/core/ProfileCard'; // Import the new ProfileCard
 
 interface FeatureCardProps {
   icon: React.ReactNode;
@@ -23,57 +24,7 @@ function FeatureCard({ icon, title, description }: FeatureCardProps) {
   );
 }
 
-interface TeamMemberCardProps {
-  member: TeamMember;
-}
-
-function TeamMemberCard({ member }: TeamMemberCardProps) {
-  const defaultImageUrl = "https://placehold.co/300x300.png";
-  // Use member.imageUrl directly. If it's missing or empty, use placeholder.
-  const imageUrl = member.imageUrl ? member.imageUrl : defaultImageUrl;
-  
-  return (
-    <Card className="shadow-md hover:shadow-lg transition-shadow duration-300 ease-in-out flex flex-col items-center text-center p-6 bg-card">
-      <div className="relative h-32 w-32 rounded-lg overflow-hidden mb-4 border-2 border-primary shadow-sm">
-        <Image
-          src={imageUrl}
-          alt={member.imageAlt || member.name}
-          layout="fill"
-          objectFit="cover"
-          data-ai-hint={member.imageDataAiHint || "professional portrait"}
-          className="rounded-lg"
-          key={imageUrl} // Force re-render if src changes
-        />
-      </div>
-      <CardTitle className="text-2xl font-headline text-primary mb-1">{member.name}</CardTitle>
-      <CardDescription className="text-accent font-medium mb-3">{member.title}</CardDescription>
-      <p className="text-sm text-muted-foreground leading-relaxed mb-4">{member.bio}</p>
-      <div className="flex space-x-3 mt-auto">
-        {member.githubUrl && (
-          <Button variant="ghost" size="icon" asChild>
-            <Link href={member.githubUrl} target="_blank" rel="noopener noreferrer" aria-label={`${member.name}'s Github`}>
-              <Github className="h-5 w-5 text-muted-foreground hover:text-primary" />
-            </Link>
-          </Button>
-        )}
-        {member.linkedinUrl && (
-          <Button variant="ghost" size="icon" asChild>
-            <Link href={member.linkedinUrl} target="_blank" rel="noopener noreferrer" aria-label={`${member.name}'s LinkedIn`}>
-              <Linkedin className="h-5 w-5 text-muted-foreground hover:text-primary" />
-            </Link>
-          </Button>
-        )}
-        {member.emailAddress && (
-          <Button variant="ghost" size="icon" asChild>
-            <Link href={`mailto:${member.emailAddress}`} aria-label={`Email ${member.name}`}>
-              <Mail className="h-5 w-5 text-muted-foreground hover:text-primary" />
-            </Link>
-          </Button>
-        )}
-      </div>
-    </Card>
-  );
-}
+// TeamMemberCard is no longer needed as ProfileCard replaces it.
 
 export default async function AboutUsPage() {
   const aboutContent = await getPageContentAction('aboutUs') as AboutUsContent;
@@ -81,6 +32,10 @@ export default async function AboutUsPage() {
 
   if (!aboutContent || !teamContent) {
     return <div className="container mx-auto py-12">Error loading content. Please try again later.</div>;
+  }
+  
+  const generateHandle = (name: string) => {
+    return name.toLowerCase().replace(/\s+/g, '.').replace(/[^a-z0-9.]/g, '');
   }
 
   return (
@@ -114,7 +69,7 @@ export default async function AboutUsPage() {
                 objectFit="cover" 
                 className="rounded-lg"
                 data-ai-hint={aboutContent.image1DataAiHint || "team collaboration"}
-                key={aboutContent.image1Url} // Add key here
+                key={aboutContent.image1Url} 
               />
             </div>
           </section>
@@ -136,9 +91,50 @@ export default async function AboutUsPage() {
           {teamContent.founder && teamContent.coFounder && (
             <section className="text-center space-y-8">
               <h2 className="text-3xl font-semibold font-headline mb-6">{teamContent.title || "Meet Our Team"}</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <TeamMemberCard member={teamContent.founder} />
-                <TeamMemberCard member={teamContent.coFounder} />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 justify-items-center">
+                <div className="pc-card-wrapper-container">
+                  <ProfileCard
+                    avatarUrl={teamContent.founder.imageUrl || "https://placehold.co/128x128.png?text=F"}
+                    name={teamContent.founder.name}
+                    title={teamContent.founder.title}
+                    handle={generateHandle(teamContent.founder.name)}
+                    status={teamContent.founder.title} // Or a generic "Online" / Role
+                    contactText={`Email ${teamContent.founder.name.split(' ')[0]}`}
+                    onContactClick={() => {
+                        if (typeof window !== 'undefined' && teamContent.founder.emailAddress) {
+                            window.location.href = `mailto:${teamContent.founder.emailAddress}`;
+                        }
+                    }}
+                    showUserInfo={true}
+                    enableTilt={true}
+                    miniAvatarUrl={teamContent.founder.imageUrl}
+                    // You can pass grainUrl, iconUrl if you have them
+                  />
+                </div>
+                <div className="pc-card-wrapper-container">
+                  <ProfileCard
+                    avatarUrl={teamContent.coFounder.imageUrl || "https://placehold.co/128x128.png?text=C"}
+                    name={teamContent.coFounder.name}
+                    title={teamContent.coFounder.title}
+                    handle={generateHandle(teamContent.coFounder.name)}
+                    status={teamContent.coFounder.title}
+                    contactText={`Email ${teamContent.coFounder.name.split(' ')[0]}`}
+                     onContactClick={() => {
+                        if (typeof window !== 'undefined' && teamContent.coFounder.emailAddress) {
+                            window.location.href = `mailto:${teamContent.coFounder.emailAddress}`;
+                        }
+                    }}
+                    showUserInfo={true}
+                    enableTilt={true}
+                    miniAvatarUrl={teamContent.coFounder.imageUrl}
+                  />
+                </div>
+              </div>
+               <div className="mt-4 text-sm text-muted-foreground">
+                <p className="font-semibold text-primary">Founder Bio:</p>
+                <p className="whitespace-pre-line">{teamContent.founder.bio}</p>
+                <p className="font-semibold text-primary mt-2">Co-Founder Bio:</p>
+                <p className="whitespace-pre-line">{teamContent.coFounder.bio}</p>
               </div>
             </section>
           )}
@@ -156,7 +152,7 @@ export default async function AboutUsPage() {
                     objectFit="cover" 
                     className="rounded-lg"
                     data-ai-hint={aboutContent.image2DataAiHint || "digital community"}
-                    key={aboutContent.image2Url} // Add key here
+                    key={aboutContent.image2Url} 
                  />
             </div>
           </section>

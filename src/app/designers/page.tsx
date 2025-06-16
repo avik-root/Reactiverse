@@ -4,17 +4,18 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import type { User, Design } from '@/lib/types';
 import { getAllUsersAdminAction, getAllDesignsAction, getPageContentAction } from '@/lib/actions';
-import DesignerCard from '@/components/designer/DesignerCard';
+import DesignerCard from '@/components/designer/DesignerCard'; // Keep for ranks > 10
+import ProfileCard from '@/components/core/ProfileCard'; // New card for top 1-10
 import DesignerDetailDialog from '@/components/designer/DesignerDetailDialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Award, Info, Search, Palette, Users, ListOrdered, PercentSquare, Crown, Medal, Trophy, Star } from 'lucide-react';
+import { Award, Info, Search, Users, ListOrdered, PercentSquare, Crown, Medal, Trophy, Star } from 'lucide-react';
 import type { TopDesignersPageContent } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import SealCheckIcon from '@/components/icons/SealCheckIcon'; // Import the SealCheckIcon
+import SealCheckIcon from '@/components/icons/SealCheckIcon';
 
 interface DesignerStats extends User {
   totalLikes: number;
@@ -42,7 +43,7 @@ export default function DesignersPage() {
       try {
         const [pageContent, fetchedUsers, designsData] = await Promise.all([
           getPageContentAction('topDesigners') as Promise<TopDesignersPageContent>,
-          getAllUsersAdminAction(), // This action now includes isVerified
+          getAllUsersAdminAction(),
           getAllDesignsAction()
         ]);
         setContent(pageContent);
@@ -64,7 +65,7 @@ export default function DesignersPage() {
       const designsByThisUser = allDesigns.filter(design => design.submittedByUserId === user.id);
       const totalLikes = designsByThisUser.reduce((sum, design) => sum + (design.likedBy?.length || 0), 0);
       return {
-        ...user, // isVerified is already part of the user object from getAllUsersAdminAction
+        ...user,
         totalLikes: totalLikes,
         totalDesignsUploaded: designsByThisUser.length,
       };
@@ -89,7 +90,7 @@ export default function DesignersPage() {
     );
   }, [fullDesignerStatsList, searchTerm]);
 
-  const top20Designers = useMemo(() => {
+  const topDesignersForCards = useMemo(() => {
     return displayableDesignerStatsList.filter(d => d.totalLikes > 0 || d.totalDesignsUploaded > 0).slice(0, 20);
   }, [displayableDesignerStatsList]);
 
@@ -114,7 +115,6 @@ export default function DesignersPage() {
     return <PercentSquare className="h-4 w-4 text-muted-foreground" />;
   };
 
-
   if (isLoading || !content) {
     return (
       <div className="container mx-auto py-12 space-y-10">
@@ -128,11 +128,11 @@ export default function DesignersPage() {
             <Skeleton className="h-8 w-1/3 mb-4" />
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {[...Array(4)].map((_, i) => (
-                <div key={i} className="p-6 border rounded-lg bg-card space-y-3">
-                  <Skeleton className="h-24 w-24 rounded-full mx-auto" />
-                  <Skeleton className="h-6 w-3/4 mx-auto" />
-                  <Skeleton className="h-4 w-1/2 mx-auto" />
-                  <Skeleton className="h-4 w-1/3 mx-auto mt-1" />
+                <div key={i} className="p-6 border rounded-lg bg-card space-y-3 flex flex-col items-center">
+                  <Skeleton className="h-24 w-24 rounded-full" />
+                  <Skeleton className="h-6 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                  <Skeleton className="h-4 w-1/3 mt-1" />
                 </div>
               ))}
             </div>
@@ -174,18 +174,42 @@ export default function DesignersPage() {
         <h2 className="text-2xl font-semibold font-headline mb-6 flex items-center">
           <Trophy className="mr-2 h-7 w-7 text-yellow-500" /> Top Ranked Designers
         </h2>
-        {top20Designers.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {top20Designers.map((designer, index) => (
-              <DesignerCard
-                key={designer.id}
-                user={designer} // designer object includes isVerified
-                rank={index + 1} 
-                highlightMetricLabel="Total Likes"
-                highlightMetricValue={designer.totalLikes}
-                onOpenDetail={() => handleOpenDesignerDetail(designer)}
-              />
-            ))}
+        {topDesignersForCards.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-8">
+            {topDesignersForCards.map((designer, index) => {
+              const rank = index + 1;
+              if (rank <= 10) {
+                return (
+                  <div key={designer.id} className="pc-card-wrapper-container">
+                    <ProfileCard
+                      avatarUrl={designer.avatarUrl || `https://placehold.co/128x128.png?text=${getInitials(designer.name)}`}
+                      name={designer.name}
+                      title={`Rank #${rank} Designer`}
+                      handle={designer.username.startsWith('@') ? designer.username.substring(1) : designer.username}
+                      status={`Likes: ${designer.totalLikes} | Designs: ${designer.totalDesignsUploaded}`}
+                      contactText="View Profile"
+                      onContactClick={() => handleOpenDesignerDetail(designer)}
+                      showUserInfo={true}
+                      enableTilt={true}
+                      miniAvatarUrl={designer.avatarUrl}
+                      // Note: isVerified badge isn't directly supported by ProfileCard's props.
+                      // It will be shown in the DesignerDetailDialog.
+                    />
+                  </div>
+                );
+              } else { // For ranks 11-20 (or however many are in topDesignersForCards)
+                return (
+                  <DesignerCard
+                    key={designer.id}
+                    user={designer}
+                    rank={rank} 
+                    highlightMetricLabel="Total Likes"
+                    highlightMetricValue={designer.totalLikes}
+                    onOpenDetail={() => handleOpenDesignerDetail(designer)}
+                  />
+                );
+              }
+            })}
           </div>
         ) : (
           <Alert>
@@ -258,7 +282,6 @@ export default function DesignersPage() {
         )}
       </section>
 
-
       {selectedDesignerForDetail && (
         <DesignerDetailDialog
           user={selectedDesignerForDetail}
@@ -269,4 +292,3 @@ export default function DesignersPage() {
     </div>
   );
 }
-

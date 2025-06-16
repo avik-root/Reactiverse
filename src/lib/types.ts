@@ -18,7 +18,7 @@ export interface User {
   figmaUrl?: string;
   isEmailPublic?: boolean;
   isPhonePublic?: boolean;
-  isVerified?: boolean; // Added for verified status
+  isVerified?: boolean;
 }
 
 export interface CodeBlockItem {
@@ -33,7 +33,7 @@ export interface Design {
   filterCategory: string;
   description: string;
   codeBlocks: CodeBlockItem[];
-  designer: User; // User type now includes isVerified
+  designer: User;
   tags: string[];
   price?: number;
   submittedByUserId?: string;
@@ -62,11 +62,11 @@ export type AuthUser =
       figmaUrl?: string;
       isEmailPublic?: boolean;
       isPhonePublic?: boolean;
-      isVerified?: boolean; // Added
+      isVerified?: boolean;
     })
   | (Omit<AdminUser, 'passwordHash' | 'twoFactorPinHash'> & { isAdmin: true });
 
-export type StoredUser = User; // StoredUser now includes isVerified
+export type StoredUser = User;
 export type StoredAdminUser = AdminUser;
 
 
@@ -279,7 +279,7 @@ export type AdminSetUserCanSetPriceFormState = {
   updatedUser?: User | null;
 };
 
-export type AdminSetUserVerificationStatusFormState = { // New Type
+export type AdminSetUserVerificationStatusFormState = {
   message?: string | null;
   success?: boolean;
   errors?: {
@@ -343,29 +343,29 @@ export type AddForumCategoryFormState = {
 
 export interface ForumPost {
   id: string;
-  topicId: string; 
+  topicId: string;
   content: string;
   createdByUserId: string;
   authorName: string;
   authorAvatarUrl?: string;
-  authorIsVerified?: boolean; // Added
+  authorIsVerified?: boolean;
   createdAt: string;
 }
 
 export interface ForumTopic {
   id: string;
-  categoryId: string; 
+  categoryId: string;
   title: string;
-  content: string; 
+  content: string;
   createdByUserId: string;
   authorName: string;
   authorAvatarUrl?: string;
-  authorIsVerified?: boolean; // Added
+  authorIsVerified?: boolean;
   createdAt: string;
   lastRepliedAt: string;
-  viewCount: number; // Added
+  viewCount: number;
   replyCount: number;
-  posts?: ForumPost[]; 
+  posts?: ForumPost[];
 }
 
 
@@ -424,5 +424,30 @@ export type UpdateAdminAnnouncementFormState = {
     general?: string[];
   };
   updatedTopic?: ForumTopic | null;
+};
+
+export interface VerificationRequest {
+  id: string;
+  userId?: string; // If submitted by a logged-in user
+  submittedName: string;
+  submittedUsername: string;
+  submittedEmail: string;
+  submittedPhone: string;
+  requestDate: string;
+  status: 'pending' | 'approved' | 'rejected';
+  // Potentially add fields like adminNotes if needed later
+}
+
+export type ApplyForVerificationFormState = {
+  message?: string | null;
+  success?: boolean;
+  errors?: {
+    fullName?: string[];
+    username?: string[];
+    email?: string[];
+    phone?: string[];
+    terms?: string[];
+    general?: string[];
+  };
 };
 

@@ -5,7 +5,7 @@ import { useEffect, type ReactNode, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { LayoutDashboard, Users, Palette, Settings, LogOut, ShieldCheck, UserCog, FileText, Image as ImageIcon, Loader2, Users2, MailOpen, LayoutList, MessagesSquare, Megaphone, HelpCircle, Menu as MenuIcon } from 'lucide-react';
+import { LayoutDashboard, Users, Palette, Settings, LogOut, ShieldCheck, UserCog, FileText, Image as ImageIcon, Loader2, Users2, MailOpen, LayoutList, MessagesSquare, Megaphone, HelpCircle, Menu as MenuIcon, CheckBadge } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Logo from '@/components/core/Logo';
 import { Button } from '@/components/ui/button';
@@ -35,10 +35,14 @@ const contentEditingNavItems = [
     { href: '/admin/edit-content/team', label: 'Edit Team Members', icon: Users2 },
     { href: '/admin/edit-content/logo', label: 'Change Site Logo', icon: ImageIcon },
     { href: '/admin/subscribers', label: 'View Subscribers', icon: MailOpen },
+];
+
+const communityNavItems = [
     { href: '/admin/forum-categories', label: 'Manage Forum Categories', icon: LayoutList },
     { href: '/admin/forum/general-discussion', label: 'Edit General Discussion', icon: MessagesSquare },
     { href: '/admin/forum/announcements', label: 'Edit Announcements', icon: Megaphone },
     { href: '/admin/forum/support-qa', label: 'Edit Support & Q/A', icon: HelpCircle },
+    { href: '/admin/verifications', label: 'User Verifications', icon: CheckBadge },
 ];
 
 interface AdminNavContentProps {
@@ -51,7 +55,7 @@ function AdminNavContent({ onLinkClick }: AdminNavContentProps) {
 
   const handleLogout = async () => {
     await logout();
-    window.location.href = '/'; // Redirect to home page or admin login
+    window.location.href = '/';
     if (onLinkClick) {
       onLinkClick();
     }
@@ -94,16 +98,39 @@ function AdminNavContent({ onLinkClick }: AdminNavContentProps) {
           </Link>
         ))}
 
-        <Accordion type="single" collapsible className="w-full" defaultValue="content-editing">
+        <Accordion type="multiple" className="w-full" defaultValue={['content-editing', 'community-management']}>
           <AccordionItem value="content-editing" className="border-none">
             <AccordionTrigger className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-muted-foreground transition-all hover:text-primary hover:bg-muted hover:no-underline [&[data-state=open]>svg]:text-primary">
-              <Settings className="h-5 w-5" /> Site Content & Community
+              <FileText className="h-5 w-5" /> Site Content
             </AccordionTrigger>
             <AccordionContent className="pl-4 pt-1 pb-0">
               <nav className="flex-grow space-y-1">
                 {contentEditingNavItems.map((item) => (
                   <Link
                     key={`content-${item.href}`}
+                    href={item.href}
+                    onClick={handleLinkNavigation}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted-foreground transition-all hover:text-primary hover:bg-muted/80",
+                      pathname === item.href && "bg-muted/80 text-primary font-medium"
+                    )}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    {item.label}
+                  </Link>
+                ))}
+              </nav>
+            </AccordionContent>
+          </AccordionItem>
+          <AccordionItem value="community-management" className="border-none">
+            <AccordionTrigger className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-muted-foreground transition-all hover:text-primary hover:bg-muted hover:no-underline [&[data-state=open]>svg]:text-primary">
+              <Users2 className="h-5 w-5" /> Community & Users
+            </AccordionTrigger>
+            <AccordionContent className="pl-4 pt-1 pb-0">
+              <nav className="flex-grow space-y-1">
+                {communityNavItems.map((item) => (
+                  <Link
+                    key={`community-${item.href}`}
                     href={item.href}
                     onClick={handleLinkNavigation}
                     className={cn(
@@ -182,13 +209,11 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   return (
     <div className="flex min-h-screen bg-muted/30">
-      {/* Desktop Sidebar */}
       <aside className="fixed top-0 left-0 h-full md:w-72 bg-card text-card-foreground shadow-lg flex-col p-4 space-y-6 z-40 transition-transform -translate-x-full md:translate-x-0 hidden md:flex">
         <AdminNavContent />
       </aside>
       
       <main className="flex-1 md:ml-72 overflow-y-auto">
-         {/* Mobile Header */}
         <header className="md:hidden sticky top-0 bg-background/95 backdrop-blur-sm z-30 p-3 border-b shadow-sm h-16 flex items-center justify-between">
             <Logo />
             <Sheet open={isMobileSheetOpen} onOpenChange={setIsMobileSheetOpen}>
@@ -210,3 +235,4 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     </div>
   );
 }
+

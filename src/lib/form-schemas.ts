@@ -51,9 +51,8 @@ export const AboutUsContentSchema = z.object({
         i++;
       }
       if (items.length > 0) return items;
-      // If not in form data structure, assume it's already an array (e.g. from file)
       if (Array.isArray(val)) return val;
-      return []; // Fallback to empty array
+      return [];
     },
     z.array(
       z.object({
@@ -104,7 +103,7 @@ export const GuidelinesPageContentSchema = z.object({
   keyAreasTitle: z.string().min(1, "Key areas title is required"),
   keyAreas: z.array(z.string().min(1, "Key area item cannot be empty"))
               .min(1, "At least one key area is required"),
-  keyAreasJSON: z.string().optional(), // This will be transformed
+  keyAreasJSON: z.string().optional(),
 }).transform(data => {
   if (data.keyAreasJSON) {
     try {
@@ -116,7 +115,6 @@ export const GuidelinesPageContentSchema = z.object({
       // If parsing fails, keep original data.keyAreas or it will be an empty array if not present
     }
   }
-  // Remove keyAreasJSON after transformation to avoid it being saved
   const { keyAreasJSON, ...rest } = data;
   return rest;
 });
@@ -147,8 +145,8 @@ export const TeamMembersContentSchemaClient = z.object({
   coFounder: TeamMemberSchemaClient,
   founderImageFile: ValidImageFileSchema,
   coFounderImageFile: ValidImageFileSchema,
-  "founder.existingImageUrl": z.string().optional(), // Keep for form data structure
-  "coFounder.existingImageUrl": z.string().optional(), // Keep for form data structure
+  "founder.existingImageUrl": z.string().optional(),
+  "coFounder.existingImageUrl": z.string().optional(),
 });
 
 export const pageContentSchemasMap = {
@@ -158,4 +156,18 @@ export const pageContentSchemasMap = {
   topDesigners: TopDesignersPageContentSchema,
   teamMembers: TeamMembersContentSchemaClient,
 };
+
+export const VerificationApplicationSchema = z.object({
+    fullName: z.string().min(2, { message: "Full name must be at least 2 characters." }),
+    username: z.string()
+      .min(3, { message: "Username must be at least 2 characters plus @." })
+      .regex(/^@[a-zA-Z0-9_]+$/, { message: "Username must start with @ and contain only letters, numbers, or underscores." }),
+    email: z.string().email({ message: "Please enter a valid email address." }),
+    phone: z.string().min(10, { message: "Please enter a valid phone number with country code." })
+      .regex(/^\+[1-9]\d{1,14}$/, { message: "Phone number must start with + and country code (e.g., +1234567890)." }),
+    terms: z.literal(true, {
+      errorMap: () => ({ message: "You must accept the terms and conditions." }),
+    }),
+    userId: z.string().optional(), // If user is logged in
+});
 

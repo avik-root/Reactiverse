@@ -1,12 +1,12 @@
 
 'use client';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { MessagesSquare, Search, Lightbulb, Users, Palette, HelpCircle, Megaphone, Code2, Mail, Info, Filter, LayoutList, Loader2, FileText, CalendarDays, Eye, Tag, ShieldAlert, XCircle, AlertTriangle, BadgeCheck } from 'lucide-react';
+import { MessagesSquare, Search, Lightbulb, Users, Palette, HelpCircle, Megaphone, Code2, Mail, Info, Filter, LayoutList, Loader2, FileText, CalendarDays, Eye, Tag, ShieldAlert, XCircle, AlertTriangle, BadgeCheck, CheckSquare as CheckboxIcon, UserSquare2, AtSign, Phone, SendHorizonal } from 'lucide-react';
 import Link from 'next/link';
-import { getForumCategoriesAction, subscribeToNewsletterAction, searchAllForumTopicsAction, type SubscribeToNewsletterFormState } from '@/lib/actions';
+import { getForumCategoriesAction, subscribeToNewsletterAction, searchAllForumTopicsAction, type SubscribeToNewsletterFormState, applyForVerificationAction, type ApplyForVerificationFormState } from '@/lib/actions';
 import type { ForumCategory, ForumTopic } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useEffect, useState, useActionState, useMemo } from 'react';
@@ -16,6 +16,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import SealCheckIcon from '@/components/icons/SealCheckIcon';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { useAuth } from '@/contexts/AuthContext';
 
 
 const LucideIcons = {
@@ -39,7 +42,7 @@ interface ForumCategoryCardProps {
 }
 
 function ForumCategoryCard({ category }: ForumCategoryCardProps) {
-  const IconComponent = LucideIcons[category.iconName as IconName] || HelpCircle; // Fallback to HelpCircle
+  const IconComponent = LucideIcons[category.iconName as IconName] || HelpCircle;
 
   return (
     <Card className="hover:shadow-lg transition-shadow bg-card hover:bg-muted/50">
@@ -74,6 +77,15 @@ function NewsletterSubmitButton() {
     );
 }
 
+function VerificationSubmitButton() {
+  const { pending } = useFormStatus();
+  return (
+    <Button type="submit" disabled={pending} className="w-full">
+      {pending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Submitting Application...</> : <><SendHorizonal className="mr-2 h-4 w-4"/>Submit Application</>}
+    </Button>
+  );
+}
+
 const getInitials = (name?: string) => {
     if (!name) return '?';
     const parts = name.split(' ');
@@ -89,15 +101,36 @@ export default function CommunityForumPage() {
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
   const [fetchError, setFetchError] = useState(false);
   const { toast } = useToast();
+  const { user: currentUser } = useAuth();
 
-  const initialFormState: SubscribeToNewsletterFormState = { message: null, errors: {}, success: false };
-  const [formState, formAction] = useActionState(subscribeToNewsletterAction, initialFormState);
+  const initialNewsletterState: SubscribeToNewsletterFormState = { message: null, errors: {}, success: false };
+  const [newsletterFormState, newsletterFormAction] = useActionState(subscribeToNewsletterAction, initialNewsletterState);
 
-  const [searchInput, setSearchInput] = useState(''); 
-  const [searchTerm, setSearchTerm] = useState(''); 
+  const initialVerificationState: ApplyForVerificationFormState = { message: null, errors: {}, success: false };
+  const [verificationFormState, verificationFormAction] = useActionState(applyForVerificationAction, initialVerificationState);
+
+
+  const [searchInput, setSearchInput] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<ForumTopic[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchPerformed, setSearchPerformed] = useState(false);
+
+  const [verificationFullName, setVerificationFullName] = useState('');
+  const [verificationUsername, setVerificationUsername] = useState('');
+  const [verificationEmail, setVerificationEmail] = useState('');
+  const [verificationPhone, setVerificationPhone] = useState('');
+
+
+  useEffect(() => {
+    if (currentUser && 'id' in currentUser) {
+      setVerificationFullName(currentUser.name || '');
+      setVerificationUsername(currentUser.username || '');
+      setVerificationEmail(currentUser.email || '');
+      setVerificationPhone(currentUser.phone || '');
+    }
+  }, [currentUser]);
+
 
   useEffect(() => {
     async function fetchCategoriesData() {
@@ -116,25 +149,46 @@ export default function CommunityForumPage() {
   }, []);
 
   useEffect(() => {
-    if (formState?.message) {
+    if (newsletterFormState?.message) {
       toast({
-        title: formState.success ? 'Success!' : 'Subscription Failed',
-        description: formState.message,
-        variant: formState.success ? 'default' : 'destructive',
+        title: newsletterFormState.success ? 'Success!' : 'Subscription Failed',
+        description: newsletterFormState.message,
+        variant: newsletterFormState.success ? 'default' : 'destructive',
       });
-      if (formState.success) {
+      if (newsletterFormState.success) {
         const formElement = document.getElementById('newsletterForm') as HTMLFormElement;
         formElement?.reset();
       }
     }
-  }, [formState, toast]);
+  }, [newsletterFormState, toast]);
+
+  useEffect(() => {
+    if (verificationFormState?.message) {
+      toast({
+        title: verificationFormState.success ? 'Application Submitted!' : 'Application Error',
+        description: verificationFormState.message,
+        variant: verificationFormState.success ? 'default' : 'destructive',
+      });
+      if (verificationFormState.success) {
+        const formElement = document.getElementById('verificationForm') as HTMLFormElement;
+        formElement?.reset();
+        // Clear form fields if not prefilled by logged-in user
+        if (!currentUser) {
+            setVerificationFullName('');
+            setVerificationUsername('');
+            setVerificationEmail('');
+            setVerificationPhone('');
+        }
+      }
+    }
+  }, [verificationFormState, toast, currentUser]);
 
   const handleSearch = async () => {
     if (!searchInput.trim()) {
       toast({ title: "Search Error", description: "Please enter a term to search.", variant: "destructive" });
       return;
     }
-    setSearchTerm(searchInput.trim()); 
+    setSearchTerm(searchInput.trim());
     setIsSearching(true);
     setSearchPerformed(true);
     try {
@@ -149,8 +203,8 @@ export default function CommunityForumPage() {
   };
 
   const handleClearSearch = () => {
-    setSearchInput(''); 
-    setSearchTerm('');   
+    setSearchInput('');
+    setSearchTerm('');
     setSearchResults([]);
     setSearchPerformed(false);
   };
@@ -211,7 +265,6 @@ export default function CommunityForumPage() {
                   {searchResults.map((topic) => {
                     const categorySlug = getCategorySlugForTopic(topic.categoryId);
                     const isAuthorAdmin = topic.createdByUserId.startsWith('admin-');
-                    // authorName and authorAvatarUrl are dynamically set by the server action for admins
                     const authorDisplayName = topic.authorName;
                     const authorDisplayAvatar = topic.authorAvatarUrl || `https://placehold.co/32x32.png?text=${getInitials(topic.authorName)}`;
                     const authorFallbackInitials = getInitials(topic.authorName);
@@ -290,7 +343,7 @@ export default function CommunityForumPage() {
                 <h2 className="text-2xl font-semibold font-headline mb-6 text-center">Explore Topics by Category</h2>
                 {isLoadingCategories ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {[...Array(6)].map((_, i) => (
+                        {[...Array(3)].map((_, i) => ( // Reduced skeleton count to 3
                             <Card key={i} className="bg-card">
                                 <CardHeader className="flex flex-row items-center gap-4 space-y-0 pb-3">
                                     <Skeleton className="h-12 w-12 rounded-lg bg-muted/50" />
@@ -324,18 +377,77 @@ export default function CommunityForumPage() {
                 )}
               </section>
 
-              <section className="text-center py-8 bg-muted/30 rounded-lg">
-                <MessagesSquare className="h-16 w-16 text-primary/60 mb-4 mx-auto animate-pulse" />
-                <h3 className="text-xl font-semibold mb-2">Our Forum is Growing!</h3>
-                <p className="text-muted-foreground max-w-lg mx-auto mb-4">
-                  We&apos;re actively working on new features and improvements.
-                </p>
-                <p className="text-sm text-accent">Thank you for your patience and stay tuned for exciting updates!</p>
+               <section className="py-8 bg-card border border-border rounded-lg shadow-md">
+                <CardHeader className="text-center pb-4">
+                    <CardTitle className="flex items-center justify-center text-2xl font-headline text-primary">
+                        <SealCheckIcon className="mr-3 h-8 w-8 text-blue-500" /> Apply for Verified User Badge
+                    </CardTitle>
+                    <CardDescription className="max-w-xl mx-auto">
+                        Submit your details for verification. A small processing fee helps support street animal welfare.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <form id="verificationForm" action={verificationFormAction} className="space-y-4 max-w-lg mx-auto">
+                         {currentUser && 'id' in currentUser && <input type="hidden" name="userId" value={currentUser.id} />}
+                        <div className="space-y-2">
+                            <Label htmlFor="fullName">Full Name</Label>
+                             <div className="relative">
+                                <UserSquare2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input id="fullName" name="fullName" value={verificationFullName} onChange={(e) => setVerificationFullName(e.target.value)} placeholder="Your Full Name" required className="pl-10"/>
+                            </div>
+                            {verificationFormState?.errors?.fullName && <p className="text-sm text-destructive">{verificationFormState.errors.fullName.join(', ')}</p>}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="username">Username (must start with @)</Label>
+                            <div className="relative">
+                                <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input id="username" name="username" value={verificationUsername} onChange={(e) => setVerificationUsername(e.target.value)} placeholder="@yourusername" required className="pl-10"/>
+                            </div>
+                            {verificationFormState?.errors?.username && <p className="text-sm text-destructive">{verificationFormState.errors.username.join(', ')}</p>}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="email">Email Address</Label>
+                             <div className="relative">
+                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input id="email" name="email" type="email" value={verificationEmail} onChange={(e) => setVerificationEmail(e.target.value)} placeholder="you@example.com" required className="pl-10"/>
+                            </div>
+                            {verificationFormState?.errors?.email && <p className="text-sm text-destructive">{verificationFormState.errors.email.join(', ')}</p>}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="phone">Phone Number (with country code)</Label>
+                            <div className="relative">
+                                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input id="phone" name="phone" type="tel" value={verificationPhone} onChange={(e) => setVerificationPhone(e.target.value)} placeholder="+1234567890" required className="pl-10"/>
+                            </div>
+                            {verificationFormState?.errors?.phone && <p className="text-sm text-destructive">{verificationFormState.errors.phone.join(', ')}</p>}
+                        </div>
+                         <div className="items-top flex space-x-2 pt-2">
+                            <Checkbox id="terms" name="terms" required />
+                            <div className="grid gap-1.5 leading-none">
+                                <Label htmlFor="terms" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                    I agree to the terms and conditions.
+                                </Label>
+                                <p className="text-xs text-muted-foreground">
+                                    Verification may take 2-3 business days. A nominal fee is charged, and these contributions support street animal welfare initiatives by MintFire Tech.
+                                </p>
+                            </div>
+                        </div>
+                        {verificationFormState?.errors?.terms && <p className="text-sm text-destructive">{verificationFormState.errors.terms.join(', ')}</p>}
+                        {verificationFormState?.errors?.general && <p className="text-sm text-destructive text-center">{verificationFormState.errors.general.join(', ')}</p>}
+                        <CardFooter className="px-0 pt-4">
+                           <VerificationSubmitButton />
+                        </CardFooter>
+                    </form>
+                    <p className="text-xs text-muted-foreground text-center mt-4 max-w-prose mx-auto">
+                        Reactiverse and the MintFire family deeply appreciate your contribution towards our initiative for street animal health and food care.
+                        Your support helps us make a difference.
+                    </p>
+                </CardContent>
               </section>
 
               <div className="border-t pt-8">
-                    <h3 className="text-lg font-semibold mb-3 text-center">Want to be notified when full features launch?</h3>
-                    <form id="newsletterForm" action={formAction} className="flex flex-col sm:flex-row gap-2 max-w-md mx-auto">
+                    <h3 className="text-lg font-semibold mb-3 text-center">Want to be notified of new features?</h3>
+                    <form id="newsletterForm" action={newsletterFormAction} className="flex flex-col sm:flex-row gap-2 max-w-md mx-auto">
                         <div className="relative flex-grow">
                             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
@@ -349,8 +461,8 @@ export default function CommunityForumPage() {
                         </div>
                         <NewsletterSubmitButton />
                     </form>
-                    {formState?.errors?.email && <p id="newsletter-email-error" className="text-sm text-destructive text-center mt-1">{formState.errors.email.join(', ')}</p>}
-                    {formState?.errors?.general && <p className="text-sm text-destructive text-center mt-1">{formState.errors.general.join(', ')}</p>}
+                    {newsletterFormState?.errors?.email && <p id="newsletter-email-error" className="text-sm text-destructive text-center mt-1">{newsletterFormState.errors.email.join(', ')}</p>}
+                    {newsletterFormState?.errors?.general && <p className="text-sm text-destructive text-center mt-1">{newsletterFormState.errors.general.join(', ')}</p>}
                      <p className="text-xs text-muted-foreground text-center mt-2">Sign up for updates on new features and community news!</p>
                 </div>
             </>

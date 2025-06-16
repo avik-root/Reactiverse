@@ -1,16 +1,17 @@
 
 'use client';
 
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, type ReactNode, useState } from 'react'; // Added useState
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { LayoutDashboard, Users, Palette, Settings, LogOut, ShieldCheck, UserCog, FileText, Image as ImageIcon, Loader2, Users2, MailOpen, LayoutList, MessagesSquare, Megaphone, HelpCircle } from 'lucide-react';
+import { LayoutDashboard, Users, Palette, Settings, LogOut, ShieldCheck, UserCog, FileText, Image as ImageIcon, Loader2, Users2, MailOpen, LayoutList, MessagesSquare, Megaphone, HelpCircle, Menu as MenuIcon } from 'lucide-react'; // Added MenuIcon
 import { cn } from '@/lib/utils';
 import Logo from '@/components/core/Logo';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet'; // Added Sheet components
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -40,10 +41,105 @@ const contentEditingNavItems = [
     { href: '/admin/forum/support-qa', label: 'Edit Support & Q/A', icon: HelpCircle },
 ];
 
+function AdminNavContent({ onLinkClick }: { onLinkClick?: () => void }) {
+  const pathname = usePathname();
+  const { user, logout } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
+    window.location.href = '/';
+  };
+
+  const getInitials = (name?: string) => {
+    if (!name) return 'A';
+    const nameToProcess = user && user.isAdmin && 'name' in user && user.name ? user.name : 'Admin';
+    return nameToProcess.split(' ').map(n => n[0]).join('').toUpperCase();
+  };
+
+  const displayName = user && user.isAdmin && 'name' in user && user.name ? user.name : 'Admin';
+  const avatarUrl = user && user.isAdmin && 'avatarUrl' in user && user.avatarUrl ? user.avatarUrl : undefined;
+
+
+  return (
+    <>
+      <div className="px-2 py-2">
+        <Logo />
+      </div>
+      <nav className="flex-grow space-y-1 overflow-y-auto">
+        {mainNavItems.map((item) => (
+          <SheetClose asChild key={`main-${item.href}`}>
+            <Link
+              href={item.href}
+              onClick={onLinkClick}
+              className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-muted-foreground transition-all hover:text-primary hover:bg-muted",
+                pathname === item.href && "bg-muted text-primary font-semibold shadow-sm"
+              )}
+            >
+              <item.icon className="h-5 w-5" />
+              {item.label}
+            </Link>
+          </SheetClose>
+        ))}
+
+        <Accordion type="single" collapsible className="w-full" defaultValue="content-editing">
+          <AccordionItem value="content-editing" className="border-none">
+            <AccordionTrigger className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-muted-foreground transition-all hover:text-primary hover:bg-muted hover:no-underline [&[data-state=open]>svg]:text-primary">
+              <Settings className="h-5 w-5" /> Site Content & Community
+            </AccordionTrigger>
+            <AccordionContent className="pl-4 pt-1 pb-0">
+              <nav className="flex-grow space-y-1">
+                {contentEditingNavItems.map((item) => (
+                  <SheetClose asChild key={`content-${item.href}`}>
+                    <Link
+                      href={item.href}
+                      onClick={onLinkClick}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted-foreground transition-all hover:text-primary hover:bg-muted/80",
+                        pathname === item.href && "bg-muted/80 text-primary font-medium"
+                      )}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      {item.label}
+                    </Link>
+                  </SheetClose>
+                ))}
+              </nav>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      </nav>
+
+      <div className="mt-auto border-t pt-4">
+        <div className="flex items-center gap-3 px-3 py-2">
+          <Avatar className="h-9 w-9">
+            <AvatarImage
+              key={avatarUrl}
+              src={avatarUrl || `https://placehold.co/100x100.png?text=${getInitials(displayName)}`}
+              alt={displayName} data-ai-hint="admin avatar" />
+            <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
+          </Avatar>
+          <div>
+            <p className="text-sm font-medium leading-none">{displayName}</p>
+            <p className="text-xs text-muted-foreground">Administrator</p>
+          </div>
+        </div>
+        <SheetClose asChild>
+          <Button variant="ghost" onClick={handleLogout} className="w-full justify-start mt-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+            <LogOut className="mr-2 h-4 w-4" /> Log Out
+          </Button>
+        </SheetClose>
+      </div>
+    </>
+  );
+}
+
+
 export default function AdminLayout({ children }: AdminLayoutProps) {
-  const { user, isAdmin, isLoading, logout } = useAuth();
+  const { user, isAdmin, isLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
 
   const isPublicAdminPage = PUBLIC_ADMIN_PATHS.includes(pathname);
 
@@ -52,11 +148,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       router.push('/admin/login');
     }
   }, [user, isAdmin, isLoading, router, pathname, isPublicAdminPage]);
-
-  const handleLogout = async () => {
-    await logout();
-    window.location.href = '/';
-  };
 
   if (isPublicAdminPage) {
     return <>{children}</>;
@@ -73,96 +164,39 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   if (!user || !isAdmin) {
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-background">
-            <Loader2 className="h-16 w-16 animate-spin text-primary mb-6" />
-            <p className="text-xl text-muted-foreground">Redirecting...</p>
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background">
+        <Loader2 className="h-16 w-16 animate-spin text-primary mb-6" />
+        <p className="text-xl text-muted-foreground">Redirecting...</p>
       </div>
     );
   }
 
-  const getInitials = (name?: string) => {
-    if (!name) return 'A';
-    const nameToProcess = user && isAdmin && 'name' in user && user.name ? user.name : 'Admin';
-    return nameToProcess.split(' ').map(n => n[0]).join('').toUpperCase();
-  };
-
-  const displayName = user && isAdmin && 'name' in user && user.name ? user.name : 'Admin';
-  const avatarUrl = user && isAdmin && 'avatarUrl' in user && user.avatarUrl ? user.avatarUrl : undefined;
-
   return (
     <div className="flex min-h-screen bg-muted/30">
-      <aside className="fixed top-0 left-0 h-full md:w-72 bg-card text-card-foreground shadow-lg flex flex-col p-4 space-y-6 z-40 transition-transform -translate-x-full md:translate-x-0 overflow-y-auto">
-        <div className="px-2 py-2">
-          <Logo />
-        </div>
-
-        <nav className="flex-grow space-y-1">
-          {mainNavItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-muted-foreground transition-all hover:text-primary hover:bg-muted",
-                pathname === item.href && "bg-muted text-primary font-semibold shadow-sm"
-              )}
-            >
-              <item.icon className="h-5 w-5" />
-              {item.label}
-            </Link>
-          ))}
-
-          <Accordion type="single" collapsible className="w-full" defaultValue="content-editing">
-            <AccordionItem value="content-editing" className="border-none">
-              <AccordionTrigger className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-muted-foreground transition-all hover:text-primary hover:bg-muted hover:no-underline [&[data-state=open]>svg]:text-primary">
-                 <Settings className="h-5 w-5" /> Site Content & Community
-              </AccordionTrigger>
-              <AccordionContent className="pl-4 pt-1 pb-0">
-                <nav className="flex-grow space-y-1">
-                    {contentEditingNavItems.map((item) => (
-                        <Link
-                        key={item.href}
-                        href={item.href}
-                        className={cn(
-                            "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted-foreground transition-all hover:text-primary hover:bg-muted/80",
-                            pathname === item.href && "bg-muted/80 text-primary font-medium"
-                        )}
-                        >
-                        <item.icon className="h-4 w-4" />
-                        {item.label}
-                        </Link>
-                    ))}
-                </nav>
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-        </nav>
-
-        <div className="mt-auto border-t pt-4">
-            <div className="flex items-center gap-3 px-3 py-2">
-                <Avatar className="h-9 w-9">
-                    <AvatarImage
-                        key={avatarUrl}
-                        src={avatarUrl || `https://placehold.co/100x100.png?text=${getInitials(displayName)}`}
-                        alt={displayName} data-ai-hint="admin avatar"/>
-                    <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
-                </Avatar>
-                <div>
-                    <p className="text-sm font-medium leading-none">{displayName}</p>
-                    <p className="text-xs text-muted-foreground">Administrator</p>
-                </div>
-            </div>
-            <Button variant="ghost" onClick={handleLogout} className="w-full justify-start mt-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
-                <LogOut className="mr-2 h-4 w-4" /> Log Out
-            </Button>
-        </div>
+      {/* Desktop Sidebar */}
+      <aside className="fixed top-0 left-0 h-full md:w-72 bg-card text-card-foreground shadow-lg flex-col p-4 space-y-6 z-40 transition-transform -translate-x-full md:translate-x-0 hidden md:flex">
+        <AdminNavContent />
       </aside>
-      <main className="flex-1 md:ml-72 p-4 sm:p-6 lg:p-8 overflow-y-auto">
-        <header className="md:hidden sticky top-0 bg-background/80 backdrop-blur-md z-30 p-4 mb-4 border-b rounded-lg shadow-sm">
-            <div className="flex items-center justify-between">
-                <Logo />
-            </div>
+      
+      <main className="flex-1 md:ml-72 overflow-y-auto">
+         {/* Mobile Header */}
+        <header className="md:hidden sticky top-0 bg-background/95 backdrop-blur-sm z-30 p-3 border-b shadow-sm h-16 flex items-center justify-between">
+            <Logo />
+            <Sheet open={isMobileSheetOpen} onOpenChange={setIsMobileSheetOpen}>
+                <SheetTrigger asChild>
+                    <Button variant="ghost" size="icon">
+                        <MenuIcon className="h-6 w-6" />
+                        <span className="sr-only">Open Admin Menu</span>
+                    </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-[280px] p-4 flex flex-col bg-card text-card-foreground space-y-6">
+                    <AdminNavContent onLinkClick={() => setIsMobileSheetOpen(false)} />
+                </SheetContent>
+            </Sheet>
         </header>
-        {children}
+        <div className="p-4 sm:p-6 lg:p-8">
+         {children}
+        </div>
       </main>
     </div>
   );

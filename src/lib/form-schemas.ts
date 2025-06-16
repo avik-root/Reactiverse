@@ -165,9 +165,12 @@ export const VerificationApplicationSchema = z.object({
     email: z.string().email({ message: "Please enter a valid email address." }),
     phone: z.string().min(10, { message: "Please enter a valid phone number with country code." })
       .regex(/^\+[1-9]\d{1,14}$/, { message: "Phone number must start with + and country code (e.g., +1234567890)." }),
-    terms: z.literal(true, {
-      errorMap: () => ({ message: "You must accept the terms and conditions." }),
-    }),
+    terms: z.preprocess(
+      (val) => String(val).toLowerCase() === 'on' || String(val).toLowerCase() === 'true',
+      z.literal(true, {
+        errorMap: () => ({ message: "You must accept the terms and conditions." }),
+      })
+    ),
     userId: z.string().optional(), // If user is logged in
 });
 

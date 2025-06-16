@@ -96,7 +96,10 @@ export default function SplashCursor({
     };
 
     const { gl, ext } = getWebGLContext(canvas);
-    if (!gl || !ext) return;
+    if (!gl || !ext) {
+        console.error("Failed to get WebGL context or extensions for SplashCursor.");
+        return;
+    }
 
     if (!ext.supportLinearFiltering) {
       config.DYE_RESOLUTION = 256;
@@ -126,8 +129,8 @@ export default function SplashCursor({
       }
 
       if (!gl) {
-        console.error("Unable to initialize WebGL.");
-        return { gl: null, ext: null }; // Return nulls if context creation fails
+        // Error already handled by the caller check
+        return { gl: null, ext: null };
       }
 
       const isWebGL2 = "drawBuffers" in gl;
@@ -181,12 +184,11 @@ export default function SplashCursor({
         formatRG = getSupportedFormat(gl, gl.RGBA, gl.RGBA, halfFloatTexType);
         formatR = getSupportedFormat(gl, gl.RGBA, gl.RGBA, halfFloatTexType);
       }
-        // Check if any format is null, if so, WebGL setup is incomplete/failed
+      
       if (!formatRGBA || !formatRG || !formatR) {
-        console.error("WebGL context or texture formats are not supported.");
-        return { gl: null, ext: null };
+        // Error already handled by the caller check
+        return { gl: gl, ext: null }; // return gl so it can be checked by caller
       }
-
 
       return {
         gl,
@@ -261,6 +263,8 @@ export default function SplashCursor({
         0
       );
       const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+      gl.deleteTexture(texture);
+      gl.deleteFramebuffer(fbo);
       return status === gl.FRAMEBUFFER_COMPLETE;
     }
 
@@ -295,6 +299,8 @@ export default function SplashCursor({
       gl.compileShader(shader);
       if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
         console.trace(gl.getShaderInfoLog(shader));
+        gl.deleteShader(shader);
+        return null;
       }
       return shader;
     }
@@ -311,6 +317,8 @@ export default function SplashCursor({
       gl.linkProgram(program);
       if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
         console.trace(gl.getProgramInfoLog(program));
+        gl.deleteProgram(program);
+        return null;
       }
       return program;
     }
@@ -689,6 +697,12 @@ export default function SplashCursor({
     `
     );
 
+    if (!baseVertexShader || !copyShader || !clearShader || !splatShader || !advectionShader || !divergenceShader || !curlShader || !vorticityShader || !pressureShader || !gradientSubtractShader) {
+        console.error("SplashCursor: One or more shaders failed to compile. Effect will not run.");
+        return;
+    }
+
+
     const blit = (() => {
       const buffer = gl.createBuffer()!;
       gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
@@ -859,6 +873,8 @@ export default function SplashCursor({
       if (copyProgram.uniforms.uTexture)
         gl.uniform1i(copyProgram.uniforms.uTexture, target.attach(0));
       blit(newFBO, false);
+      gl.deleteTexture(target.texture);
+      gl.deleteFramebuffer(target.fbo);
       return newFBO;
     }
 
@@ -998,6 +1014,7 @@ export default function SplashCursor({
     let lastUpdateTime = Date.now();
     let colorUpdateTimer = 0.0;
     let animationFrameId: number;
+    let firstMoveHandled = false;
 
 
     function updateFrame() {
@@ -1437,7 +1454,7 @@ export default function SplashCursor({
       return ((value - min) % range) + min;
     }
 
-    const onMouseDown = (e: MouseEvent) => {
+    const onMouseDownGlobal = (e: MouseEvent) => {
       const pointer = pointers[0];
       const posX = scaleByPixelRatio(e.clientX);
       const posY = scaleByPixelRatio(e.clientY);
@@ -1445,26 +1462,25 @@ export default function SplashCursor({
       clickSplat(pointer);
     };
     
-    let firstMove = true;
-    const onMouseMove = (e: MouseEvent) => {
+    const onMouseMoveGlobal = (e: MouseEvent) => {
+      if (!firstMoveHandled) {
+        updateFrame(); // Start animation loop on first move
+        firstMoveHandled = true;
+      }
       const pointer = pointers[0];
       const posX = scaleByPixelRatio(e.clientX);
       const posY = scaleByPixelRatio(e.clientY);
-      const color = pointer.color || generateColor(); // Use existing color or generate if none
-      if (firstMove) {
-        updateFrame(); // Start animation loop on first move
-        firstMove = false;
-      }
+      const color = pointer.color || generateColor();
       updatePointerMoveData(pointer, posX, posY, color);
     };
 
-    const onTouchStart = (e: TouchEvent) => {
+    const onTouchStartGlobal = (e: TouchEvent) => {
+       if (!firstMoveHandled && e.targetTouches.length > 0) {
+          updateFrame();
+          firstMoveHandled = true;
+       }
       const touches = e.targetTouches;
       const pointer = pointers[0];
-       if (firstMove && touches.length > 0) { // Start animation on first touch
-          updateFrame();
-          firstMove = false;
-       }
       for (let i = 0; i < touches.length; i++) {
         const posX = scaleByPixelRatio(touches[i].clientX);
         const posY = scaleByPixelRatio(touches[i].clientY);
@@ -1472,7 +1488,7 @@ export default function SplashCursor({
       }
     };
     
-    const onTouchMove = (e: TouchEvent) => {
+    const onTouchMoveGlobal = (e: TouchEvent) => {
       const touches = e.targetTouches;
       const pointer = pointers[0];
       for (let i = 0; i < touches.length; i++) {
@@ -1482,30 +1498,38 @@ export default function SplashCursor({
       }
     };
 
-    const onTouchEnd = (e: TouchEvent) => {
-      const pointer = pointers[0];
+    const onTouchEndGlobal = (e: TouchEvent) => {
+      const pointer = pointers[0]; // Assuming single touch for simplicity here
       updatePointerUpData(pointer);
     };
 
-    window.addEventListener("mousedown", onMouseDown);
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("touchstart", onTouchStart, false);
-    window.addEventListener("touchmove", onTouchMove, false);
-    window.addEventListener("touchend", onTouchEnd);
+    window.addEventListener("mousedown", onMouseDownGlobal);
+    window.addEventListener("mousemove", onMouseMoveGlobal);
+    window.addEventListener("touchstart", onTouchStartGlobal, { passive: true });
+    window.addEventListener("touchmove", onTouchMoveGlobal, { passive: true });
+    window.addEventListener("touchend", onTouchEndGlobal);
     
-    updateFrame(); // Start the animation loop
+    // Initial call to start only if not already started by first move/touch
+    if (!firstMoveHandled) {
+        // To start animation loop if no mouse/touch interaction happens immediately
+        // but we still want the canvas to be ready or show some idle effect (if any).
+        // However, this specific effect is highly interactive, so starting only on interaction is fine.
+        // If an initial static render is needed, `updateFrame` could be called once here,
+        // but continuous animation should wait for interaction.
+    }
 
 
     return () => {
       // Cleanup
-      window.removeEventListener("mousedown", onMouseDown);
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("touchstart", onTouchStart);
-      window.removeEventListener("touchmove", onTouchMove);
-      window.removeEventListener("touchend", onTouchEnd);
-      document.body.removeEventListener("mousemove", handleFirstMouseMove); // In case it was added
-      document.body.removeEventListener("touchstart", handleFirstTouchStart); // In case it was added
-      cancelAnimationFrame(animationFrameId);
+      window.removeEventListener("mousedown", onMouseDownGlobal);
+      window.removeEventListener("mousemove", onMouseMoveGlobal);
+      window.removeEventListener("touchstart", onTouchStartGlobal);
+      window.removeEventListener("touchmove", onTouchMoveGlobal);
+      window.removeEventListener("touchend", onTouchEndGlobal);
+      // The self-removing handleFirstMouseMove and handleFirstTouchStart are gone.
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
     };
 
 
@@ -1532,7 +1556,7 @@ export default function SplashCursor({
         position: "fixed",
         top: 0,
         left: 0,
-        zIndex: -5, // Ensure it's behind content but above simple backgrounds
+        zIndex: -5, 
         pointerEvents: "none",
         width: "100%",
         height: "100%",
@@ -1550,3 +1574,5 @@ export default function SplashCursor({
     </div>
   );
 }
+
+

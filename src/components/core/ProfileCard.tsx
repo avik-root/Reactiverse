@@ -61,27 +61,22 @@ const easeInOutCubic = (x: number): number =>
 const RankingBadgeDisplay: React.FC<{ rank?: number }> = ({ rank }) => {
   if (!rank || rank === 0 || rank > 10) return null;
 
-  let icon: React.ReactElement | null = null;
-  let badgeClasses = "pc-rank-badge text-xs px-2 py-0.5 font-bold flex items-center gap-1";
+  let badgeClasses = "pc-rank-badge text-xs px-2 py-0.5 font-bold"; // Removed flex items-center gap-1
   let rankText = `#${rank}`;
 
   if (rank === 1) {
-    icon = <Crown className="h-3 w-3 fill-yellow-500 text-yellow-600" />;
     badgeClasses += " bg-yellow-400/20 text-yellow-600 border border-yellow-500/50";
   } else if (rank === 2) {
-    icon = <Trophy className="h-3 w-3 fill-slate-500 text-slate-600" />;
     badgeClasses += " bg-slate-400/20 text-slate-600 border border-slate-400/50";
   } else if (rank === 3) {
-    icon = <Medal className="h-3 w-3 fill-orange-500 text-orange-600" />;
     badgeClasses += " bg-orange-400/20 text-orange-600 border border-orange-400/50";
-  } else {
-    icon = <Star className="h-3 w-3 fill-sky-500 text-sky-600" />;
+  } else { // Ranks 4-10
     badgeClasses += " bg-sky-400/20 text-sky-600 border border-sky-500/50";
   }
 
   return (
     <Badge variant="secondary" className={badgeClasses}>
-      {icon} {rankText}
+      {rankText}
     </Badge>
   );
 };
@@ -388,3 +383,4 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
 
 const ProfileCard = React.memo(ProfileCardComponent);
 export default ProfileCard;
+

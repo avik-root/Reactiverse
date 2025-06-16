@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { Megaphone, Trash2, Eye, CalendarDays, User as UserIcon, MessageCircle as ReplyIcon } from 'lucide-react';
+import { Megaphone, Trash2, Eye, CalendarDays, User as UserIcon, MessageCircle as ReplyIcon, PlusCircle, Edit } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import Link from 'next/link';
@@ -97,12 +97,19 @@ export default function AdminManageAnnouncementsPage() {
 
   return (
     <Card className="shadow-lg border-border">
-      <CardHeader>
-        <div className="flex items-center gap-3">
-            <Megaphone className="h-8 w-8 text-primary" />
-            <CardTitle className="text-3xl font-headline text-primary">Manage Announcements</CardTitle>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+            <div className="flex items-center gap-3">
+                <Megaphone className="h-8 w-8 text-primary" />
+                <CardTitle className="text-3xl font-headline text-primary">Manage Announcements</CardTitle>
+            </div>
+            <CardDescription>Create, edit, and manage topics within the Announcements forum category.</CardDescription>
         </div>
-        <CardDescription>Create, edit, and manage topics within the Announcements forum category.</CardDescription>
+        <Button asChild>
+          <Link href="/admin/forum/announcements/create">
+            <PlusCircle className="mr-2 h-4 w-4" /> Create New Announcement
+          </Link>
+        </Button>
       </CardHeader>
       <CardContent>
         {topics.length > 0 ? (
@@ -144,6 +151,9 @@ export default function AdminManageAnnouncementsPage() {
                         <Link href={`/community/topic/${topic.id}?categorySlug=${CATEGORY_SLUG}`} target="_blank">
                             <Eye className="mr-1 h-3.5 w-3.5" /> View
                         </Link>
+                      </Button>
+                      <Button variant="outline" size="sm" disabled>
+                        <Edit className="mr-1 h-3.5 w-3.5" /> Edit (Soon)
                       </Button>
                       <Button variant="destructive" size="sm" onClick={() => handleDeleteClick(topic)}>
                         <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete

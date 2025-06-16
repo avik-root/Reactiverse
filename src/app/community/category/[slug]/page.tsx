@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { FileText, MessageSquare, PlusCircle, Info, Users, CalendarDays, Eye, Tag, ShieldAlert, LogIn } from 'lucide-react';
+import { FileText, MessageSquare, PlusCircle, Info, Users, CalendarDays, Eye, Tag, ShieldAlert, LogIn, ArrowLeft } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
@@ -64,30 +64,15 @@ export default function CategoryPage() {
     fetchData();
   }, [slug]);
 
-  const canCreateTopic = () => {
-    if (!category) return false;
-    if (category.slug === 'announcements') {
-      return !!(user && isAdmin);
-    }
-    return !!user; // Any logged-in user for other categories
-  };
-
   const getCreateTopicButtonInfo = () => {
-    if (!category || !slug) return { text: "Loading...", disabled: true, href: "#" };
+    if (!category || !slug || category.slug === 'announcements') return null; // Do not show button for announcements
 
     const baseHref = `/community/category/${slug}/new-topic`;
-
-    if (category.slug === 'announcements') {
-      if (user && isAdmin) {
-        return { text: "Create Announcement", disabled: false, href: baseHref };
-      }
-      return { text: "Admins Only Post Here", disabled: true, href: "#", icon: <ShieldAlert className="mr-2 h-5 w-5" /> };
-    }
 
     if (user) {
       return { text: "Create New Topic", disabled: false, href: baseHref };
     }
-    // Determine redirect URL for login, including the current page
+    
     const redirectUrl = `/community/category/${slug}`;
     return { text: "Login to Create Topic", disabled: false, href: `/auth/login?redirect=${encodeURIComponent(redirectUrl)}`, icon: <LogIn className="mr-2 h-5 w-5" /> };
   };
@@ -98,6 +83,11 @@ export default function CategoryPage() {
   if (authIsLoading || isLoadingPageData) {
     return (
       <div className="container mx-auto py-12 space-y-8">
+        <div className="mb-6">
+            <Button asChild variant="outline" size="sm">
+                <Link href="/community"><ArrowLeft className="mr-2 h-4 w-4"/>Back to Forum Categories</Link>
+            </Button>
+        </div>
         <Card className="shadow-lg">
           <CardHeader>
             <Skeleton className="h-8 w-3/4 mb-2" />
@@ -106,7 +96,7 @@ export default function CategoryPage() {
           <CardContent>
             <div className="flex justify-between items-center mb-6">
               <Skeleton className="h-6 w-1/4" />
-              <Skeleton className="h-10 w-48" />
+              {slug !== 'announcements' && <Skeleton className="h-10 w-48" />}
             </div>
             <ul className="space-y-4">
               {[...Array(3)].map((_, i) => (
@@ -131,6 +121,11 @@ export default function CategoryPage() {
   if (error) {
     return (
       <div className="container mx-auto py-12">
+         <div className="mb-6">
+            <Button asChild variant="outline" size="sm">
+                <Link href="/community"><ArrowLeft className="mr-2 h-4 w-4"/>Back to Forum Categories</Link>
+            </Button>
+        </div>
         <Alert variant="destructive">
           <Info className="h-4 w-4" />
           <AlertTitle>Error</AlertTitle>
@@ -148,6 +143,11 @@ export default function CategoryPage() {
   if (!category) {
      return (
       <div className="container mx-auto py-12">
+         <div className="mb-6">
+            <Button asChild variant="outline" size="sm">
+                <Link href="/community"><ArrowLeft className="mr-2 h-4 w-4"/>Back to Forum Categories</Link>
+            </Button>
+        </div>
         <Alert variant="destructive">
           <Info className="h-4 w-4" />
           <AlertTitle>Category Not Found</AlertTitle>
@@ -165,6 +165,11 @@ export default function CategoryPage() {
 
   return (
     <div className="container mx-auto py-12 space-y-8">
+       <div className="mb-6">
+            <Button asChild variant="outline" size="sm">
+                <Link href="/community"><ArrowLeft className="mr-2 h-4 w-4"/>Back to Forum Categories</Link>
+            </Button>
+        </div>
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="text-3xl font-headline text-primary flex items-center">
@@ -176,12 +181,14 @@ export default function CategoryPage() {
         <CardContent>
           <div className="flex justify-between items-center mb-6">
             <p className="text-muted-foreground">{topics.length} topic(s) in this category.</p>
-             <Button asChild variant="default" disabled={createTopicButtonInfo.disabled && createTopicButtonInfo.text !== "Login to Create Topic"} className={(createTopicButtonInfo.disabled && createTopicButtonInfo.text !== "Login to Create Topic") ? "opacity-70 cursor-not-allowed" : ""}>
+            {createTopicButtonInfo && (
+             <Button asChild variant="default" disabled={createTopicButtonInfo.disabled} className={createTopicButtonInfo.disabled ? "opacity-70 cursor-not-allowed" : ""}>
               <Link href={createTopicButtonInfo.href}>
                 {createTopicButtonInfo.icon || <PlusCircle className="mr-2 h-5 w-5" />}
                 {createTopicButtonInfo.text}
               </Link>
             </Button>
+            )}
           </div>
 
           {topics.length > 0 ? (
@@ -192,7 +199,7 @@ export default function CategoryPage() {
                     <div>
                       <h3 className="text-xl font-semibold mb-1">
                         <Link
-                          href={`/community/topic/${topic.id}`}
+                          href={`/community/topic/${topic.id}?categorySlug=${category.slug}`}
                           className="text-primary hover:underline"
                         >
                           {topic.title}
@@ -224,7 +231,7 @@ export default function CategoryPage() {
                    <p className="text-sm text-muted-foreground mt-2 line-clamp-2">{topic.content}</p>
                    <div className="mt-3">
                         <Link
-                          href={`/community/topic/${topic.id}`}
+                          href={`/community/topic/${topic.id}?categorySlug=${category.slug}`}
                           className="text-primary text-sm font-medium hover:underline"
                         >
                             Read More & Reply &rarr;
@@ -239,9 +246,16 @@ export default function CategoryPage() {
               <AlertTitle>No Topics Yet</AlertTitle>
               <AlertDescription>
                 There are no topics in this category yet.
-                 <Button asChild variant="link" className={(createTopicButtonInfo.disabled && createTopicButtonInfo.text !== "Login to Create Topic") ? "p-0 h-auto ml-1 text-accent opacity-70 cursor-not-allowed" : "p-0 h-auto ml-1 text-accent"} disabled={createTopicButtonInfo.disabled && createTopicButtonInfo.text !== "Login to Create Topic"}>
-                    <Link href={createTopicButtonInfo.href}>{canCreateTopic() ? "Be the first to create one!" : (category.slug === 'announcements' ? "Only admins can post here." : "Login to create one.")}</Link>
+                {createTopicButtonInfo && !createTopicButtonInfo.disabled && (
+                 <Button asChild variant="link" className="p-0 h-auto ml-1 text-accent">
+                    <Link href={createTopicButtonInfo.href}>Be the first to create one!</Link>
                  </Button>
+                )}
+                 {createTopicButtonInfo && createTopicButtonInfo.disabled && createTopicButtonInfo.text.includes("Login") && (
+                     <Button asChild variant="link" className="p-0 h-auto ml-1 text-accent">
+                        <Link href={createTopicButtonInfo.href}>Login to create one.</Link>
+                     </Button>
+                 )}
               </AlertDescription>
             </Alert>
           )}

@@ -7,7 +7,7 @@ import Logo from './Logo';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserCircle, LogOut, ShieldCheck, UserPlus, LogIn, LayoutDashboard, Home, Users, LifeBuoy, Info, Palette } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation'; // Import usePathname
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,10 +16,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { cn } from '@/lib/utils'; // Import cn utility
 
 const navLinks = [
   { href: "/", label: "Home", icon: Home },
-  { href: "/designers", label: "Designers", icon: Users }, // Changed "Top Designers" to "Designers"
+  { href: "/designers", label: "Designers", icon: Users },
   { href: "/about", label: "About Us", icon: Info },
   { href: "/support", label: "Support", icon: LifeBuoy },
 ];
@@ -27,6 +28,7 @@ const navLinks = [
 const Header = () => {
   const { user, isAdmin, logout, isLoading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname(); // Get current pathname
 
   const getInitials = (name?: string) => {
     if (!name) return 'U';
@@ -49,8 +51,16 @@ const Header = () => {
           <Logo />
           <nav className="hidden md:flex items-center gap-2">
             {navLinks.map(link => (
-              <Button variant="ghost" asChild key={link.href}>
-                <Link href={link.href} className="flex items-center text-sm">
+              <Button
+                variant="ghost"
+                asChild
+                key={link.href}
+                className={cn(
+                  "flex items-center text-sm",
+                  pathname === link.href ? "border-b-2 border-primary rounded-none" : "" // Conditional border
+                )}
+              >
+                <Link href={link.href}>
                   <>
                     <link.icon className="mr-1.5 h-4 w-4" /> {link.label}
                   </>
@@ -74,7 +84,9 @@ const Header = () => {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 {navLinks.map((link) => (
-                  <DropdownMenuItem key={link.href} asChild>
+                  <DropdownMenuItem key={link.href} asChild
+                    className={cn(pathname === link.href ? "bg-accent" : "")} // Highlight active in dropdown
+                  >
                     <Link href={link.href} className="flex items-center">
                       <>
                         <link.icon className="mr-2 h-4 w-4" />

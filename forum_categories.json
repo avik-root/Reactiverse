@@ -5,7 +5,7 @@
     "description": "Talk about anything related to UI/UX design, development, and Reactiverse.",
     "iconName": "MessagesSquare",
     "slug": "general-discussion",
-    "topicCount": 0,
+    "topicCount": 1,
     "postCount": 0
   },
   {
@@ -23,7 +23,7 @@
     "description": "Got questions about using Reactiverse? Find answers and support.",
     "iconName": "HelpCircle",
     "slug": "support-qa",
-    "topicCount": 0,
-    "postCount": 0
+    "topicCount": 1,
+    "postCount": 1
   }
 ]

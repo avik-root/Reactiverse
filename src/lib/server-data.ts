@@ -811,6 +811,67 @@ export async function deleteTopic(topicId: string, categorySlug: string): Promis
   return { success: true, postsDeleted };
 }
 
+export async function deletePostFromTopic(
+  postId: string,
+  topicId: string,
+  categorySlug: string
+): Promise<{ success: boolean; postDeletedCount: number }> {
+  let topics: ForumTopic[];
+  let saveFunction: (topics: ForumTopic[]) => Promise<void>;
+
+  switch (categorySlug) {
+    case 'general-discussion':
+      topics = await getUsersForumData();
+      saveFunction = saveUsersForumData;
+      break;
+    case 'announcements':
+      topics = await getAnnouncementsData();
+      saveFunction = saveAnnouncementsData;
+      break;
+    case 'support-qa':
+      topics = await getSupportForumData();
+      saveFunction = saveSupportForumData;
+      break;
+    default:
+      console.error(`Unknown category slug for deleting post: ${categorySlug}`);
+      return { success: false, postDeletedCount: 0 };
+  }
+
+  const topicIndex = topics.findIndex(t => t.id === topicId);
+  if (topicIndex === -1) {
+    console.error(`Topic with ID ${topicId} not found in category ${categorySlug} for post deletion.`);
+    return { success: false, postDeletedCount: 0 };
+  }
+
+  const topicToUpdate = topics[topicIndex];
+  if (!topicToUpdate.posts) {
+    topicToUpdate.posts = [];
+  }
+
+  const postIndex = topicToUpdate.posts.findIndex(p => p.id === postId);
+  if (postIndex === -1) {
+    console.error(`Post with ID ${postId} not found in topic ${topicId}.`);
+    return { success: false, postDeletedCount: 0 };
+  }
+
+  topicToUpdate.posts.splice(postIndex, 1);
+  topicToUpdate.replyCount = (topicToUpdate.replyCount || 1) - 1;
+  if (topicToUpdate.replyCount < 0) topicToUpdate.replyCount = 0;
+
+  await saveFunction(topics);
+
+  // Update category counts
+  const categories = await getForumCategoriesFromFile();
+  const categoryToUpdateIndex = categories.findIndex(c => c.slug === categorySlug);
+  if (categoryToUpdateIndex !== -1) {
+    categories[categoryToUpdateIndex].postCount = (categories[categoryToUpdateIndex].postCount || 1) - 1;
+     if (categories[categoryToUpdateIndex].postCount! < 0) categories[categoryToUpdateIndex].postCount = 0;
+    await saveForumCategoriesToFile(categories);
+  }
+
+  return { success: true, postDeletedCount: 1 };
+}
+
 
 // --- End New Forum Data Functions ---
 

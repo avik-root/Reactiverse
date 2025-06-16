@@ -1,1 +1,26 @@
-[]
+[
+  {
+    "id": "topic-1750076920711",
+    "categoryId": "cat-006",
+    "title": "Banner for Bash",
+    "content": "I want to upload banner art for bash script. ",
+    "createdByUserId": "user-1749918806145",
+    "authorName": "Test",
+    "authorAvatarUrl": "/avatars/user-user-1749918806145-1750016321098.jpeg",
+    "createdAt": "2025-06-16T12:28:40.711Z",
+    "lastRepliedAt": "2025-06-16T12:29:28.158Z",
+    "viewCount": 0,
+    "replyCount": 1,
+    "posts": [
+      {
+        "id": "post-1750076968158",
+        "topicId": "topic-1750076920711",
+        "content": "Sure.",
+        "createdByUserId": "admin-1749930797589",
+        "authorName": "Aviksha",
+        "authorAvatarUrl": "https://placehold.co/100x100.png?text=A",
+        "createdAt": "2025-06-16T12:29:28.158Z"
+      }
+    ]
+  }
+]

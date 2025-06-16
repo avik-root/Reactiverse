@@ -5,6 +5,14 @@ import { z } from 'zod';
 import { cookies } from 'next/headers';
 import path from 'path';
 import {
+  pageContentSchemasMap,
+  ValidImageFileSchema,
+  AvatarFileSchema,
+  HSLColorSchema,
+  CodeBlockSchema,
+  FAQItemSchema
+} from './form-schemas';
+import {
   getUsersFromFile,
   saveUserToFile,
   getAdminUsers,
@@ -39,15 +47,8 @@ import {
   addForumTopicToFile as addForumTopicToServerFile,
   addPostToTopic,
   deleteTopic as deleteTopicFromServerData,
+  deletePostFromTopic as deletePostFromServerData,
 } from './server-data';
-import {
-  pageContentSchemasMap,
-  ValidImageFileSchema,
-  AvatarFileSchema,
-  HSLColorSchema,
-  CodeBlockSchema,
-  FAQItemSchema
-} from './form-schemas';
 import type {
   AdminUser,
   User,
@@ -78,7 +79,6 @@ import type {
   UpdateProfileFormState as UserUpdateProfileFormState,
   IncrementCopyCountResult,
   ToggleLikeDesignResult,
-  // FAQItem, // Now imported from form-schemas
   ForumCategory,
   AddForumCategoryFormState,
   NewsletterSubscriber,
@@ -88,6 +88,7 @@ import type {
   ForumPost,
   AdminDeleteTopicResult,
   CreatePostFormState,
+  AdminDeletePostResult,
 } from './types';
 import { revalidatePath } from 'next/cache';
 import { hashPassword, comparePassword, hashPin, comparePin } from './auth-utils';
@@ -990,7 +991,7 @@ export async function checkAdminDataExistsAction(): Promise<{ adminExists: boole
 }
 
 export async function createAdminAccountAction(prevState: AdminCreateAccountFormState, formData: FormData): Promise<AdminCreateAccountFormState> {
-  const AdminCreateAccountSchema = z.object({
+   const AdminCreateAccountSchema = z.object({
     name: z.string().min(2, { message: 'Full name must be at least 2 characters.' }),
     username: z.string().min(4, { message: 'Username must be at least 4 characters.' }).regex(/^[a-zA-Z0-9_]+$/, { message: 'Username can only contain letters, numbers, or underscores.'}),
     email: z.string().email({ message: 'Invalid email address.' }),
@@ -1213,7 +1214,7 @@ export async function changeAdminPasswordAction(
   prevState: ChangeAdminPasswordFormState,
   formData: FormData
 ): Promise<ChangeAdminPasswordFormState> {
-  const ChangeAdminPasswordSchema = z.object({
+   const ChangeAdminPasswordSchema = z.object({
     adminId: z.string(),
     currentPassword: z.string().min(1, { message: "Current password is required." }),
     newPassword: z.string().min(8, { message: 'New password must be at least 8 characters.' }),
@@ -2144,5 +2145,39 @@ export async function adminDeleteTopicAction(topicId: string, categorySlug: stri
   } catch (error) {
     console.error('Error deleting topic via admin action:', error);
     return { success: false, message: 'Failed to delete topic due to a server error.' };
+  }
+}
+
+export async function adminDeleteForumPostAction(
+  postId: string,
+  topicId: string,
+  categorySlug: string
+): Promise<AdminDeletePostResult> {
+  const adminToken = cookies().get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
+  if (!adminToken) {
+    return { success: false, message: "Admin authorization failed. Please log in as an admin." };
+  }
+
+  if (!postId || !topicId || !categorySlug) {
+    return { success: false, message: 'Post ID, Topic ID, and Category Slug are required.' };
+  }
+
+  try {
+    const result = await deletePostFromServerData(postId, topicId, categorySlug);
+    if (!result.success) {
+      return { success: false, message: 'Post not found or already deleted.' };
+    }
+
+    revalidatePath(`/community/topic/${topicId}?categorySlug=${categorySlug}`);
+    revalidatePath(`/community/category/${categorySlug}`);
+    revalidatePath('/community');
+    // Also revalidate admin views if they show post counts or post details
+    revalidatePath(`/admin/forum/${categorySlug}`);
+
+
+    return { success: true, message: 'Post deleted successfully.' };
+  } catch (error) {
+    console.error('Error deleting forum post via admin action:', error);
+    return { success: false, message: 'Failed to delete post due to a server error.' };
   }
 }

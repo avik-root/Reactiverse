@@ -1,20 +1,22 @@
 
 // src/app/community/topic/[topicId]/page.tsx
-'use client'; // Make this a client component
+'use client'; 
 
-import type { ForumTopic, ForumPost } from '@/lib/types';
-import { getTopicDetailsAction } from '@/lib/actions';
+import type { ForumTopic, ForumPost, AdminDeletePostResult } from '@/lib/types';
+import { getTopicDetailsAction, adminDeleteForumPostAction } from '@/lib/actions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { MessageCircle, Info, CalendarDays, User as UserIcon, ArrowLeft, BadgeCheck, Loader2 } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { MessageCircle, Info, CalendarDays, User as UserIcon, ArrowLeft, BadgeCheck, Loader2, Trash2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 import { useParams, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import CreatePostForm from '@/components/forum/CreatePostForm';
+import { useToast } from '@/hooks/use-toast';
 
 const getInitials = (name?: string) => {
     if (!name) return '?';
@@ -30,6 +32,7 @@ const ADMIN_AVATAR_URL = "https://placehold.co/40x40.png?text=A";
 export default function TopicPage() {
   const params = useParams();
   const searchParamsHook = useSearchParams(); 
+  const { toast } = useToast();
 
   const topicId = typeof params.topicId === 'string' ? params.topicId : null;
   const categorySlug = searchParamsHook.get('categorySlug');
@@ -38,33 +41,38 @@ export default function TopicPage() {
   const [posts, setPosts] = useState<ForumPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { user: currentUser, isLoading: authIsLoading } = useAuth();
+  const { user: currentUser, isAdmin, isLoading: authIsLoading } = useAuth();
+
+  const [postToDelete, setPostToDelete] = useState<ForumPost | null>(null);
+  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
+
+
+  const fetchTopicData = useCallback(async () => {
+    if (!topicId) {
+      setError("Topic ID is missing.");
+      setIsLoading(false);
+      return;
+    }
+    setIsLoading(true);
+    setError(null);
+    try {
+      const fetchedTopic = await getTopicDetailsAction(topicId, categorySlug || undefined);
+      if (fetchedTopic) {
+        setTopic(fetchedTopic);
+        setPosts(fetchedTopic.posts || []);
+      } else {
+        setError("Topic not found or could not be loaded.");
+      }
+    } catch (e) {
+      console.error("Error fetching topic details:", e);
+      setError("Failed to load topic. Please try again later.");
+    }
+    setIsLoading(false);
+  }, [topicId, categorySlug]);
 
   useEffect(() => {
-    async function fetchTopicData() {
-      if (!topicId) {
-        setError("Topic ID is missing.");
-        setIsLoading(false);
-        return;
-      }
-      setIsLoading(true);
-      setError(null);
-      try {
-        const fetchedTopic = await getTopicDetailsAction(topicId, categorySlug || undefined);
-        if (fetchedTopic) {
-          setTopic(fetchedTopic);
-          setPosts(fetchedTopic.posts || []);
-        } else {
-          setError("Topic not found or could not be loaded.");
-        }
-      } catch (e) {
-        console.error("Error fetching topic details:", e);
-        setError("Failed to load topic. Please try again later.");
-      }
-      setIsLoading(false);
-    }
     fetchTopicData();
-  }, [topicId, categorySlug]);
+  }, [fetchTopicData]);
 
   const handlePostCreated = (newPost: ForumPost) => {
     setPosts(prevPosts => [...prevPosts, newPost]);
@@ -76,6 +84,35 @@ export default function TopicPage() {
             lastRepliedAt: newPost.createdAt,
         };
     });
+  };
+
+  const handleDeletePostClick = (post: ForumPost) => {
+    setPostToDelete(post);
+    setIsDeleteAlertOpen(true);
+  };
+
+  const handleConfirmDeletePost = async () => {
+    if (!postToDelete || !topic || !categorySlug) return;
+
+    const result: AdminDeletePostResult = await adminDeleteForumPostAction(postToDelete.id, topic.id, categorySlug);
+    toast({
+      title: result.success ? "Success" : "Error",
+      description: result.message,
+      variant: result.success ? "default" : "destructive",
+    });
+
+    if (result.success) {
+      setPosts(prev => prev.filter(p => p.id !== postToDelete.id));
+      setTopic(prevTopic => {
+        if (!prevTopic) return null;
+        return {
+          ...prevTopic,
+          replyCount: Math.max(0, (prevTopic.replyCount || 1) - 1),
+        };
+      });
+    }
+    setIsDeleteAlertOpen(false);
+    setPostToDelete(null);
   };
 
 
@@ -193,9 +230,22 @@ export default function TopicPage() {
                                 {isPostAuthorAdmin && <BadgeCheck className="h-4 w-4 text-primary ml-1.5" />}
                               </span>
                           </div>
-                          <span className="text-xs text-muted-foreground">
-                              {format(new Date(post.createdAt), "MMM d, yyyy 'at' h:mm a")}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">
+                                {format(new Date(post.createdAt), "MMM d, yyyy 'at' h:mm a")}
+                            </span>
+                            {isAdmin && (
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                                    onClick={() => handleDeletePostClick(post)}
+                                    aria-label="Delete post"
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            )}
+                          </div>
                       </div>
                     </CardHeader>
                     <CardContent className="prose prose-sm dark:prose-invert max-w-none leading-relaxed whitespace-pre-wrap break-words">
@@ -207,7 +257,7 @@ export default function TopicPage() {
             })}
           </ul>
         ) : (
-          !currentUser && ( // Only show this specific "No Replies Yet" if not logged in, otherwise CreatePostForm implies it for logged-in users
+          !currentUser && ( 
             <Alert>
                 <Info className="h-4 w-4" />
                 <AlertTitle>No Replies Yet</AlertTitle>
@@ -244,6 +294,28 @@ export default function TopicPage() {
                 </AlertDescription>
             </Alert>
         </section>
+      )}
+
+      {postToDelete && (
+        <AlertDialog open={isDeleteAlertOpen} onOpenChange={(isOpen) => { if (!isOpen) setPostToDelete(null); setIsDeleteAlertOpen(isOpen);}}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirm Post Deletion</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete this post? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => { setIsDeleteAlertOpen(false); setPostToDelete(null); }}>Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleConfirmDeletePost} 
+                className="bg-destructive hover:bg-destructive/90"
+              >
+                Yes, delete post
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
     </div>
   );

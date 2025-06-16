@@ -394,3 +394,8 @@ export interface CreatePostFormState {
   };
   newPost?: ForumPost | null;
 }
+
+export interface AdminDeletePostResult {
+  success: boolean;
+  message: string;
+}

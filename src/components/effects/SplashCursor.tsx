@@ -1,5 +1,5 @@
 
-"use client";
+"use client"; // Ensures this component is only rendered on the client
 import React, { useEffect, useRef } from "react";
 
 interface ColorRGB {
@@ -66,7 +66,7 @@ export default function SplashCursor({
   SPLAT_FORCE = 6000,
   SHADING = true,
   COLOR_UPDATE_SPEED = 10,
-  BACK_COLOR = { r: 0.5, g: 0, b: 0 },
+  BACK_COLOR = { r: 0.5, g: 0, b: 0 }, // Not used if TRANSPARENT is true by default
   TRANSPARENT = true
 }: SplashCursorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -95,11 +95,13 @@ export default function SplashCursor({
       TRANSPARENT,
     };
 
-    const { gl, ext } = getWebGLContext(canvas);
-    if (!gl || !ext) {
-        console.error("Failed to get WebGL context or extensions for SplashCursor.");
-        return;
+    const webGLContextResult = getWebGLContext(canvas);
+    if (!webGLContextResult || !webGLContextResult.gl || !webGLContextResult.ext) {
+        console.error("SplashCursor: Failed to initialize WebGL context or required extensions. Effect will not run.");
+        return; 
     }
+    const { gl, ext } = webGLContextResult;
+
 
     if (!ext.supportLinearFiltering) {
       config.DYE_RESOLUTION = 256;
@@ -129,8 +131,8 @@ export default function SplashCursor({
       }
 
       if (!gl) {
-        // Error already handled by the caller check
-        return { gl: null, ext: null };
+        // This error will be caught by the caller
+        return null;
       }
 
       const isWebGL2 = "drawBuffers" in gl;
@@ -150,15 +152,16 @@ export default function SplashCursor({
         );
       }
 
-      gl.clearColor(0, 0, 0, 1);
+      gl.clearColor(0, 0, 0, 1); // Initial clear color, will be overridden by render function
 
       const halfFloatTexType = isWebGL2
         ? (gl as WebGL2RenderingContext).HALF_FLOAT
         : (halfFloat && (halfFloat as any).HALF_FLOAT_OES) || 0;
 
-      let formatRGBA: any;
-      let formatRG: any;
-      let formatR: any;
+      let formatRGBA: { internalFormat: number; format: number } | null = null;
+      let formatRG: { internalFormat: number; format: number } | null = null;
+      let formatR: { internalFormat: number; format: number } | null = null;
+
 
       if (isWebGL2) {
         formatRGBA = getSupportedFormat(
@@ -181,14 +184,15 @@ export default function SplashCursor({
         );
       } else {
         formatRGBA = getSupportedFormat(gl, gl.RGBA, gl.RGBA, halfFloatTexType);
-        formatRG = getSupportedFormat(gl, gl.RGBA, gl.RGBA, halfFloatTexType);
-        formatR = getSupportedFormat(gl, gl.RGBA, gl.RGBA, halfFloatTexType);
+        formatRG = getSupportedFormat(gl, gl.RGBA, gl.RGBA, halfFloatTexType); // Usually RG is not directly supported in WebGL1 half_float like this, relies on RGBA
+        formatR = getSupportedFormat(gl, gl.RGBA, gl.RGBA, halfFloatTexType);  // Same for R
       }
       
       if (!formatRGBA || !formatRG || !formatR) {
-        // Error already handled by the caller check
-        return { gl: gl, ext: null }; // return gl so it can be checked by caller
+        // This error will be caught by the caller
+        return { gl, ext: null };
       }
+
 
       return {
         gl,
@@ -209,17 +213,19 @@ export default function SplashCursor({
       type: number
     ): { internalFormat: number; format: number } | null {
       if (!supportRenderTextureFormat(gl, internalFormat, format, type)) {
-        if ("drawBuffers" in gl) {
+        // Fallback for WebGL2 if specific float format isn't supported (though R16F, RG16F, RGBA16F are common)
+        if ("drawBuffers" in gl) { // isWebGL2 check
           const gl2 = gl as WebGL2RenderingContext;
           switch (internalFormat) {
             case gl2.R16F:
-              return getSupportedFormat(gl2, gl2.RG16F, gl2.RG, type);
+              return getSupportedFormat(gl2, gl2.RG16F, gl2.RG, type); // Try RG if R failed
             case gl2.RG16F:
-              return getSupportedFormat(gl2, gl2.RGBA16F, gl2.RGBA, type);
+              return getSupportedFormat(gl2, gl2.RGBA16F, gl2.RGBA, type); // Try RGBA if RG failed
             default:
-              return null;
+              return null; // No further fallback for RGBA or if initial internalFormat isn't R/RG
           }
         }
+        // For WebGL1, or if WebGL2 fallbacks exhausted
         return null;
       }
       return { internalFormat, format };
@@ -243,8 +249,8 @@ export default function SplashCursor({
         gl.TEXTURE_2D,
         0,
         internalFormat,
-        4,
-        4,
+        4, // Test width
+        4, // Test height
         0,
         format,
         type,
@@ -252,7 +258,10 @@ export default function SplashCursor({
       );
 
       const fbo = gl.createFramebuffer();
-      if (!fbo) return false;
+      if (!fbo) {
+        gl.deleteTexture(texture);
+        return false;
+      }
 
       gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
       gl.framebufferTexture2D(
@@ -273,7 +282,7 @@ export default function SplashCursor({
       let hash = 0;
       for (let i = 0; i < s.length; i++) {
         hash = (hash << 5) - hash + s.charCodeAt(i);
-        hash |= 0;
+        hash |= 0; // Convert to 32bit integer
       }
       return hash;
     }
@@ -298,7 +307,7 @@ export default function SplashCursor({
       gl.shaderSource(shader, shaderSource);
       gl.compileShader(shader);
       if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-        console.trace(gl.getShaderInfoLog(shader));
+        console.error(`SplashCursor: Shader compilation error: ${gl.getShaderInfoLog(shader)}`);
         gl.deleteShader(shader);
         return null;
       }
@@ -316,7 +325,7 @@ export default function SplashCursor({
       gl.attachShader(program, fragmentShader);
       gl.linkProgram(program);
       if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-        console.trace(gl.getProgramInfoLog(program));
+        console.error(`SplashCursor: Program linking error: ${gl.getProgramInfoLog(program)}`);
         gl.deleteProgram(program);
         return null;
       }
@@ -698,7 +707,7 @@ export default function SplashCursor({
     );
 
     if (!baseVertexShader || !copyShader || !clearShader || !splatShader || !advectionShader || !divergenceShader || !curlShader || !vorticityShader || !pressureShader || !gradientSubtractShader) {
-        console.error("SplashCursor: One or more shaders failed to compile. Effect will not run.");
+        console.error("SplashCursor: One or more essential shaders failed to compile. Effect will not run.");
         return;
     }
 
@@ -731,7 +740,7 @@ export default function SplashCursor({
           gl.bindFramebuffer(gl.FRAMEBUFFER, target.fbo);
         }
         if (doClear) {
-          gl.clearColor(0, 0, 0, 1);
+          gl.clearColor(0, 0, 0, 1); // Default clear for FBOs
           gl.clear(gl.COLOR_BUFFER_BIT);
         }
         gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
@@ -813,8 +822,8 @@ export default function SplashCursor({
         texture,
         0
       );
-      gl.viewport(0, 0, w, h);
-      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.viewport(0, 0, w, h); // Set viewport to FBO size
+      gl.clear(gl.COLOR_BUFFER_BIT); // Clear the FBO
 
       const texelSizeX = 1 / w;
       const texelSizeY = 1 / h;
@@ -867,14 +876,14 @@ export default function SplashCursor({
       format: number,
       type: number,
       param: number
-    ) {
+    ) : FBO {
       const newFBO = createFBO(w, h, internalFormat, format, type, param);
       copyProgram.bind();
       if (copyProgram.uniforms.uTexture)
         gl.uniform1i(copyProgram.uniforms.uTexture, target.attach(0));
-      blit(newFBO, false);
-      gl.deleteTexture(target.texture);
-      gl.deleteFramebuffer(target.fbo);
+      blit(newFBO, false); // Blit old content to new FBO
+      gl.deleteTexture(target.texture); // Delete old texture
+      gl.deleteFramebuffer(target.fbo); // Delete old FBO
       return newFBO;
     }
 
@@ -886,7 +895,7 @@ export default function SplashCursor({
       format: number,
       type: number,
       param: number
-    ) {
+    ): DoubleFBO {
       if (target.width === w && target.height === h) return target;
       target.read = resizeFBO(
         target.read,
@@ -897,7 +906,7 @@ export default function SplashCursor({
         type,
         param
       );
-      target.write = createFBO(w, h, internalFormat, format, type, param);
+      target.write = createFBO(w, h, internalFormat, format, type, param); // Create a new FBO for write
       target.width = w;
       target.height = h;
       target.texelSizeX = 1 / w;
@@ -914,7 +923,7 @@ export default function SplashCursor({
       const rg = ext.formatRG;
       const r = ext.formatR;
       const filtering = ext.supportLinearFiltering ? gl.LINEAR : gl.NEAREST;
-      gl.disable(gl.BLEND);
+      gl.disable(gl.BLEND); // Should be enabled for final render, but disabled for FBO operations usually
 
       if (!dye) {
         dye = createDoubleFBO(
@@ -991,7 +1000,7 @@ export default function SplashCursor({
     }
 
     function getResolution(resolution: number) {
-      const w = gl.drawingBufferWidth;
+      const w = gl.drawingBufferWidth; // Use drawingBufferWidth/Height for actual pixel dimensions
       const h = gl.drawingBufferHeight;
       const aspectRatio = w / h;
       let aspect = aspectRatio < 1 ? 1 / aspectRatio : aspectRatio;
@@ -1019,18 +1028,18 @@ export default function SplashCursor({
 
     function updateFrame() {
       const dt = calcDeltaTime();
-      if (resizeCanvas()) initFramebuffers();
+      if (resizeCanvas()) initFramebuffers(); // This also re-initializes FBOs with new sizes
       updateColors(dt);
       applyInputs();
       if (!config.PAUSED) step(dt);
-      render(null);
+      render(null); // Render to screen
       animationFrameId = requestAnimationFrame(updateFrame);
     }
 
     function calcDeltaTime() {
       const now = Date.now();
       let dt = (now - lastUpdateTime) / 1000;
-      dt = Math.min(dt, 0.016666);
+      dt = Math.min(dt, 0.016666); // Clamp to prevent large jumps
       lastUpdateTime = now;
       return dt;
     }
@@ -1042,7 +1051,7 @@ export default function SplashCursor({
       if (canvasRef.current.width !== width || canvasRef.current.height !== height) {
         canvasRef.current.width = width;
         canvasRef.current.height = height;
-        return true;
+        return true; // Indicates canvas was resized
       }
       return false;
     }
@@ -1080,7 +1089,7 @@ export default function SplashCursor({
       if (curlProgram.uniforms.uVelocity) {
         gl.uniform1i(curlProgram.uniforms.uVelocity, velocity.read.attach(0));
       }
-      blit(curl);
+      blit(curl, true); // Clear curl FBO before drawing
 
       vorticityProgram.bind();
       if (vorticityProgram.uniforms.texelSize) {
@@ -1105,7 +1114,7 @@ export default function SplashCursor({
       if (vorticityProgram.uniforms.dt) {
         gl.uniform1f(vorticityProgram.uniforms.dt, dt);
       }
-      blit(velocity.write);
+      blit(velocity.write, true); // Clear target FBO
       velocity.swap();
 
       divergenceProgram.bind();
@@ -1122,16 +1131,16 @@ export default function SplashCursor({
           velocity.read.attach(0)
         );
       }
-      blit(divergence);
+      blit(divergence, true); // Clear divergence FBO
 
       clearProgram.bind();
       if (clearProgram.uniforms.uTexture) {
         gl.uniform1i(clearProgram.uniforms.uTexture, pressure.read.attach(0));
       }
       if (clearProgram.uniforms.value) {
-        gl.uniform1f(clearProgram.uniforms.value, config.PRESSURE);
+        gl.uniform1f(clearProgram.uniforms.value, config.PRESSURE); // This is pressure dissipation, not clearing to a value. The name might be misleading.
       }
-      blit(pressure.write);
+      blit(pressure.write, true); // Clear target FBO before applying dissipation or pressure value
       pressure.swap();
 
       pressureProgram.bind();
@@ -1155,7 +1164,7 @@ export default function SplashCursor({
             pressure.read.attach(1)
           );
         }
-        blit(pressure.write);
+        blit(pressure.write, i === 0); // Clear only on the first iteration if desired, or always if target needs clearing
         pressure.swap();
       }
 
@@ -1179,33 +1188,28 @@ export default function SplashCursor({
           velocity.read.attach(1)
         );
       }
-      blit(velocity.write);
+      blit(velocity.write, true); // Clear target FBO
       velocity.swap();
 
       advectionProgram.bind();
       if (advectionProgram.uniforms.texelSize) {
         gl.uniform2f(
           advectionProgram.uniforms.texelSize,
-          velocity.texelSizeX,
+          velocity.texelSizeX, // This should be texelSize for velocity field
           velocity.texelSizeY
         );
       }
-      if (
-        !ext.supportLinearFiltering &&
-        advectionProgram.uniforms.dyeTexelSize
-      ) {
-        gl.uniform2f(
-          advectionProgram.uniforms.dyeTexelSize,
-          velocity.texelSizeX,
-          velocity.texelSizeY
-        );
+      // Advect velocity field
+      if (advectionProgram.uniforms.dyeTexelSize) { // This uniform name is a bit confusing here when advecting velocity
+         gl.uniform2f(advectionProgram.uniforms.dyeTexelSize, velocity.texelSizeX, velocity.texelSizeY);
       }
-      const velocityId = velocity.read.attach(0);
+
+      const velocityTextureId = velocity.read.attach(0);
       if (advectionProgram.uniforms.uVelocity) {
-        gl.uniform1i(advectionProgram.uniforms.uVelocity, velocityId);
+        gl.uniform1i(advectionProgram.uniforms.uVelocity, velocityTextureId);
       }
       if (advectionProgram.uniforms.uSource) {
-        gl.uniform1i(advectionProgram.uniforms.uSource, velocityId);
+        gl.uniform1i(advectionProgram.uniforms.uSource, velocityTextureId); // Advecting velocity itself
       }
       if (advectionProgram.uniforms.dt) {
         gl.uniform1f(advectionProgram.uniforms.dt, dt);
@@ -1216,26 +1220,23 @@ export default function SplashCursor({
           config.VELOCITY_DISSIPATION
         );
       }
-      blit(velocity.write);
+      blit(velocity.write, true); // Clear target FBO
       velocity.swap();
 
-      if (
-        !ext.supportLinearFiltering &&
-        advectionProgram.uniforms.dyeTexelSize
-      ) {
-        gl.uniform2f(
-          advectionProgram.uniforms.dyeTexelSize,
-          dye.texelSizeX,
-          dye.texelSizeY
-        );
+      // Advect dye field
+      if (advectionProgram.uniforms.texelSize) { // texelSize for uVelocity still
+        gl.uniform2f(advectionProgram.uniforms.texelSize, velocity.texelSizeX, velocity.texelSizeY);
       }
-      if (advectionProgram.uniforms.uVelocity) {
+      if (advectionProgram.uniforms.dyeTexelSize) { // This is now for the dye field's texture
+         gl.uniform2f(advectionProgram.uniforms.dyeTexelSize, dye.texelSizeX, dye.texelSizeY);
+      }
+      if (advectionProgram.uniforms.uVelocity) { // Velocity field is still the one driving advection
         gl.uniform1i(
           advectionProgram.uniforms.uVelocity,
           velocity.read.attach(0)
         );
       }
-      if (advectionProgram.uniforms.uSource) {
+      if (advectionProgram.uniforms.uSource) { // Source is now the dye
         gl.uniform1i(advectionProgram.uniforms.uSource, dye.read.attach(1));
       }
       if (advectionProgram.uniforms.dissipation) {
@@ -1244,20 +1245,24 @@ export default function SplashCursor({
           config.DENSITY_DISSIPATION
         );
       }
-      blit(dye.write);
+      blit(dye.write, true); // Clear target FBO
       dye.swap();
     }
 
     function render(target: FBO | null) {
       if (config.TRANSPARENT) {
-         gl.clearColor(0, 0, 0, 0); // Use transparent background
+         gl.clearColor(0, 0, 0, 0); 
       } else {
          gl.clearColor(config.BACK_COLOR.r, config.BACK_COLOR.g, config.BACK_COLOR.b, 1);
       }
-      gl.clear(gl.COLOR_BUFFER_BIT);
-      gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+      gl.clear(gl.COLOR_BUFFER_BIT); // Clear the main canvas
+
+      gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); // Standard alpha blending
       gl.enable(gl.BLEND);
-      drawDisplay(target);
+      
+      drawDisplay(target); // Draw the final dye texture to screen or target FBO
+      
+      gl.disable(gl.BLEND);
     }
 
     function drawDisplay(target: FBO | null) {
@@ -1270,7 +1275,7 @@ export default function SplashCursor({
       if (displayMaterial.uniforms.uTexture) {
         gl.uniform1i(displayMaterial.uniforms.uTexture, dye.read.attach(0));
       }
-      blit(target, false);
+      blit(target, false); // Don't clear if target is screen, render has already cleared
     }
 
     function splatPointer(pointer: Pointer) {
@@ -1281,11 +1286,12 @@ export default function SplashCursor({
 
     function clickSplat(pointer: Pointer) {
       const color = generateColor();
+      // Make click splats more vibrant temporarily
       color.r *= 10;
       color.g *= 10;
       color.b *= 10;
-      const dx = 10 * (Math.random() - 0.5);
-      const dy = 30 * (Math.random() - 0.5);
+      const dx = 1000 * (Math.random() - 0.5); // Stronger initial impulse for click
+      const dy = 1000 * (Math.random() - 0.5);
       splat(pointer.texcoordX, pointer.texcoordY, dx, dy, color);
     }
 
@@ -1310,31 +1316,42 @@ export default function SplashCursor({
         gl.uniform2f(splatProgram.uniforms.point, x, y);
       }
       if (splatProgram.uniforms.color) {
-        gl.uniform3f(splatProgram.uniforms.color, dx, dy, 0);
+        gl.uniform3f(splatProgram.uniforms.color, dx, dy, 0.0); // Splatting velocity
       }
       if (splatProgram.uniforms.radius) {
         gl.uniform1f(
           splatProgram.uniforms.radius,
-          correctRadius(config.SPLAT_RADIUS / 100)!
+          correctRadius(config.SPLAT_RADIUS / 100.0)! // Radius for velocity splat
         );
       }
-      blit(velocity.write);
+      blit(velocity.write, false); // Don't clear, add to existing velocity
       velocity.swap();
 
       if (splatProgram.uniforms.uTarget) {
         gl.uniform1i(splatProgram.uniforms.uTarget, dye.read.attach(0));
       }
       if (splatProgram.uniforms.color) {
-        gl.uniform3f(splatProgram.uniforms.color, color.r, color.g, color.b);
+        gl.uniform3f(splatProgram.uniforms.color, color.r, color.g, color.b); // Splatting dye color
       }
-      blit(dye.write);
+      if (splatProgram.uniforms.radius) {
+         gl.uniform1f(
+          splatProgram.uniforms.radius,
+          correctRadius(config.SPLAT_RADIUS / 100.0 * 0.5)! // Smaller radius for dye for sharper splat
+        );
+      }
+      blit(dye.write, false); // Don't clear, add to existing dye
       dye.swap();
     }
 
     function correctRadius(radius: number) {
-      if (!canvasRef.current) return radius;
+       if (!canvasRef.current) return radius;
       const aspectRatio = canvasRef.current.width / canvasRef.current.height;
-      if (aspectRatio > 1) radius *= aspectRatio;
+      // This logic seems reversed, if aspect > 1 (wider), radius should effectively be smaller in y?
+      // Original logic: if (aspectRatio > 1) radius *= aspectRatio;
+      // Let's try to keep it consistent for now, or scale based on the smaller dimension.
+      // For a circular splat, the radius in texture coords should be uniform,
+      // but the projection to screen space might distort it.
+      // The `p.x *= aspectRatio;` in splat shader handles distortion.
       return radius;
     }
 
@@ -1346,9 +1363,9 @@ export default function SplashCursor({
     ) {
       pointer.id = id;
       pointer.down = true;
-      pointer.moved = false;
+      pointer.moved = false; // Reset moved flag on new down event
       pointer.texcoordX = posX / canvas!.width;
-      pointer.texcoordY = 1 - posY / canvas!.height;
+      pointer.texcoordY = 1.0 - posY / canvas!.height; // Invert Y for WebGL tex coords
       pointer.prevTexcoordX = pointer.texcoordX;
       pointer.prevTexcoordY = pointer.texcoordY;
       pointer.deltaX = 0;
@@ -1360,21 +1377,23 @@ export default function SplashCursor({
       pointer: Pointer,
       posX: number,
       posY: number,
-      color: ColorRGB
+      colorInput: ColorRGB // Use the passed color
     ) {
       pointer.prevTexcoordX = pointer.texcoordX;
       pointer.prevTexcoordY = pointer.texcoordY;
       pointer.texcoordX = posX / canvas!.width;
-      pointer.texcoordY = 1 - posY / canvas!.height;
-      pointer.deltaX = correctDeltaX(
-        pointer.texcoordX - pointer.prevTexcoordX
-      )!;
-      pointer.deltaY = correctDeltaY(
-        pointer.texcoordY - pointer.prevTexcoordY
-      )!;
+      pointer.texcoordY = 1.0 - posY / canvas!.height; // Invert Y
+      
+      // Deltas are difference in current and previous texture coordinates
+      let dx = pointer.texcoordX - pointer.prevTexcoordX;
+      let dy = pointer.texcoordY - pointer.prevTexcoordY;
+
+      pointer.deltaX = correctDeltaX(dx)!;
+      pointer.deltaY = correctDeltaY(dy)!;
+      
       pointer.moved =
         Math.abs(pointer.deltaX) > 0 || Math.abs(pointer.deltaY) > 0;
-      pointer.color = color;
+      pointer.color = colorInput; // Use the provided color, which might be from generateColor or existing
     }
 
     function updatePointerUpData(pointer: Pointer) {
@@ -1382,24 +1401,25 @@ export default function SplashCursor({
     }
 
     function correctDeltaX(delta: number) {
-       if (!canvasRef.current) return delta;
+      if (!canvasRef.current) return delta;
       const aspectRatio = canvasRef.current.width / canvasRef.current.height;
-      if (aspectRatio < 1) delta *= aspectRatio;
+      if (aspectRatio < 1) delta *= aspectRatio; // If portrait, make X delta relatively smaller
       return delta;
     }
 
     function correctDeltaY(delta: number) {
       if (!canvasRef.current) return delta;
       const aspectRatio = canvasRef.current.width / canvasRef.current.height;
-      if (aspectRatio > 1) delta /= aspectRatio;
+      if (aspectRatio > 1) delta /= aspectRatio; // If landscape, make Y delta relatively smaller
       return delta;
     }
 
     function generateColor(): ColorRGB {
       const c = HSVtoRGB(Math.random(), 1.0, 1.0);
-      c.r *= 0.15;
-      c.g *= 0.15;
-      c.b *= 0.15;
+      // Keep colors more vibrant
+      c.r *= 0.5; 
+      c.g *= 0.5;
+      c.b *= 0.5;
       return c;
     }
 
@@ -1414,36 +1434,12 @@ export default function SplashCursor({
       const t = v * (1 - (1 - f) * s);
 
       switch (i % 6) {
-        case 0:
-          r = v;
-          g = t;
-          b = p;
-          break;
-        case 1:
-          r = q;
-          g = v;
-          b = p;
-          break;
-        case 2:
-          r = p;
-          g = v;
-          b = t;
-          break;
-        case 3:
-          r = p;
-          g = q;
-          b = v;
-          break;
-        case 4:
-          r = t;
-          g = p;
-          b = v;
-          break;
-        case 5:
-          r = v;
-          g = p;
-          b = q;
-          break;
+        case 0: r = v; g = t; b = p; break;
+        case 1: r = q; g = v; b = p; break;
+        case 2: r = p; g = v; b = t; break;
+        case 3: r = p; g = q; b = v; break;
+        case 4: r = t; g = p; b = v; break;
+        case 5: r = v; g = p; b = q; break;
       }
       return { r, g, b };
     }
@@ -1454,24 +1450,24 @@ export default function SplashCursor({
       return ((value - min) % range) + min;
     }
 
+    // Global event listeners
     const onMouseDownGlobal = (e: MouseEvent) => {
-      const pointer = pointers[0];
+      const pointer = pointers[0]; // Assuming single pointer for mouse
       const posX = scaleByPixelRatio(e.clientX);
       const posY = scaleByPixelRatio(e.clientY);
-      updatePointerDownData(pointer, -1, posX, posY);
-      clickSplat(pointer);
+      updatePointerDownData(pointer, -1, posX, posY); // id -1 for mouse
+      clickSplat(pointer); // Trigger a more prominent splat on click
     };
     
     const onMouseMoveGlobal = (e: MouseEvent) => {
       if (!firstMoveHandled) {
-        updateFrame(); // Start animation loop on first move
+        updateFrame(); // Start animation loop on first interaction
         firstMoveHandled = true;
       }
       const pointer = pointers[0];
       const posX = scaleByPixelRatio(e.clientX);
       const posY = scaleByPixelRatio(e.clientY);
-      const color = pointer.color || generateColor();
-      updatePointerMoveData(pointer, posX, posY, color);
+      updatePointerMoveData(pointer, posX, posY, pointer.color); // Use existing color for move
     };
 
     const onTouchStartGlobal = (e: TouchEvent) => {
@@ -1480,27 +1476,40 @@ export default function SplashCursor({
           firstMoveHandled = true;
        }
       const touches = e.targetTouches;
-      const pointer = pointers[0];
-      for (let i = 0; i < touches.length; i++) {
-        const posX = scaleByPixelRatio(touches[i].clientX);
-        const posY = scaleByPixelRatio(touches[i].clientY);
-        updatePointerDownData(pointer, touches[i].identifier, posX, posY);
+      // For simplicity, this example handles only the first touch point for continuous splatting.
+      // Original code might handle multiple pointers if `pointers` array was used more extensively.
+      if (touches.length > 0) {
+        const touch = touches[0];
+        const pointer = pointers[0]; // Use the single pointer for this touch
+        const posX = scaleByPixelRatio(touch.clientX);
+        const posY = scaleByPixelRatio(touch.clientY);
+        updatePointerDownData(pointer, touch.identifier, posX, posY);
+         // clickSplat(pointer); // Optional: splat on touch start
       }
     };
     
     const onTouchMoveGlobal = (e: TouchEvent) => {
       const touches = e.targetTouches;
-      const pointer = pointers[0];
-      for (let i = 0; i < touches.length; i++) {
-        const posX = scaleByPixelRatio(touches[i].clientX);
-        const posY = scaleByPixelRatio(touches[i].clientY);
-        updatePointerMoveData(pointer, posX, posY, pointer.color);
+      if (touches.length > 0) {
+        const touch = touches[0];
+        const pointer = pointers[0];
+        // Check if this touch ID matches the one we are tracking
+        if (pointer.id === touch.identifier) {
+            const posX = scaleByPixelRatio(touch.clientX);
+            const posY = scaleByPixelRatio(touch.clientY);
+            updatePointerMoveData(pointer, posX, posY, pointer.color);
+        }
       }
     };
 
     const onTouchEndGlobal = (e: TouchEvent) => {
-      const pointer = pointers[0]; // Assuming single touch for simplicity here
-      updatePointerUpData(pointer);
+      // Check changedTouches to see which touch ended
+      // For this simplified single-pointer example, we just mark the main pointer as up.
+      const pointer = pointers[0];
+      // A more robust multi-touch would iterate e.changedTouches and match IDs.
+      if (e.changedTouches.length > 0 && e.changedTouches[0].identifier === pointer.id) {
+          updatePointerUpData(pointer);
+      }
     };
 
     window.addEventListener("mousedown", onMouseDownGlobal);
@@ -1509,45 +1518,26 @@ export default function SplashCursor({
     window.addEventListener("touchmove", onTouchMoveGlobal, { passive: true });
     window.addEventListener("touchend", onTouchEndGlobal);
     
-    // Initial call to start only if not already started by first move/touch
-    if (!firstMoveHandled) {
-        // To start animation loop if no mouse/touch interaction happens immediately
-        // but we still want the canvas to be ready or show some idle effect (if any).
-        // However, this specific effect is highly interactive, so starting only on interaction is fine.
-        // If an initial static render is needed, `updateFrame` could be called once here,
-        // but continuous animation should wait for interaction.
-    }
 
+    // Start animation loop if no interaction happens immediately but it's desired
+    // For this effect, starting on interaction is better.
+    // If not started by interaction, ensure cleanup still works.
+    // updateFrame(); // Removed: Start only on interaction
 
     return () => {
-      // Cleanup
       window.removeEventListener("mousedown", onMouseDownGlobal);
       window.removeEventListener("mousemove", onMouseMoveGlobal);
       window.removeEventListener("touchstart", onTouchStartGlobal);
       window.removeEventListener("touchmove", onTouchMoveGlobal);
       window.removeEventListener("touchend", onTouchEndGlobal);
-      // The self-removing handleFirstMouseMove and handleFirstTouchStart are gone.
       if (animationFrameId) {
         cancelAnimationFrame(animationFrameId);
       }
     };
-
-
-  }, [
-    SIM_RESOLUTION,
-    DYE_RESOLUTION,
-    CAPTURE_RESOLUTION,
-    DENSITY_DISSIPATION,
-    VELOCITY_DISSIPATION,
-    PRESSURE,
-    PRESSURE_ITERATIONS,
-    CURL,
-    SPLAT_RADIUS,
-    SPLAT_FORCE,
-    SHADING,
-    COLOR_UPDATE_SPEED,
-    BACK_COLOR,
-    TRANSPARENT,
+  }, [ // Ensure all props from SplashCursorProps are listed if they affect the setup
+    SIM_RESOLUTION, DYE_RESOLUTION, CAPTURE_RESOLUTION, DENSITY_DISSIPATION,
+    VELOCITY_DISSIPATION, PRESSURE, PRESSURE_ITERATIONS, CURL, SPLAT_RADIUS,
+    SPLAT_FORCE, SHADING, COLOR_UPDATE_SPEED, BACK_COLOR, TRANSPARENT
   ]);
 
   return (
@@ -1556,7 +1546,7 @@ export default function SplashCursor({
         position: "fixed",
         top: 0,
         left: 0,
-        zIndex: -5, 
+        zIndex: -5, // Adjusted z-index
         pointerEvents: "none",
         width: "100%",
         height: "100%",
@@ -1564,15 +1554,14 @@ export default function SplashCursor({
     >
       <canvas
         ref={canvasRef}
-        id="fluid"
+        id="fluid" // Keep ID if any external CSS targets it, otherwise optional
         style={{
           width: "100vw",
           height: "100vh",
-          display: "block",
+          display: "block", // Important for canvas to fill div properly
         }}
       />
     </div>
   );
 }
-
 

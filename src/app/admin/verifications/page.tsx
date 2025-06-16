@@ -9,15 +9,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { CheckBadge, Search, ListFilter, XCircle, UserSquare2, AtSign, Mail, Phone, CalendarDays } from 'lucide-react';
+import { BadgeCheck, Search, ListFilter, XCircle, UserSquare2, AtSign, Mail, Phone, CalendarDays } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 
-type VerificationSortOption = 
-  | 'date-newest' | 'date-oldest' 
+type VerificationSortOption =
+  | 'date-newest' | 'date-oldest'
   | 'name-asc' | 'name-desc'
   | 'status-pending' | 'status-approved' | 'status-rejected';
 
@@ -91,7 +91,7 @@ export default function AdminVerificationsPage() {
     return (
       <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle className="flex items-center text-3xl font-headline text-primary"><CheckBadge className="mr-3 h-8 w-8 animate-pulse" /> User Verification Requests</CardTitle>
+          <CardTitle className="flex items-center text-3xl font-headline text-primary"><BadgeCheck className="mr-3 h-8 w-8 animate-pulse" /> User Verification Requests</CardTitle>
           <CardDescription>Loading verification requests...</CardDescription>
         </CardHeader>
         <CardContent>
@@ -113,7 +113,7 @@ export default function AdminVerificationsPage() {
     <Card className="shadow-lg border-border">
       <CardHeader>
         <div className="flex items-center gap-3">
-            <CheckBadge className="h-8 w-8 text-primary" />
+            <BadgeCheck className="h-8 w-8 text-primary" />
             <CardTitle className="text-3xl font-headline text-primary">User Verification Requests</CardTitle>
         </div>
         <CardDescription>Review and manage user verification applications.</CardDescription>

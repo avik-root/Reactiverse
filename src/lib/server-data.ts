@@ -1,7 +1,7 @@
 
 
 // This file should only be imported by server-side code (e.g., server actions, API routes)
-import type { StoredAdminUser, StoredUser, Design, SiteSettings, PageContentData, PageContentKeys, TeamMembersContent, TeamMember, ForumCategory, NewsletterSubscriber, ForumTopic, ForumPost } from './types';
+import type { StoredAdminUser, StoredUser, Design, SiteSettings, PageContentData, PageContentKeys, TeamMembersContent, TeamMember, ForumCategory, NewsletterSubscriber, ForumTopic, ForumPost, VerificationRequest } from './types';
 import fs from 'fs/promises';
 import path from 'path';
 import { constants } from 'fs';
@@ -18,6 +18,8 @@ const CONTENT_IMAGES_DIR = path.join(PUBLIC_DIR, 'content_images');
 
 const FORUM_CATEGORIES_FILE_PATH = path.join(process.cwd(), 'forum_categories.json');
 const NEWSLETTER_SUBSCRIBERS_FILE_PATH = path.join(process.cwd(), 'newsletter_subscribers.json');
+const VERIFICATION_REQUESTS_FILE_PATH = path.join(process.cwd(), 'verification_requests.json');
+
 
 // New Forum Data Files
 const USERS_FORUM_FILE_PATH = path.join(process.cwd(), 'users_forum.json'); // For "General Discussion"
@@ -933,3 +935,12 @@ export async function addSubscriberToFile(newSubscriber: NewsletterSubscriber): 
   }
 }
 
+export async function getVerificationRequestsFromFile(): Promise<VerificationRequest[]> {
+  return readJsonFile<VerificationRequest[]>(VERIFICATION_REQUESTS_FILE_PATH, []);
+}
+
+export async function addVerificationRequestToFile(request: VerificationRequest): Promise<void> {
+  const requests = await getVerificationRequestsFromFile();
+  requests.push(request);
+  await writeJsonFile<VerificationRequest[]>(VERIFICATION_REQUESTS_FILE_PATH, requests);
+}

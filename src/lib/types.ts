@@ -434,8 +434,7 @@ export interface VerificationRequest {
   submittedEmail: string;
   submittedPhone: string;
   requestDate: string;
-  status: 'pending' | 'approved' | 'rejected';
-  // Potentially add fields like adminNotes if needed later
+  status: 'pending' | 'approved' | 'rejected'; // Added status
 }
 
 export type ApplyForVerificationFormState = {

@@ -11,7 +11,8 @@ import {
   AvatarFileSchema,
   HSLColorSchema,
   CodeBlockSchema as SharedCodeBlockSchema,
-  FAQItemSchema
+  FAQItemSchema,
+  VerificationApplicationSchema
 } from './form-schemas';
 import {
   getUsersFromFile,
@@ -50,6 +51,8 @@ import {
   deleteTopic as deleteTopicFromServerData,
   deletePostFromTopic as deletePostFromServerData,
   updateAnnouncementInFile,
+  getVerificationRequestsFromFile,
+  addVerificationRequestToFile,
 } from './server-data';
 import type {
   AdminUser,
@@ -93,6 +96,8 @@ import type {
   CreatePostFormState,
   AdminDeletePostResult,
   UpdateAdminAnnouncementFormState,
+  VerificationRequest,
+  ApplyForVerificationFormState,
 } from './types';
 import { revalidatePath } from 'next/cache';
 import { hashPassword, comparePassword, hashPin, comparePin } from './auth-utils';
@@ -2512,3 +2517,59 @@ export async function searchAllForumTopicsAction(term: string): Promise<ForumTop
   }
 }
 
+export async function applyForVerificationAction(
+  prevState: ApplyForVerificationFormState,
+  formData: FormData
+): Promise<ApplyForVerificationFormState> {
+  const validatedFields = VerificationApplicationSchema.safeParse(
+    Object.fromEntries(formData.entries())
+  );
+
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: 'Invalid fields. Please check your input.',
+      success: false,
+    };
+  }
+
+  const { fullName, username, email, phone, userId } = validatedFields.data;
+
+  const newRequest: VerificationRequest = {
+    id: `vr-${Date.now()}`,
+    userId: userId || undefined,
+    submittedName: fullName,
+    submittedUsername: username,
+    submittedEmail: email,
+    submittedPhone: phone,
+    requestDate: new Date().toISOString(),
+    status: 'pending',
+  };
+
+  try {
+    await addVerificationRequestToFile(newRequest);
+    revalidatePath('/admin/verifications');
+    revalidatePath('/community'); 
+    return {
+      message: 'Verification application submitted successfully! We will review it shortly.',
+      success: true,
+    };
+  } catch (error) {
+    console.error('Error submitting verification application:', error);
+    return {
+      message: 'Failed to submit application. Please try again later.',
+      success: false,
+      errors: { general: ['Server error.'] },
+    };
+  }
+}
+
+export async function getVerificationRequestsAction(): Promise<VerificationRequest[]> {
+  try {
+    const requests = await getVerificationRequestsFromFile();
+    return requests.sort((a, b) => new Date(b.requestDate).getTime() - new Date(a.requestDate).getTime());
+  } catch (error) {
+    console.error("Error fetching verification requests via action:", error);
+    return [];
+  }
+}

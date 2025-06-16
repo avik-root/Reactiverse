@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
@@ -10,11 +9,12 @@ import DesignerDetailDialog from '@/components/designer/DesignerDetailDialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Award, Info, Search, Palette, Users, ListOrdered, PercentSquare, Crown, Medal, Trophy, Star, CheckCircle } from 'lucide-react';
+import { Award, Info, Search, Palette, Users, ListOrdered, PercentSquare, Crown, Medal, Trophy, Star } from 'lucide-react';
 import type { TopDesignersPageContent } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import SealCheckIcon from '@/components/icons/SealCheckIcon'; // Import the SealCheckIcon
 
 interface DesignerStats extends User {
   totalLikes: number;
@@ -229,7 +229,7 @@ export default function DesignersPage() {
                       <div className="flex-grow">
                         <p className="font-semibold text-foreground flex items-center">
                           {designer.name}
-                          {designer.isVerified && <CheckCircle className="ml-1.5 h-4 w-4 text-blue-500 fill-blue-500" />}
+                          {designer.isVerified && <SealCheckIcon className="ml-1.5 h-4 w-4 text-blue-500" />}
                         </p>
                         <p className="text-xs text-muted-foreground">@{designer.username.startsWith('@') ? designer.username.substring(1) : designer.username}</p>
                       </div>

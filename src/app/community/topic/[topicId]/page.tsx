@@ -27,7 +27,6 @@ const getInitials = (name?: string) => {
     return name.substring(0, 2).toUpperCase();
 };
 
-const ADMIN_AVATAR_URL = "https://placehold.co/40x40.png?text=A";
 
 export default function TopicPage() {
   const params = useParams();
@@ -160,11 +159,10 @@ export default function TopicPage() {
   }
 
   const isTopicAuthorAdmin = topic.createdByUserId.startsWith('admin-');
-  const topicAuthorDisplayName = isTopicAuthorAdmin ? "Admin" : topic.authorName;
-  const topicAuthorDisplayAvatar = isTopicAuthorAdmin
-    ? ADMIN_AVATAR_URL
-    : topic.authorAvatarUrl || `https://placehold.co/40x40.png?text=${getInitials(topic.authorName)}`;
-  const topicAuthorFallbackInitials = isTopicAuthorAdmin ? "A" : getInitials(topic.authorName);
+  // authorName and authorAvatarUrl are now dynamically set by the server action
+  const topicAuthorDisplayName = topic.authorName;
+  const topicAuthorDisplayAvatar = topic.authorAvatarUrl || `https://placehold.co/40x40.png?text=${getInitials(topic.authorName)}`;
+  const topicAuthorFallbackInitials = getInitials(topic.authorName);
 
   return (
     <div className="container mx-auto py-12 space-y-8">
@@ -209,11 +207,10 @@ export default function TopicPage() {
           <ul className="space-y-6">
             {posts.map((post) => {
               const isPostAuthorAdmin = post.createdByUserId.startsWith('admin-');
-              const postAuthorDisplayName = isPostAuthorAdmin ? "Admin" : post.authorName;
-              const postAuthorDisplayAvatar = isPostAuthorAdmin
-                ? ADMIN_AVATAR_URL
-                : post.authorAvatarUrl || `https://placehold.co/32x32.png?text=${getInitials(post.authorName)}`;
-              const postAuthorFallbackInitials = isPostAuthorAdmin ? "A" : getInitials(post.authorName);
+              // authorName and authorAvatarUrl are now dynamically set by the server action
+              const postAuthorDisplayName = post.authorName;
+              const postAuthorDisplayAvatar = post.authorAvatarUrl || `https://placehold.co/32x32.png?text=${getInitials(post.authorName)}`;
+              const postAuthorFallbackInitials = getInitials(post.authorName);
 
               return (
                 <li key={post.id}>
@@ -276,7 +273,7 @@ export default function TopicPage() {
             topicId={topicId}
             categorySlug={categorySlug}
             userId={currentUser.id}
-            userName={currentUser.name || 'User'}
+            userName={currentUser.name || 'User'} // For actual user replies
             userAvatarUrl={currentUser.avatarUrl}
             onPostCreated={handlePostCreated}
           />
@@ -320,3 +317,4 @@ export default function TopicPage() {
     </div>
   );
 }
+

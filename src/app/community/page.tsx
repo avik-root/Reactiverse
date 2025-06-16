@@ -81,8 +81,6 @@ const getInitials = (name?: string) => {
     return name.substring(0, 2).toUpperCase();
 };
 
-const ADMIN_AVATAR_URL = "https://placehold.co/32x32.png?text=A";
-
 
 export default function CommunityForumPage() {
   const [categories, setCategories] = useState<ForumCategory[]>([]);
@@ -93,8 +91,8 @@ export default function CommunityForumPage() {
   const initialFormState: SubscribeToNewsletterFormState = { message: null, errors: {}, success: false };
   const [formState, formAction] = useActionState(subscribeToNewsletterAction, initialFormState);
 
-  const [searchInput, setSearchInput] = useState(''); // Local state for the input field
-  const [searchTerm, setSearchTerm] = useState(''); // State to hold the actual term searched
+  const [searchInput, setSearchInput] = useState(''); 
+  const [searchTerm, setSearchTerm] = useState(''); 
   const [searchResults, setSearchResults] = useState<ForumTopic[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchPerformed, setSearchPerformed] = useState(false);
@@ -134,7 +132,7 @@ export default function CommunityForumPage() {
       toast({ title: "Search Error", description: "Please enter a term to search.", variant: "destructive" });
       return;
     }
-    setSearchTerm(searchInput.trim()); // Set the actual search term here
+    setSearchTerm(searchInput.trim()); 
     setIsSearching(true);
     setSearchPerformed(true);
     try {
@@ -149,8 +147,8 @@ export default function CommunityForumPage() {
   };
 
   const handleClearSearch = () => {
-    setSearchInput(''); // Clear the input field
-    setSearchTerm('');   // Clear the active search term
+    setSearchInput(''); 
+    setSearchTerm('');   
     setSearchResults([]);
     setSearchPerformed(false);
   };
@@ -211,11 +209,10 @@ export default function CommunityForumPage() {
                   {searchResults.map((topic) => {
                     const categorySlug = getCategorySlugForTopic(topic.categoryId);
                     const isAuthorAdmin = topic.createdByUserId.startsWith('admin-');
-                    const authorDisplayName = isAuthorAdmin ? "Admin" : topic.authorName;
-                    const authorDisplayAvatar = isAuthorAdmin
-                      ? ADMIN_AVATAR_URL
-                      : topic.authorAvatarUrl || `https://placehold.co/32x32.png?text=${getInitials(topic.authorName)}`;
-                    const authorFallbackInitials = isAuthorAdmin ? "A" : getInitials(topic.authorName);
+                    // authorName and authorAvatarUrl are dynamically set by the server action for admins
+                    const authorDisplayName = topic.authorName;
+                    const authorDisplayAvatar = topic.authorAvatarUrl || `https://placehold.co/32x32.png?text=${getInitials(topic.authorName)}`;
+                    const authorFallbackInitials = getInitials(topic.authorName);
 
                     return (
                       <li key={topic.id} className="border p-4 rounded-lg hover:shadow-md transition-shadow bg-card">
@@ -232,7 +229,7 @@ export default function CommunityForumPage() {
                             <div className="flex items-center text-xs text-muted-foreground space-x-3">
                               <div className="flex items-center">
                                   <Avatar className="h-5 w-5 mr-1.5">
-                                      <AvatarImage src={authorDisplayAvatar} alt={authorDisplayName} data-ai-hint="author avatar" />
+                                      <AvatarImage src={authorDisplayAvatar} alt={authorDisplayName} data-ai-hint={isAuthorAdmin ? "admin avatar" : "author avatar"} />
                                       <AvatarFallback className="text-xs">{authorFallbackInitials}</AvatarFallback>
                                   </Avatar>
                                   <span>{authorDisplayName}</span>
@@ -360,3 +357,4 @@ export default function CommunityForumPage() {
     </div>
   );
 }
+

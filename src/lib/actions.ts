@@ -97,9 +97,14 @@ import { hashPassword, comparePassword, hashPin, comparePin } from './auth-utils
 
 const ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS = 'admin-auth-token';
 const MAX_PIN_ATTEMPTS = 5;
+const ADMIN_DEFAULT_AVATAR = 'https://placehold.co/40x40.png?text=A';
 
-// Schemas specific to actions will be defined inside the action functions.
-// Types specific to action state/results are exported above.
+// Helper to get a map of admin IDs to their current avatar URLs
+async function getAdminAvatarMap(): Promise<Map<string, string>> {
+  const admins = await getAdminUsers();
+  return new Map(admins.map(admin => [admin.id, admin.avatarUrl || ADMIN_DEFAULT_AVATAR]));
+}
+
 
 export type LoginFormState = {
   message?: string | null;
@@ -875,6 +880,7 @@ export async function getAllDesignsAction(): Promise<Design[]> {
   try {
     const designs = await getDesignsFromFile();
     const users = await getUsersFromFile();
+    const adminAvatarMap = await getAdminAvatarMap();
     const usersMap = new Map(users.map(u => [u.id, u]));
 
     const defaultDesigner: User = {
@@ -896,22 +902,33 @@ export async function getAllDesignsAction(): Promise<Design[]> {
     };
 
     return designs.map(design => {
-      const storedDesigner = usersMap.get(design.submittedByUserId || '');
+      const designerId = design.submittedByUserId || '';
       let finalDesigner: User;
 
-      if (storedDesigner) {
-        const { passwordHash, twoFactorPinHash, ...rest } = storedDesigner;
+      if (designerId.startsWith('admin-')) {
         finalDesigner = {
-            ...rest,
-            failedPinAttempts: rest.failedPinAttempts || 0,
-            isLocked: rest.isLocked || false,
-            canSetPrice: rest.canSetPrice || false,
-            twoFactorEnabled: rest.twoFactorEnabled || false,
-            isEmailPublic: rest.isEmailPublic === undefined ? false : rest.isEmailPublic,
-            isPhonePublic: rest.isPhonePublic === undefined ? false : rest.isPhonePublic,
-        } as User;
+          ...defaultDesigner, // Start with defaults in case admin details are sparse
+          id: designerId,
+          name: "Admin",
+          username: "@admin",
+          avatarUrl: adminAvatarMap.get(designerId) || ADMIN_DEFAULT_AVATAR,
+        };
       } else {
-        finalDesigner = defaultDesigner;
+        const storedDesigner = usersMap.get(designerId);
+        if (storedDesigner) {
+          const { passwordHash, twoFactorPinHash, ...rest } = storedDesigner;
+          finalDesigner = {
+              ...rest,
+              failedPinAttempts: rest.failedPinAttempts || 0,
+              isLocked: rest.isLocked || false,
+              canSetPrice: rest.canSetPrice || false,
+              twoFactorEnabled: rest.twoFactorEnabled || false,
+              isEmailPublic: rest.isEmailPublic === undefined ? false : rest.isEmailPublic,
+              isPhonePublic: rest.isPhonePublic === undefined ? false : rest.isPhonePublic,
+          } as User;
+        } else {
+          finalDesigner = defaultDesigner;
+        }
       }
 
       return {
@@ -935,28 +952,41 @@ export async function getDesignByIdAction(id: string): Promise<Design | undefine
 
     if (design) {
       const users = await getUsersFromFile();
-      const storedDesigner = users.find(u => u.id === design.submittedByUserId);
+      const adminAvatarMap = await getAdminAvatarMap();
+      const designerId = design.submittedByUserId || '';
       let finalDesigner: User;
 
-      if (storedDesigner) {
-        const { passwordHash, twoFactorPinHash, ...rest } = storedDesigner;
-         finalDesigner = {
-            ...rest,
-            failedPinAttempts: rest.failedPinAttempts || 0,
-            isLocked: rest.isLocked || false,
-            canSetPrice: rest.canSetPrice || false,
-            twoFactorEnabled: rest.twoFactorEnabled || false,
-            isEmailPublic: rest.isEmailPublic === undefined ? false : rest.isEmailPublic,
-            isPhonePublic: rest.isPhonePublic === undefined ? false : rest.isPhonePublic,
-        } as User;
-      } else {
+      if (designerId.startsWith('admin-')) {
         finalDesigner = {
-          id: 'unknown', name: 'Unknown Designer', username: '@unknown', avatarUrl: '',
-          email: 'unknown@example.com', phone: '', twoFactorEnabled: false,
-          failedPinAttempts: 0, isLocked: false, canSetPrice: false,
+          id: designerId, name: "Admin", username: "@admin",
+          avatarUrl: adminAvatarMap.get(designerId) || ADMIN_DEFAULT_AVATAR,
+          email: 'admin@reactiverse.com', phone: '', twoFactorEnabled: true,
+          failedPinAttempts: 0, isLocked: false, canSetPrice: true,
           githubUrl: '', linkedinUrl: '', figmaUrl: '',
           isEmailPublic: false, isPhonePublic: false,
         };
+      } else {
+        const storedDesigner = users.find(u => u.id === designerId);
+        if (storedDesigner) {
+          const { passwordHash, twoFactorPinHash, ...rest } = storedDesigner;
+           finalDesigner = {
+              ...rest,
+              failedPinAttempts: rest.failedPinAttempts || 0,
+              isLocked: rest.isLocked || false,
+              canSetPrice: rest.canSetPrice || false,
+              twoFactorEnabled: rest.twoFactorEnabled || false,
+              isEmailPublic: rest.isEmailPublic === undefined ? false : rest.isEmailPublic,
+              isPhonePublic: rest.isPhonePublic === undefined ? false : rest.isPhonePublic,
+          } as User;
+        } else {
+          finalDesigner = {
+            id: 'unknown', name: 'Unknown Designer', username: '@unknown', avatarUrl: '',
+            email: 'unknown@example.com', phone: '', twoFactorEnabled: false,
+            failedPinAttempts: 0, isLocked: false, canSetPrice: false,
+            githubUrl: '', linkedinUrl: '', figmaUrl: '',
+            isEmailPublic: false, isPhonePublic: false,
+          };
+        }
       }
       return {
         ...design,
@@ -1858,7 +1888,20 @@ export async function getTopicsByCategoryIdAction(categoryId: string): Promise<F
         console.warn(`No specific data source for category slug: ${category.slug}. Returning empty list.`);
         return [];
     }
-    return topics.sort((a, b) => new Date(b.lastRepliedAt).getTime() - new Date(a.lastRepliedAt).getTime());
+
+    const adminAvatarMap = await getAdminAvatarMap();
+    const processedTopics = topics.map(topic => {
+      if (topic.createdByUserId.startsWith('admin-')) {
+        return {
+          ...topic,
+          authorName: "Admin",
+          authorAvatarUrl: adminAvatarMap.get(topic.createdByUserId) || ADMIN_DEFAULT_AVATAR
+        };
+      }
+      return topic;
+    });
+
+    return processedTopics.sort((a, b) => new Date(b.lastRepliedAt).getTime() - new Date(a.lastRepliedAt).getTime());
   } catch (error) {
     console.error(`Error fetching topics for category slug "${category.slug}":`, error);
     return [];
@@ -1869,6 +1912,7 @@ export async function getTopicDetailsAction(topicId: string, categorySlug?: stri
   let topics: ForumTopic[] = [];
   let slugToUse = categorySlug;
   let determinedSlug = false;
+  const adminAvatarMap = await getAdminAvatarMap();
 
   if (!slugToUse) {
     const allCategories = await getForumCategoriesFromFile();
@@ -1898,18 +1942,12 @@ export async function getTopicDetailsAction(topicId: string, categorySlug?: stri
       return undefined;
   }
 
-  if (!determinedSlug) {
+  if (!determinedSlug) { // Only fetch if not already fetched during slug determination
     try {
         switch (slugToUse) {
-        case 'general-discussion':
-            topics = await getUsersForumData();
-            break;
-        case 'announcements':
-            topics = await getAnnouncementsData();
-            break;
-        case 'support-qa':
-            topics = await getSupportForumData();
-            break;
+        case 'general-discussion': topics = await getUsersForumData(); break;
+        case 'announcements': topics = await getAnnouncementsData(); break;
+        case 'support-qa': topics = await getSupportForumData(); break;
         default:
             console.warn(`Unknown category slug for fetching topic details: ${slugToUse}`);
             return undefined;
@@ -1920,12 +1958,36 @@ export async function getTopicDetailsAction(topicId: string, categorySlug?: stri
     }
   }
 
-  const topic = topics.find(t => t.id === topicId);
+  let topic = topics.find(t => t.id === topicId);
+
+  if (topic) {
+    // Process main topic author
+    if (topic.createdByUserId.startsWith('admin-')) {
+      topic = {
+        ...topic,
+        authorName: "Admin",
+        authorAvatarUrl: adminAvatarMap.get(topic.createdByUserId) || ADMIN_DEFAULT_AVATAR
+      };
+    }
+    // Process post authors
+    if (topic.posts && topic.posts.length > 0) {
+      topic.posts = topic.posts.map(post => {
+        if (post.createdByUserId.startsWith('admin-')) {
+          return {
+            ...post,
+            authorName: "Admin",
+            authorAvatarUrl: adminAvatarMap.get(post.createdByUserId) || ADMIN_DEFAULT_AVATAR
+          };
+        }
+        return post;
+      });
+    }
+  }
   return topic;
 }
 
 export async function getPostsByTopicIdAction(topicId: string, categorySlug: string): Promise<ForumPost[]> {
-  const topic = await getTopicDetailsAction(topicId, categorySlug);
+  const topic = await getTopicDetailsAction(topicId, categorySlug); // This now handles admin avatar updates
   return topic?.posts || [];
 }
 
@@ -1996,8 +2058,8 @@ export async function createForumTopicAction(
     categoryId: string,
     categorySlug: string,
     userId: string,
-    userName: string,
-    userAvatarUrl?: string
+    userName: string, // This will be "Admin" if created by admin from dashboard
+    userAvatarUrl?: string // This will be the admin's actual avatar URL
 ): Promise<CreateTopicFormState> {
     const CreateTopicFormSchema = z.object({
       title: z.string().min(5, { message: "Title must be at least 5 characters long." }).max(150, { message: "Title cannot exceed 150 characters." }),
@@ -2022,13 +2084,24 @@ export async function createForumTopicAction(
         return { message: 'Category not found.', success: false, errors: { general: ['Category not found.'] } };
     }
 
+    // Admin check for announcements (already robustly handled in create page)
     if (category.slug === 'announcements') {
-        const adminUsers = await getAdminUsers();
+        const adminUsers = await getAdminUsers(); // Could optimize if admin status is passed
         const userIsAdmin = adminUsers.some(admin => admin.id === userId);
         if(!userIsAdmin) {
              return { message: 'You are not authorized to post in Announcements.', success: false, errors: { general: ['Authorization failed.'] } };
         }
     }
+    
+    let finalAuthorName = userName;
+    let finalAvatarUrl = userAvatarUrl;
+
+    if (userId.startsWith('admin-')) {
+        finalAuthorName = "Admin"; // Standardize name for storage, though display name is what matters
+        const adminAvatarMap = await getAdminAvatarMap();
+        finalAvatarUrl = adminAvatarMap.get(userId) || ADMIN_DEFAULT_AVATAR;
+    }
+
 
     const newTopic: ForumTopic = {
         id: `topic-${Date.now()}`,
@@ -2036,8 +2109,8 @@ export async function createForumTopicAction(
         title,
         content,
         createdByUserId: userId,
-        authorName: userName,
-        authorAvatarUrl: userAvatarUrl || `https://placehold.co/40x40.png?text=${userName.charAt(0).toUpperCase()}`,
+        authorName: finalAuthorName, // Store actual name if user, or standardized "Admin"
+        authorAvatarUrl: finalAvatarUrl || `https://placehold.co/40x40.png?text=${finalAuthorName.charAt(0).toUpperCase()}`,
         createdAt: new Date().toISOString(),
         lastRepliedAt: new Date().toISOString(),
         viewCount: 0,
@@ -2053,6 +2126,10 @@ export async function createForumTopicAction(
 
         revalidatePath(`/community/category/${categorySlug}`);
         revalidatePath('/community');
+        if (category.slug === 'announcements') {
+            revalidatePath('/admin/forum/announcements');
+        }
+
 
         return { message: 'Topic created successfully!', success: true, newTopicId: newTopic.id };
     } catch (error) {
@@ -2084,14 +2161,24 @@ export async function createForumPostAction(
     }
 
     const { content } = validatedFields.data;
+    
+    let finalAuthorName = userName;
+    let finalAvatarUrl = userAvatarUrl;
+
+    if (userId.startsWith('admin-')) {
+        finalAuthorName = "Admin"; // Standardize name for storage
+        const adminAvatarMap = await getAdminAvatarMap();
+        finalAvatarUrl = adminAvatarMap.get(userId) || ADMIN_DEFAULT_AVATAR;
+    }
+
 
     const newPost: ForumPost = {
         id: `post-${Date.now()}`,
         topicId,
         content,
         createdByUserId: userId,
-        authorName: userName,
-        authorAvatarUrl: userAvatarUrl || `https://placehold.co/40x40.png?text=${userName.charAt(0).toUpperCase()}`,
+        authorName: finalAuthorName,
+        authorAvatarUrl: finalAvatarUrl || `https://placehold.co/40x40.png?text=${finalAuthorName.charAt(0).toUpperCase()}`,
         createdAt: new Date().toISOString(),
     };
 
@@ -2238,18 +2325,12 @@ export async function updateAdminAnnouncementAction(
     }
 
     const topicToUpdate = announcements[topicIndex];
-
-    // Ensure only admin who created it or any other admin can edit
-    if (topicToUpdate.createdByUserId !== adminId && !adminUsers.some(admin => admin.id === adminId)) {
-         // This specific check might be redundant if ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS is the primary gatekeeper
-         // But it's good for ensuring the specific admin making the request has general rights if not the original author.
-    }
-
-
+    
+    // The original author's avatar and name are preserved unless updated by profile changes
+    // The actual display name will be "Admin" with the current avatar due to getTopicDetailsAction
     topicToUpdate.title = title;
     topicToUpdate.content = content;
-    // lastRepliedAt could be updated if we consider edits as a form of "update"
-    // For now, we'll leave it as the last actual reply time or creation time.
+    topicToUpdate.lastRepliedAt = new Date().toISOString(); // Indicate edit by updating last activity
 
     await saveAnnouncementsData(announcements);
 
@@ -2269,6 +2350,7 @@ export async function searchAllForumTopicsAction(term: string): Promise<ForumTop
     return [];
   }
   const lowerTerm = term.toLowerCase();
+  const adminAvatarMap = await getAdminAvatarMap();
   try {
     const generalTopics = await getUsersForumData();
     const announcementTopics = await getAnnouncementsData();
@@ -2276,16 +2358,26 @@ export async function searchAllForumTopicsAction(term: string): Promise<ForumTop
 
     const allTopics = [...generalTopics, ...announcementTopics, ...supportTopics];
 
-    const filteredTopics = allTopics.filter(topic =>
+    const processedTopics = allTopics.map(topic => {
+      if (topic.createdByUserId.startsWith('admin-')) {
+        return {
+          ...topic,
+          authorName: "Admin",
+          authorAvatarUrl: adminAvatarMap.get(topic.createdByUserId) || ADMIN_DEFAULT_AVATAR
+        };
+      }
+      return topic;
+    });
+    
+    const filteredTopics = processedTopics.filter(topic =>
       topic.title.toLowerCase().includes(lowerTerm) ||
       topic.content.toLowerCase().includes(lowerTerm) ||
-      topic.authorName.toLowerCase().includes(lowerTerm)
+      topic.authorName.toLowerCase().includes(lowerTerm) // Search by "Admin" if admin post
     );
 
-    // Sort by relevance (e.g., most recent first)
     return filteredTopics.sort((a, b) => new Date(b.lastRepliedAt).getTime() - new Date(a.lastRepliedAt).getTime());
   } catch (error) {
     console.error('Error searching forum topics:', error);
-    return []; // Return empty on error
+    return []; 
   }
 }

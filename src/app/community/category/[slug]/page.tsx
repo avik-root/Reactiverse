@@ -26,7 +26,6 @@ const getInitials = (name?: string) => {
     return name.substring(0, 2).toUpperCase();
 };
 
-const ADMIN_AVATAR_URL = "https://placehold.co/32x32.png?text=A";
 
 export default function CategoryPage() {
   const params = useParams();
@@ -71,8 +70,8 @@ export default function CategoryPage() {
 
     const baseHref = `/community/category/${slug}/new-topic`;
 
+    // Announcements are now created from admin panel
     if (category.slug === 'announcements') {
-      // Announcements are created from admin panel, so no button here for public.
       return null;
     }
     
@@ -202,11 +201,10 @@ export default function CategoryPage() {
             <ul className="space-y-4">
               {topics.map((topic) => {
                 const isAuthorAdmin = topic.createdByUserId.startsWith('admin-');
-                const authorDisplayName = isAuthorAdmin ? "Admin" : topic.authorName;
-                const authorDisplayAvatar = isAuthorAdmin
-                  ? ADMIN_AVATAR_URL
-                  : topic.authorAvatarUrl || `https://placehold.co/32x32.png?text=${getInitials(topic.authorName)}`;
-                const authorFallbackInitials = isAuthorAdmin ? "A" : getInitials(topic.authorName);
+                // authorName and authorAvatarUrl are now dynamically set by the server action
+                const authorDisplayName = topic.authorName; 
+                const authorDisplayAvatar = topic.authorAvatarUrl || `https://placehold.co/32x32.png?text=${getInitials(topic.authorName)}`;
+                const authorFallbackInitials = getInitials(topic.authorName);
 
                 return (
                   <li key={topic.id} className="border p-4 rounded-lg hover:shadow-md transition-shadow bg-card">
@@ -281,3 +279,4 @@ export default function CategoryPage() {
     </div>
   );
 }
+

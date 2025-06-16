@@ -5,7 +5,7 @@ import { useEffect, type ReactNode } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { LayoutDashboard, Users, Palette, Settings, LogOut, ShieldCheck, UserCog, FileText, Image as ImageIcon, Loader2, Users2, MailOpen, LayoutList } from 'lucide-react';
+import { LayoutDashboard, Users, Palette, Settings, LogOut, ShieldCheck, UserCog, FileText, Image as ImageIcon, Loader2, Users2, MailOpen, LayoutList, MessagesSquare, Megaphone, HelpCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Logo from '@/components/core/Logo';
 import { Button } from '@/components/ui/button';
@@ -35,6 +35,9 @@ const contentEditingNavItems = [
     { href: '/admin/edit-content/logo', label: 'Change Site Logo', icon: ImageIcon },
     { href: '/admin/subscribers', label: 'View Subscribers', icon: MailOpen },
     { href: '/admin/forum-categories', label: 'Manage Forum Categories', icon: LayoutList },
+    { href: '/admin/forum/general-discussion', label: 'Edit General Discussion', icon: MessagesSquare },
+    { href: '/admin/forum/announcements', label: 'Edit Announcements', icon: Megaphone },
+    { href: '/admin/forum/support-qa', label: 'Edit Support & Q/A', icon: HelpCircle },
 ];
 
 export default function AdminLayout({ children }: AdminLayoutProps) {

@@ -27,13 +27,13 @@ const Footer = () => {
               A platform for designers to showcase their components and designs. 
             </p>
             <div className="flex space-x-4">
-              <Link href="#" aria-label="LinkedIn" className="text-[hsl(var(--footer-muted-foreground))] hover:text-[hsl(var(--footer-foreground))] transition-colors">
+              <Link href="https://www.linkedin.com/in/avik-samanta-root/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="text-[hsl(var(--footer-muted-foreground))] hover:text-[hsl(var(--footer-foreground))] transition-colors">
                 <Linkedin size={20} />
               </Link>
-              <Link href="#" aria-label="GitHub" className="text-[hsl(var(--footer-muted-foreground))] hover:text-[hsl(var(--footer-foreground))] transition-colors">
+              <Link href="https://github.com/avik-root" target="_blank" rel="noopener noreferrer" aria-label="GitHub" className="text-[hsl(var(--footer-muted-foreground))] hover:text-[hsl(var(--footer-foreground))] transition-colors">
                 <Github size={20} />
               </Link>
-              <Link href="mailto:info@reactiverse.com" aria-label="Email" className="text-[hsl(var(--footer-muted-foreground))] hover:text-[hsl(var(--footer-foreground))] transition-colors">
+              <Link href="mailto:mintfire.server@gmail.com" aria-label="Email" className="text-[hsl(var(--footer-muted-foreground))] hover:text-[hsl(var(--footer-foreground))] transition-colors">
                 <Mail size={20} />
               </Link>
             </div>

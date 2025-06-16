@@ -1,7 +1,8 @@
 
+
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import type { User, Design } from '@/lib/types';
 import { getAllUsersAdminAction, getAllDesignsAction, getPageContentAction } from '@/lib/actions';
 import DesignerCard from '@/components/designer/DesignerCard';
@@ -9,7 +10,7 @@ import DesignerDetailDialog from '@/components/designer/DesignerDetailDialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Award, Info, Search, Palette, Users, ListOrdered, PercentSquare, Crown, Medal, Trophy, Star } from 'lucide-react'; // Added Star here
+import { Award, Info, Search, Palette, Users, ListOrdered, PercentSquare, Crown, Medal, Trophy, Star, CheckCircle } from 'lucide-react';
 import type { TopDesignersPageContent } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -41,15 +42,15 @@ export default function DesignersPage() {
       try {
         const [pageContent, fetchedUsers, designsData] = await Promise.all([
           getPageContentAction('topDesigners') as Promise<TopDesignersPageContent>,
-          getAllUsersAdminAction(),
+          getAllUsersAdminAction(), // This action now includes isVerified
           getAllDesignsAction()
         ]);
         setContent(pageContent);
-        setAllUsers(fetchedUsers.filter(user => !user.id.startsWith('admin-'))); // Exclude admins
+        setAllUsers(fetchedUsers.filter(user => !user.id.startsWith('admin-'))); 
         setAllDesigns(designsData);
       } catch (error) {
         console.error("Error fetching data for Designers page:", error);
-        setContent(null); // Keep content null on error to show loading/error state
+        setContent(null); 
       }
       setIsLoading(false);
     }
@@ -63,13 +64,12 @@ export default function DesignersPage() {
       const designsByThisUser = allDesigns.filter(design => design.submittedByUserId === user.id);
       const totalLikes = designsByThisUser.reduce((sum, design) => sum + (design.likedBy?.length || 0), 0);
       return {
-        ...user,
+        ...user, // isVerified is already part of the user object from getAllUsersAdminAction
         totalLikes: totalLikes,
         totalDesignsUploaded: designsByThisUser.length,
       };
     });
 
-    // Sort by totalLikes (desc), then by totalDesignsUploaded (desc), then by name (asc)
     return stats.sort((a, b) => {
       if (b.totalLikes !== a.totalLikes) return b.totalLikes - a.totalLikes;
       if (b.totalDesignsUploaded !== a.totalDesignsUploaded) return b.totalDesignsUploaded - a.totalDesignsUploaded;
@@ -90,8 +90,7 @@ export default function DesignersPage() {
   }, [fullDesignerStatsList, searchTerm]);
 
   const top20Designers = useMemo(() => {
-    // Take the top 20 from the already sorted and search-filtered list, but only if they have likes
-    return displayableDesignerStatsList.filter(d => d.totalLikes > 0).slice(0, 20);
+    return displayableDesignerStatsList.filter(d => d.totalLikes > 0 || d.totalDesignsUploaded > 0).slice(0, 20);
   }, [displayableDesignerStatsList]);
 
   const handleOpenDesignerDetail = (designer: DesignerStats) => {
@@ -100,8 +99,8 @@ export default function DesignersPage() {
   };
 
   const getPercentileCategory = (rank: number, total: number): string => {
-    if (total === 0) return "Contributor"; // Should not happen if list is not empty
-    const percentile = ((total - rank + 1) / total) * 100; // (count better than or equal to) / total * 100
+    if (total === 0) return "Contributor";
+    const percentile = ((total - rank + 1) / total) * 100;
     if (percentile >= 90) return "Top 10%";
     if (percentile >= 75) return "Top 25%";
     if (percentile >= 50) return "Top 50%";
@@ -171,21 +170,19 @@ export default function DesignersPage() {
         </CardHeader>
       </Card>
 
-      {/* Top 20 Designers Section */}
       <section>
         <h2 className="text-2xl font-semibold font-headline mb-6 flex items-center">
-          <Trophy className="mr-2 h-7 w-7 text-yellow-500" /> Top 20 Designers (by Likes)
+          <Trophy className="mr-2 h-7 w-7 text-yellow-500" /> Top Ranked Designers
         </h2>
         {top20Designers.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {top20Designers.map((designer, index) => (
               <DesignerCard
                 key={designer.id}
-                user={designer}
-                rank={index + 1} // Rank based on current filtered & sorted list
+                user={designer} // designer object includes isVerified
+                rank={index + 1} 
                 highlightMetricLabel="Total Likes"
                 highlightMetricValue={designer.totalLikes}
-                totalDesignsUploaded={designer.totalDesignsUploaded} // Pass this for detail dialog
                 onOpenDetail={() => handleOpenDesignerDetail(designer)}
               />
             ))}
@@ -193,15 +190,14 @@ export default function DesignersPage() {
         ) : (
           <Alert>
             <Info className="h-4 w-4" />
-            <AlertTitle>{searchTerm ? "No Designers Found" : "No Designers with Likes Yet"}</AlertTitle>
+            <AlertTitle>{searchTerm ? "No Designers Found" : "No Designers with Activity Yet"}</AlertTitle>
             <AlertDescription>
-              {searchTerm ? "No designers match your current search criteria or they have no likes." : "Be the first to like some designs, or encourage designers to share their work!"}
+              {searchTerm ? "No designers match your current search criteria or they have no likes/uploads." : "Be the first to like some designs, or encourage designers to share their work!"}
             </AlertDescription>
           </Alert>
         )}
       </section>
 
-      {/* Overall Ranking List Section */}
       <section>
         <h2 className="text-2xl font-semibold font-headline mb-6 flex items-center">
           <ListOrdered className="mr-2 h-7 w-7 text-primary" /> Complete Designer Standing
@@ -211,7 +207,6 @@ export default function DesignersPage() {
             <CardContent className="p-0">
               <ul className="divide-y divide-border">
                 {displayableDesignerStatsList.map((designer, index) => {
-                  // Find the designer's rank in the *full, unsorted (by search term)* list for percentile calculation
                   const overallRankInFullList = fullDesignerStatsList.findIndex(d => d.id === designer.id) + 1;
                   const percentileCategory = getPercentileCategory(overallRankInFullList, fullDesignerStatsList.length);
                   const IconComponent = getPercentileIcon(percentileCategory);
@@ -232,7 +227,10 @@ export default function DesignersPage() {
                          <AvatarFallback>{getInitials(designer.name)}</AvatarFallback>
                       </Avatar>
                       <div className="flex-grow">
-                        <p className="font-semibold text-foreground">{designer.name}</p>
+                        <p className="font-semibold text-foreground flex items-center">
+                          {designer.name}
+                          {designer.isVerified && <CheckCircle className="ml-1.5 h-4 w-4 text-blue-500 fill-blue-500" />}
+                        </p>
                         <p className="text-xs text-muted-foreground">@{designer.username.startsWith('@') ? designer.username.substring(1) : designer.username}</p>
                       </div>
                       <div className="text-right space-y-0.5 min-w-[160px] sm:min-w-[200px]">
@@ -263,7 +261,7 @@ export default function DesignersPage() {
 
       {selectedDesignerForDetail && (
         <DesignerDetailDialog
-          user={selectedDesignerForDetail} // DesignerStats includes User, totalLikes, and totalDesignsUploaded
+          user={selectedDesignerForDetail}
           isOpen={isDesignerDetailOpen}
           onOpenChange={setIsDesignerDetailOpen}
         />

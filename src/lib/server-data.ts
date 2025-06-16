@@ -296,6 +296,7 @@ export async function getUsersFromFile(): Promise<StoredUser[]> {
       figmaUrl: user.figmaUrl || "",
       isEmailPublic: user.isEmailPublic === undefined ? false : user.isEmailPublic,
       isPhonePublic: user.isPhonePublic === undefined ? false : user.isPhonePublic,
+      isVerified: user.isVerified === undefined ? false : user.isVerified, // Ensure default
     }));
   } catch (error) {
     console.error('Failed to read users.json:', error);
@@ -317,6 +318,7 @@ export async function saveUserToFile(newUser: StoredUser): Promise<void> {
         figmaUrl: newUser.figmaUrl || "",
         isEmailPublic: newUser.isEmailPublic === undefined ? false : newUser.isEmailPublic,
         isPhonePublic: newUser.isPhonePublic === undefined ? false : newUser.isPhonePublic,
+        isVerified: newUser.isVerified === undefined ? false : newUser.isVerified, // Ensure default
     });
     await fs.writeFile(USERS_FILE_PATH, JSON.stringify(users, null, 2), 'utf-8');
   } catch (error) {
@@ -344,6 +346,7 @@ export async function updateUserInFile(updatedUser: StoredUser): Promise<boolean
         figmaUrl: updatedUser.figmaUrl === undefined ? users[userIndex].figmaUrl : updatedUser.figmaUrl,
         isEmailPublic: updatedUser.isEmailPublic === undefined ? users[userIndex].isEmailPublic : updatedUser.isEmailPublic,
         isPhonePublic: updatedUser.isPhonePublic === undefined ? users[userIndex].isPhonePublic : updatedUser.isPhonePublic,
+        isVerified: updatedUser.isVerified === undefined ? users[userIndex].isVerified : updatedUser.isVerified, // Ensure update
     };
     await fs.writeFile(USERS_FILE_PATH, JSON.stringify(users, null, 2), 'utf-8');
     return true;
@@ -922,3 +925,4 @@ export async function addSubscriberToFile(newSubscriber: NewsletterSubscriber): 
     throw error;
   }
 }
+

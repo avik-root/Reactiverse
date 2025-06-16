@@ -18,6 +18,7 @@ export interface User {
   figmaUrl?: string;
   isEmailPublic?: boolean;
   isPhonePublic?: boolean;
+  isVerified?: boolean; // Added for verified status
 }
 
 export interface CodeBlockItem {
@@ -32,7 +33,7 @@ export interface Design {
   filterCategory: string;
   description: string;
   codeBlocks: CodeBlockItem[];
-  designer: User;
+  designer: User; // User type now includes isVerified
   tags: string[];
   price?: number;
   submittedByUserId?: string;
@@ -61,10 +62,11 @@ export type AuthUser =
       figmaUrl?: string;
       isEmailPublic?: boolean;
       isPhonePublic?: boolean;
+      isVerified?: boolean; // Added
     })
   | (Omit<AdminUser, 'passwordHash' | 'twoFactorPinHash'> & { isAdmin: true });
 
-export type StoredUser = User;
+export type StoredUser = User; // StoredUser now includes isVerified
 export type StoredAdminUser = AdminUser;
 
 
@@ -277,6 +279,16 @@ export type AdminSetUserCanSetPriceFormState = {
   updatedUser?: User | null;
 };
 
+export type AdminSetUserVerificationStatusFormState = { // New Type
+  message?: string | null;
+  success?: boolean;
+  errors?: {
+    userId?: string[];
+    general?: string[];
+  };
+  updatedUser?: User | null;
+};
+
 export type UpdateProfileFormState = {
   message?: string | null;
   success?: boolean;
@@ -336,6 +348,7 @@ export interface ForumPost {
   createdByUserId: string;
   authorName: string;
   authorAvatarUrl?: string;
+  authorIsVerified?: boolean; // Added
   createdAt: string;
 }
 
@@ -347,6 +360,7 @@ export interface ForumTopic {
   createdByUserId: string;
   authorName: string;
   authorAvatarUrl?: string;
+  authorIsVerified?: boolean; // Added
   createdAt: string;
   lastRepliedAt: string;
   viewCount: number;

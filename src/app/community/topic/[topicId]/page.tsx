@@ -1,4 +1,5 @@
 
+
 // src/app/community/topic/[topicId]/page.tsx
 'use client'; 
 
@@ -9,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { MessageCircle, Info, CalendarDays, User as UserIcon, ArrowLeft, BadgeCheck, Loader2, Trash2 } from 'lucide-react';
+import { MessageCircle, Info, CalendarDays, User as UserIcon, ArrowLeft, BadgeCheck, Loader2, Trash2, CheckCircle } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 import { useParams, useSearchParams } from 'next/navigation';
@@ -159,7 +160,6 @@ export default function TopicPage() {
   }
 
   const isTopicAuthorAdmin = topic.createdByUserId.startsWith('admin-');
-  // authorName and authorAvatarUrl are now dynamically set by the server action
   const topicAuthorDisplayName = topic.authorName;
   const topicAuthorDisplayAvatar = topic.authorAvatarUrl || `https://placehold.co/40x40.png?text=${getInitials(topic.authorName)}`;
   const topicAuthorFallbackInitials = getInitials(topic.authorName);
@@ -183,6 +183,7 @@ export default function TopicPage() {
               </Avatar>
               <span>{topicAuthorDisplayName}</span>
               {isTopicAuthorAdmin && <BadgeCheck className="h-4 w-4 text-primary ml-1" />}
+              {!isTopicAuthorAdmin && topic.authorIsVerified && <CheckCircle className="ml-1.5 h-4 w-4 text-blue-500 fill-blue-500" />}
             </div>
             <div className="flex items-center">
               <CalendarDays className="h-4 w-4 mr-1.5" />
@@ -207,7 +208,6 @@ export default function TopicPage() {
           <ul className="space-y-6">
             {posts.map((post) => {
               const isPostAuthorAdmin = post.createdByUserId.startsWith('admin-');
-              // authorName and authorAvatarUrl are now dynamically set by the server action
               const postAuthorDisplayName = post.authorName;
               const postAuthorDisplayAvatar = post.authorAvatarUrl || `https://placehold.co/32x32.png?text=${getInitials(post.authorName)}`;
               const postAuthorFallbackInitials = getInitials(post.authorName);
@@ -225,6 +225,7 @@ export default function TopicPage() {
                               <span className="font-medium text-sm flex items-center">
                                 {postAuthorDisplayName}
                                 {isPostAuthorAdmin && <BadgeCheck className="h-4 w-4 text-primary ml-1.5" />}
+                                {!isPostAuthorAdmin && post.authorIsVerified && <CheckCircle className="ml-1.5 h-4 w-4 text-blue-500 fill-blue-500" />}
                               </span>
                           </div>
                           <div className="flex items-center gap-2">

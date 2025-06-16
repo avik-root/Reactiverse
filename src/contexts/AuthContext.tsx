@@ -1,7 +1,8 @@
 
+
 'use client';
 
-import type { AuthUser } from '@/lib/types';
+import type { AuthUser, User } from '@/lib/types'; // Added User
 import * as React from 'react'; // Changed to import React namespace
 import { logoutAdminAction } from '@/lib/actions';
 
@@ -28,6 +29,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const storedIsAdmin = localStorage.getItem('reactiverseIsAdmin') === 'true';
       if (storedUserJSON) {
         const storedUser = JSON.parse(storedUserJSON) as AuthUser;
+        // Ensure isVerified defaults if missing from older localStorage
+        if (!storedIsAdmin && storedUser && !('isVerified' in storedUser)) {
+            (storedUser as User).isVerified = false;
+        }
         setUser(storedUser);
         setIsAdmin(storedIsAdmin);
       }
@@ -41,16 +46,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = React.useCallback((userData: AuthUser, adminStatus: boolean = false) => {
     setIsLoading(true);
-    setUser(userData);
+    // Ensure isVerified default for non-admin users on login
+    let finalUserData = userData;
+    if (!adminStatus && finalUserData && !('isVerified' in finalUserData)) {
+        (finalUserData as User).isVerified = false;
+    }
+    setUser(finalUserData);
     setIsAdmin(adminStatus);
     try {
-      localStorage.setItem('reactiverseUser', JSON.stringify(userData));
+      localStorage.setItem('reactiverseUser', JSON.stringify(finalUserData));
       localStorage.setItem('reactiverseIsAdmin', String(adminStatus));
     } catch (error) {
       console.error("Failed to save user to localStorage", error);
     }
     setIsLoading(false);
-  }, []); // Setters from React.useState are stable, so an empty array is fine
+  }, []); 
 
   const logout = React.useCallback(async () => {
     setIsLoading(true);
@@ -70,7 +80,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error("Error during logout process:", error);
     }
     setIsLoading(false);
-  }, [isAdmin]); // isAdmin is a dependency here
+  }, [isAdmin]); 
 
   const updateAuthUser = React.useCallback((updatedUserDataOrFn: Partial<AuthUser> | ((currentUser: AuthUser | null) => AuthUser | null) ) => {
     setUser(prevUser => {
@@ -81,6 +91,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!prevUser) return null; 
         newUser = { ...prevUser, ...updatedUserDataOrFn } as AuthUser;
       }
+      
+      // Ensure isVerified defaults for non-admin users during update
+      if (newUser && !newUser.isAdmin && !('isVerified' in newUser)) {
+        (newUser as User).isVerified = false;
+      }
+
 
       if (newUser) {
         try {
@@ -93,7 +109,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return newUser;
     });
-  }, []); // setUser is stable
+  }, []); 
 
 
   return (
@@ -110,3 +126,4 @@ export const useAuth = (): AuthContextType => {
   }
   return context;
 };
+

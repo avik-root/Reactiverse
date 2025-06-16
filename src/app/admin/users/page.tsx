@@ -1,9 +1,10 @@
 
+
 'use client';
 
 import { useEffect, useState, useActionState, useCallback, startTransition, useRef } from 'react';
-import type { User, StoredUser, AdminSetUser2FAStatusFormState, AdminSetUserCanSetPriceFormState } from '@/lib/types';
-import { getAllUsersAdminAction, deleteUserAdminAction, adminSetUser2FAStatusAction, adminSetUserCanSetPriceAction } from '@/lib/actions';
+import type { User, StoredUser, AdminSetUser2FAStatusFormState, AdminSetUserCanSetPriceFormState, AdminSetUserVerificationStatusFormState } from '@/lib/types';
+import { getAllUsersAdminAction, deleteUserAdminAction, adminSetUser2FAStatusAction, adminSetUserCanSetPriceAction, adminSetUserVerificationStatusAction } from '@/lib/actions';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { Users, Trash2, Eye, ShieldCheck, ShieldOff, Phone, Mail, UserSquare2, User as UserIcon, AlertTriangle, LockIcon, UnlockIcon, IndianRupee, XCircle, Github, Linkedin, EyeOff } from 'lucide-react';
+import { Users, Trash2, Eye, ShieldCheck, ShieldOff, Phone, Mail, UserSquare2, User as UserIcon, AlertTriangle, LockIcon, UnlockIcon, IndianRupee, XCircle, Github, Linkedin, EyeOff, CheckCircle } from 'lucide-react';
 import FigmaIcon from '@/components/icons/FigmaIcon';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -32,6 +33,7 @@ const sanitizeUser = (user: StoredUser): User => {
     figmaUrl: user.figmaUrl || "",
     isEmailPublic: user.isEmailPublic === undefined ? false : user.isEmailPublic,
     isPhonePublic: user.isPhonePublic === undefined ? false : user.isPhonePublic,
+    isVerified: user.isVerified === undefined ? false : user.isVerified,
   };
 };
 
@@ -44,6 +46,7 @@ export default function ManageUsersPage() {
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+
   const [userFor2FAManagement, setUserFor2FAManagement] = useState<User | null>(null);
   const [is2FADialogOpen, setIs2FADialogOpen] = useState(false);
   const [current2FAAction, setCurrent2FAAction] = useState<'enable' | 'disable' | null>(null);
@@ -52,8 +55,13 @@ export default function ManageUsersPage() {
   const [isPriceSettingDialogOpen, setIsPriceSettingDialogOpen] = useState(false);
   const [currentPriceSettingAction, setCurrentPriceSettingAction] = useState<'enable' | 'disable' | null>(null);
 
+  const [userForVerification, setUserForVerification] = useState<User | null>(null);
+  const [isVerificationDialogOpen, setIsVerificationDialogOpen] = useState(false);
+  const [currentVerificationAction, setCurrentVerificationAction] = useState<'verify' | 'unverify' | null>(null);
+
   const lastProcessed2FAMessageRef = useRef<string | null | undefined>(null);
   const lastProcessedPriceSettingMessageRef = useRef<string | null | undefined>(null);
+  const lastProcessedVerificationMessageRef = useRef<string | null | undefined>(null);
 
 
   const initial2FAState: AdminSetUser2FAStatusFormState = { message: null, success: false, errors: {} };
@@ -61,6 +69,9 @@ export default function ManageUsersPage() {
 
   const initialPriceSettingState: AdminSetUserCanSetPriceFormState = { message: null, success: false, errors: {} };
   const [setPriceSettingFormState, setPriceSettingFormAction] = useActionState(adminSetUserCanSetPriceAction, initialPriceSettingState);
+
+  const initialVerificationState: AdminSetUserVerificationStatusFormState = { message: null, success: false, errors: {} };
+  const [setVerificationFormState, setVerificationFormAction] = useActionState(adminSetUserVerificationStatusAction, initialVerificationState);
 
 
   const fetchUsers = useCallback(async () => {
@@ -81,7 +92,7 @@ export default function ManageUsersPage() {
   }, [fetchUsers]);
 
   const processFormStateUpdate = (
-    formState: AdminSetUser2FAStatusFormState | AdminSetUserCanSetPriceFormState,
+    formState: AdminSetUser2FAStatusFormState | AdminSetUserCanSetPriceFormState | AdminSetUserVerificationStatusFormState,
     closeDialogFn: () => void,
     lastProcessedMessageRef: React.MutableRefObject<string | null | undefined>
   ) => {
@@ -115,6 +126,13 @@ export default function ManageUsersPage() {
         setUserForPriceSetting(null);
     }, lastProcessedPriceSettingMessageRef);
   }, [setPriceSettingFormState, toast, fetchUsers, selectedUserForView]);
+
+  useEffect(() => {
+    processFormStateUpdate(setVerificationFormState, () => {
+        setIsVerificationDialogOpen(false);
+        setUserForVerification(null);
+    }, lastProcessedVerificationMessageRef);
+  }, [setVerificationFormState, toast, fetchUsers, selectedUserForView]);
 
 
   const getInitials = (name?: string) => {
@@ -188,6 +206,24 @@ export default function ManageUsersPage() {
     }
   };
 
+  const handleManageVerificationClick = (user: User, action: 'verify' | 'unverify') => {
+    setUserForVerification(user);
+    setCurrentVerificationAction(action);
+    setIsVerificationDialogOpen(true);
+  };
+
+  const handleConfirmVerificationAction = () => {
+    if (userForVerification && currentVerificationAction && adminUser && 'id' in adminUser) {
+      const formData = new FormData();
+      formData.append('userId', userForVerification.id);
+      formData.append('isVerified', currentVerificationAction === 'verify' ? 'true' : 'false');
+      formData.append('adminId', adminUser.id);
+      startTransition(() => {
+        setVerificationFormAction(formData);
+      });
+    }
+  };
+
 
   if (isLoading) {
     return (
@@ -219,7 +255,7 @@ export default function ManageUsersPage() {
           <Users className="h-8 w-8 text-primary" />
           <CardTitle className="text-3xl font-headline text-primary">Manage Users</CardTitle>
         </div>
-        <CardDescription>View, manage user accounts, their 2FA status, and pricing permissions.</CardDescription>
+        <CardDescription>View, manage user accounts, their 2FA status, pricing permissions, and verification status.</CardDescription>
       </CardHeader>
       <CardContent>
         {users.length > 0 ? (
@@ -231,6 +267,7 @@ export default function ManageUsersPage() {
                   <TableHead>Name</TableHead>
                   <TableHead>Username</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead className="text-center">Verified</TableHead>
                   <TableHead className="text-center">2FA</TableHead>
                   <TableHead className="text-center">Pricing</TableHead>
                   <TableHead className="text-center">Status</TableHead>
@@ -249,6 +286,17 @@ export default function ManageUsersPage() {
                     <TableCell className="font-medium">{user.name}</TableCell>
                     <TableCell>{user.username}</TableCell>
                     <TableCell>{user.email}</TableCell>
+                    <TableCell className="text-center">
+                      {user.isVerified ? (
+                        <Badge variant="default" className="bg-blue-600 hover:bg-blue-700">
+                          <CheckCircle className="mr-1 h-3.5 w-3.5" /> Verified
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline">
+                          <XCircle className="mr-1 h-3.5 w-3.5" /> Not Verified
+                        </Badge>
+                      )}
+                    </TableCell>
                     <TableCell className="text-center">
                       {user.twoFactorEnabled ? (
                         <Badge variant="default" className="bg-green-600 hover:bg-green-700">
@@ -331,6 +379,11 @@ export default function ManageUsersPage() {
                     <InfoItem icon={selectedUserForView.isEmailPublic ? <Eye /> : <EyeOff />} label="Email Public" value={selectedUserForView.isEmailPublic ? "Yes" : "No"} />
                     <InfoItem icon={selectedUserForView.isPhonePublic ? <Eye /> : <EyeOff />} label="Phone Public" value={selectedUserForView.isPhonePublic ? "Yes" : "No"} />
                     <InfoItem
+                        icon={selectedUserForView.isVerified ? <CheckCircle className="text-blue-500"/> : <XCircle className="text-muted-foreground"/>}
+                        label="Verification Status"
+                        value={selectedUserForView.isVerified ? "Verified" : "Not Verified"}
+                    />
+                    <InfoItem
                         icon={selectedUserForView.twoFactorEnabled ? <ShieldCheck className="text-green-500"/> : <ShieldOff />}
                         label="2FA Status"
                         value={selectedUserForView.twoFactorEnabled ? "Enabled" : "Disabled"}
@@ -346,9 +399,15 @@ export default function ManageUsersPage() {
                         value={selectedUserForView.isLocked ? `Locked (Attempts: ${selectedUserForView.failedPinAttempts || 0})` : "Active"}
                     />
                 </div>
-                <p className="text-xs text-muted-foreground pt-2">User ID: {selectedUserForView.id}</p>
-
                 <div className="border-t pt-4 mt-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                        <Label className="font-semibold">Manage User Verification:</Label>
+                        <Switch
+                            checked={!!selectedUserForView.isVerified}
+                            onCheckedChange={(checked) => handleManageVerificationClick(selectedUserForView, checked ? 'verify' : 'unverify')}
+                            aria-label="Toggle user verification"
+                        />
+                    </div>
                     <div className="flex items-center justify-between">
                         <Label className="font-semibold">Manage User 2FA:</Label>
                         <Switch
@@ -446,6 +505,28 @@ export default function ManageUsersPage() {
           </AlertDialogContent>
         </AlertDialog>
       )}
+
+      {isVerificationDialogOpen && userForVerification && (
+        <AlertDialog open={isVerificationDialogOpen} onOpenChange={setIsVerificationDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirm Verification Status Change for {userForVerification.name}</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to <strong className={currentVerificationAction === 'verify' ? 'text-blue-600' : 'text-destructive'}>{currentVerificationAction}</strong> this user?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => {setIsVerificationDialogOpen(false); setUserForVerification(null);}}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleConfirmVerificationAction}
+                className={currentVerificationAction === 'verify' ? "bg-blue-600 hover:bg-blue-700 text-white" : "bg-destructive hover:bg-destructive/90"}
+              >
+                Yes, {currentVerificationAction} user
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </Card>
   );
 }
@@ -471,3 +552,4 @@ const InfoItem: React.FC<InfoItemProps> = ({ icon, label, value, isLink }) => (
         </div>
     </div>
 );
+

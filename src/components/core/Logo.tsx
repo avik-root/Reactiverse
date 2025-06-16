@@ -11,8 +11,11 @@ const Logo = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Ensure this runs only client-side
+    if (typeof window === 'undefined') return;
+
     const img = new window.Image();
-    img.src = "/site_logo.png";
+    img.src = "/site_logo.png"; // Path to the custom logo
     img.onload = () => {
       setUseFallbackLogo(false);
       setIsLoading(false);
@@ -26,28 +29,31 @@ const Logo = () => {
   return (
     <Link href="/" className="flex items-center gap-2 text-primary hover:text-primary/80 transition-colors">
       {isLoading ? (
-        // Placeholder for the logo area itself, matching the dimensions of the image container
-        <div className="h-[32px] w-[160px] bg-muted/20 animate-pulse rounded-sm"></div>
-      ) : useFallbackLogo ? (
         <>
-          <Layers3 size={28} />
-          <span className="text-2xl font-headline font-semibold">Reactiverse</span>
+          <div style={{ width: '32px', height: '32px' }} className="bg-muted/30 animate-pulse rounded-md shrink-0"></div>
+          <div style={{ width: '120px', height: '24px' }} className="bg-muted/30 animate-pulse rounded-md"></div>
         </>
       ) : (
-        // Explicit container for the image with defined dimensions
-        <div style={{ width: '160px', height: '32px', position: 'relative' }}>
-          <Image
-            src="/site_logo.png"
-            alt="Reactiverse Logo"
-            layout="fill"         // Image will fill this div
-            objectFit="contain"  // Equivalent to className="object-contain" for layout="fill"
-            priority
-            data-ai-hint="site logo"
-            onError={() => {
-              setUseFallbackLogo(true);
-            }}
-          />
-        </div>
+        <>
+          {useFallbackLogo ? (
+            <Layers3 size={28} className="shrink-0" />
+          ) : (
+            <div style={{ height: '32px', width: '32px', position: 'relative', flexShrink: 0 }}>
+              <Image
+                src="/site_logo.png"
+                alt="Reactiverse Site Logo"
+                layout="fill"
+                objectFit="contain"
+                priority
+                data-ai-hint="site logo icon"
+                onError={() => {
+                  setUseFallbackLogo(true);
+                }}
+              />
+            </div>
+          )}
+          <span className="text-2xl font-headline font-semibold">Reactiverse</span>
+        </>
       )}
     </Link>
   );

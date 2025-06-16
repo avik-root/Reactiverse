@@ -50,7 +50,9 @@ export default function ManageUsersPage() {
 
   const [userFor2FAManagement, setUserFor2FAManagement] = useState<User | null>(null);
   const [is2FADialogOpen, setIs2FADialogOpen] = useState(false);
-  const [current2FAAction, setCurrent2FAAction] = useState<'enable' | 'disable' | null>(null);
+  // current2FAAction will effectively always be 'disable' when initiated by admin for another user.
+  const [current2FAAction, setCurrent2FAAction] = useState<'disable' | null>(null);
+
 
   const [userForPriceSetting, setUserForPriceSetting] = useState<User | null>(null);
   const [isPriceSettingDialogOpen, setIsPriceSettingDialogOpen] = useState(false);
@@ -171,17 +173,17 @@ export default function ManageUsersPage() {
     setIsDetailDialogOpen(true);
   };
 
-  const handleManage2FAClick = (user: User, action: 'enable' | 'disable') => {
+  const handleManage2FAClick = (user: User, action: 'disable') => { // Only 'disable' is now expected
     setUserFor2FAManagement(user);
     setCurrent2FAAction(action);
     setIs2FADialogOpen(true);
   };
 
   const handleConfirm2FAAction = () => {
-    if (userFor2FAManagement && current2FAAction && adminUser && 'id' in adminUser) {
+    if (userFor2FAManagement && current2FAAction === 'disable' && adminUser && 'id' in adminUser) {
       const formData = new FormData();
       formData.append('userId', userFor2FAManagement.id);
-      formData.append('enable', current2FAAction === 'enable' ? 'true' : 'false');
+      formData.append('enable', 'false'); // Admin can only disable for other users
       formData.append('adminId', adminUser.id);
       startTransition(() => {
         set2FAFormAction(formData);
@@ -415,19 +417,24 @@ export default function ManageUsersPage() {
                             aria-label="Toggle user verification"
                         />
                     </div>
-                    <div className="flex items-center justify-between">
+                    
+                    <div>
                         <Label className="font-semibold">Manage User 2FA:</Label>
-                        <Switch
-                            checked={selectedUserForView.twoFactorEnabled}
-                            onCheckedChange={(checked) => handleManage2FAClick(selectedUserForView, checked ? 'enable' : 'disable')}
-                            aria-label="Toggle user 2FA"
-                        />
+                        {selectedUserForView.twoFactorEnabled ? (
+                            <Button 
+                                variant="destructive" 
+                                className="w-full mt-2" 
+                                onClick={() => handleManage2FAClick(selectedUserForView, 'disable')}
+                            >
+                                <ShieldOff className="mr-2 h-4 w-4" /> Disable 2FA & Unlock Account
+                            </Button>
+                        ) : (
+                            <div className="text-xs text-muted-foreground p-2 border rounded-md bg-muted/30 mt-1">
+                                2FA is currently disabled for this user. Users can enable 2FA from their own profile settings.
+                            </div>
+                        )}
                     </div>
-                     {selectedUserForView.isLocked && (
-                         <Button variant="outline" className="w-full" onClick={() => handleManage2FAClick(selectedUserForView, 'disable')}>
-                            <UnlockIcon className="mr-2 h-4 w-4" /> Unlock Account & Disable 2FA
-                        </Button>
-                    )}
+
                     <div className="flex items-center justify-between">
                         <Label className="font-semibold">Manage Price Setting:</Label>
                         <Switch
@@ -473,18 +480,17 @@ export default function ManageUsersPage() {
             <AlertDialogHeader>
               <AlertDialogTitle>Confirm 2FA Change for {userFor2FAManagement.name}</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to <strong className={current2FAAction === 'enable' ? 'text-green-600' : 'text-destructive'}>{current2FAAction}</strong> 2FA for this user?
-                {current2FAAction === 'disable' && ' This will also unlock their account if it was locked due to failed PIN attempts.'}
-                {current2FAAction === 'enable' && ' The user will need to set up their PIN through their profile settings.'}
+                 Are you sure you want to <strong className="text-destructive">disable</strong> 2FA for this user?
+                 This will also unlock their account if it was locked due to failed PIN attempts.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel onClick={() => {setIs2FADialogOpen(false); setUserFor2FAManagement(null);}}>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleConfirm2FAAction}
-                className={current2FAAction === 'enable' ? "bg-primary hover:bg-primary/90" : "bg-destructive hover:bg-destructive/90"}
+                className="bg-destructive hover:bg-destructive/90"
               >
-                Yes, {current2FAAction} 2FA
+                Yes, disable 2FA & Unlock
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -559,3 +565,4 @@ const InfoItem: React.FC<InfoItemProps> = ({ icon, label, value, isLink }) => (
         </div>
     </div>
 );
+

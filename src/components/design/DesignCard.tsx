@@ -5,7 +5,7 @@ import type { Design } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { IndianRupee, Filter, Code2, Heart, CheckCircle } from 'lucide-react'; // Added CheckCircle
+import { IndianRupee, Filter, Code2, Heart, BadgeCheck } from 'lucide-react';
 import { useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import LikeButton from './LikeButton';
@@ -132,7 +132,7 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
           <span className="text-xs text-muted-foreground flex items-center">
             {design.designer.name}
             {design.designer.isVerified && (
-              <CheckCircle className="ml-1 h-3.5 w-3.5 text-blue-500 fill-blue-500" />
+              <BadgeCheck className="ml-1 h-3.5 w-3.5 text-blue-500 fill-blue-500" />
             )}
           </span>
         </div>
@@ -148,4 +148,3 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
 };
 
 export default DesignCard;
-

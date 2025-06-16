@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { FileText, MessageSquare, PlusCircle, Info, Users, CalendarDays, Eye, Tag, ShieldAlert, LogIn, ArrowLeft, BadgeCheck, CheckCircle } from 'lucide-react';
+import { FileText, MessageSquare, PlusCircle, Info, Users, CalendarDays, Eye, Tag, ShieldAlert, LogIn, ArrowLeft, BadgeCheck } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
@@ -75,11 +75,11 @@ export default function CategoryPage() {
     if (category.slug === 'announcements') {
       return null;
     }
-    
+
     if (user) {
       return { text: "Create New Topic", disabled: false, href: baseHref, icon: <PlusCircle className="mr-2 h-5 w-5" /> };
     }
-    
+
     const redirectUrl = `/community/category/${slug}`;
     return { text: "Login to Create Topic", disabled: false, href: `/auth/login?redirect=${encodeURIComponent(redirectUrl)}`, icon: <LogIn className="mr-2 h-5 w-5" /> };
   };
@@ -202,7 +202,7 @@ export default function CategoryPage() {
             <ul className="space-y-4">
               {topics.map((topic) => {
                 const isAuthorAdmin = topic.createdByUserId.startsWith('admin-');
-                const authorDisplayName = topic.authorName; 
+                const authorDisplayName = topic.authorName;
                 const authorDisplayAvatar = topic.authorAvatarUrl || `https://placehold.co/32x32.png?text=${getInitials(topic.authorName)}`;
                 const authorFallbackInitials = getInitials(topic.authorName);
 
@@ -226,7 +226,7 @@ export default function CategoryPage() {
                               </Avatar>
                               <span>{authorDisplayName}</span>
                               {isAuthorAdmin && <BadgeCheck className="h-3.5 w-3.5 text-primary ml-1" />}
-                              {!isAuthorAdmin && topic.authorIsVerified && <CheckCircle className="ml-1.5 h-3.5 w-3.5 text-blue-500 fill-blue-500" />}
+                              {!isAuthorAdmin && topic.authorIsVerified && <BadgeCheck className="ml-1.5 h-3.5 w-3.5 text-blue-500 fill-blue-500" />}
                           </div>
                           <div className="flex items-center">
                               <CalendarDays className="h-3.5 w-3.5 mr-1" />

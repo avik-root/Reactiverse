@@ -1,7 +1,7 @@
 
 
 // src/app/community/topic/[topicId]/page.tsx
-'use client'; 
+'use client';
 
 import type { ForumTopic, ForumPost, AdminDeletePostResult } from '@/lib/types';
 import { getTopicDetailsAction, adminDeleteForumPostAction } from '@/lib/actions';
@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { MessageCircle, Info, CalendarDays, User as UserIcon, ArrowLeft, BadgeCheck, Loader2, Trash2, CheckCircle } from 'lucide-react';
+import { MessageCircle, Info, CalendarDays, User as UserIcon, ArrowLeft, BadgeCheck, Loader2, Trash2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 import { useParams, useSearchParams } from 'next/navigation';
@@ -31,7 +31,7 @@ const getInitials = (name?: string) => {
 
 export default function TopicPage() {
   const params = useParams();
-  const searchParamsHook = useSearchParams(); 
+  const searchParamsHook = useSearchParams();
   const { toast } = useToast();
 
   const topicId = typeof params.topicId === 'string' ? params.topicId : null;
@@ -183,7 +183,7 @@ export default function TopicPage() {
               </Avatar>
               <span>{topicAuthorDisplayName}</span>
               {isTopicAuthorAdmin && <BadgeCheck className="h-4 w-4 text-primary ml-1" />}
-              {!isTopicAuthorAdmin && topic.authorIsVerified && <CheckCircle className="ml-1.5 h-4 w-4 text-blue-500 fill-blue-500" />}
+              {!isTopicAuthorAdmin && topic.authorIsVerified && <BadgeCheck className="ml-1.5 h-4 w-4 text-blue-500 fill-blue-500" />}
             </div>
             <div className="flex items-center">
               <CalendarDays className="h-4 w-4 mr-1.5" />
@@ -225,7 +225,7 @@ export default function TopicPage() {
                               <span className="font-medium text-sm flex items-center">
                                 {postAuthorDisplayName}
                                 {isPostAuthorAdmin && <BadgeCheck className="h-4 w-4 text-primary ml-1.5" />}
-                                {!isPostAuthorAdmin && post.authorIsVerified && <CheckCircle className="ml-1.5 h-4 w-4 text-blue-500 fill-blue-500" />}
+                                {!isPostAuthorAdmin && post.authorIsVerified && <BadgeCheck className="ml-1.5 h-4 w-4 text-blue-500 fill-blue-500" />}
                               </span>
                           </div>
                           <div className="flex items-center gap-2">
@@ -255,7 +255,7 @@ export default function TopicPage() {
             })}
           </ul>
         ) : (
-          !currentUser && ( 
+          !currentUser && (
             <Alert>
                 <Info className="h-4 w-4" />
                 <AlertTitle>No Replies Yet</AlertTitle>
@@ -274,7 +274,7 @@ export default function TopicPage() {
             topicId={topicId}
             categorySlug={categorySlug}
             userId={currentUser.id}
-            userName={currentUser.name || 'User'} // For actual user replies
+            userName={currentUser.name || 'User'}
             userAvatarUrl={currentUser.avatarUrl}
             onPostCreated={handlePostCreated}
           />
@@ -305,8 +305,8 @@ export default function TopicPage() {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel onClick={() => { setIsDeleteAlertOpen(false); setPostToDelete(null); }}>Cancel</AlertDialogCancel>
-              <AlertDialogAction 
-                onClick={handleConfirmDeletePost} 
+              <AlertDialogAction
+                onClick={handleConfirmDeletePost}
                 className="bg-destructive hover:bg-destructive/90"
               >
                 Yes, delete post

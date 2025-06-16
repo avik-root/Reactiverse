@@ -4,7 +4,7 @@
 import type { User } from '@/lib/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { AtSign, Github, Linkedin, Mail, Palette, Phone, User as UserIcon, Eye, EyeOff, Star, CheckCircle } from 'lucide-react';
+import { AtSign, Github, Linkedin, Mail, Palette, Phone, User as UserIcon, Eye, EyeOff, Star, BadgeCheck } from 'lucide-react';
 import FigmaIcon from '@/components/icons/FigmaIcon';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,7 @@ interface DesignerStats extends User {
 }
 
 interface DesignerDetailDialogProps {
-  user: DesignerStats; // Updated to use DesignerStats
+  user: DesignerStats;
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
 }
@@ -32,7 +32,7 @@ const InfoItem: React.FC<{ icon: React.ReactNode; label: string; value: string |
   if (privacy && !isPublic && displayValue !== 'N/A') {
     displayValue = "Private";
   }
-  
+
   return (
     <div className="flex items-start py-1.5 border-b border-border/50 last:border-b-0">
         <span className="text-primary mr-3 mt-1 shrink-0">{icon}</span>
@@ -80,14 +80,14 @@ const DesignerDetailDialog: React.FC<DesignerDetailDialogProps> = ({ user, isOpe
           </Avatar>
           <DialogTitle className="text-3xl font-headline text-primary flex items-center">
             {user.name}
-            {user.isVerified && <CheckCircle className="ml-2 h-6 w-6 text-blue-500 fill-blue-500" />}
+            {user.isVerified && <BadgeCheck className="ml-2 h-6 w-6 text-blue-500 fill-blue-500" />}
           </DialogTitle>
           <DialogDescription className="text-accent font-medium flex items-center justify-center">
             <AtSign className="h-5 w-5 mr-1" />
             {user.username.startsWith('@') ? user.username.substring(1) : user.username}
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="py-4 space-y-2 border-t mt-4">
           <div className="grid grid-cols-2 gap-x-4 gap-y-1 mb-3">
             <Link href={`/?designerId=${user.id}#all-designs-section`} passHref>
@@ -120,7 +120,7 @@ const DesignerDetailDialog: React.FC<DesignerDetailDialogProps> = ({ user, isOpe
               onCopy={user.isPhonePublic ? () => handleCopyContact(user.phone!, 'Phone') : undefined}
             />
           )}
-          
+
           <div className="pt-3">
             <h4 className="text-sm font-semibold mb-1.5 text-primary">Social & Professional Links:</h4>
             {user.githubUrl ? (

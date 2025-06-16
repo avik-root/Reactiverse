@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import type { User } from '@/lib/types';
@@ -153,4 +152,3 @@ const DesignerDetailDialog: React.FC<DesignerDetailDialogProps> = ({ user, isOpe
 };
 
 export default DesignerDetailDialog;
-

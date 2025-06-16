@@ -11,7 +11,8 @@ import type { Design } from '@/lib/types';
 import { getAllDesignsAction } from '@/lib/actions';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import Image from 'next/image';
+// Removed Image import as it's replaced by iframe for preview
+// import Image from 'next/image';
 
 interface DashboardActionCardProps {
   title: string;
@@ -162,29 +163,67 @@ export default function UserDashboardPage() {
             <CardDescription>A quick look at your designs that are getting the most love from the community.</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {mostLikedDesigns.map(design => (
-              <Card key={design.id} className="flex flex-col overflow-hidden hover:shadow-md transition-shadow">
-                <div className="relative aspect-video bg-muted/30 flex items-center justify-center">
-                   <Image src={`https://placehold.co/300x150.png?text=${encodeURIComponent(design.title.substring(0,15))}`} alt={design.title} layout="fill" objectFit="cover" data-ai-hint="design abstract"/>
-                </div>
-                <CardHeader className="pb-2 pt-3">
-                  <CardTitle className="text-lg font-semibold truncate" title={design.title}>{design.title}</CardTitle>
-                </CardHeader>
-                <CardContent className="flex-grow py-0">
-                  <p className="text-xs text-muted-foreground line-clamp-2">{design.description}</p>
-                </CardContent>
-                <CardFooter className="pt-3 pb-3 text-xs justify-between">
-                  <div className="flex items-center text-muted-foreground">
-                    <Heart className="h-3.5 w-3.5 mr-1 text-red-500 fill-red-500" /> {design.likedBy?.length || 0} Likes
+            {mostLikedDesigns.map(design => {
+              const previewSrcDoc = useMemo(() => {
+                if (!design.codeBlocks || design.codeBlocks.length === 0) return null;
+                const htmlBlock = design.codeBlocks.find(block => block.language.toLowerCase() === 'html');
+                if (!htmlBlock) return null;
+                const cssBlocks = design.codeBlocks.filter(block =>
+                  block.language.toLowerCase() === 'css' ||
+                  block.language.toLowerCase() === 'scss' ||
+                  block.language.toLowerCase() === 'tailwind css'
+                );
+                const htmlContent = htmlBlock.code;
+                const cssContent = cssBlocks.map(block => block.code).join('\\n');
+                return `
+                  <html>
+                    <head>
+                      <style>
+                        body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; background-color: transparent; }
+                        ${cssContent}
+                      </style>
+                    </head>
+                    <body>${htmlContent}</body>
+                  </html>
+                `;
+              }, [design.codeBlocks]);
+
+              return (
+                <Card key={design.id} className="flex flex-col overflow-hidden hover:shadow-md transition-shadow">
+                  <div className="relative aspect-video bg-muted/30 flex items-center justify-center overflow-hidden">
+                    {previewSrcDoc ? (
+                      <div className="w-full h-full transform scale-[0.35] origin-center flex items-center justify-center pointer-events-none">
+                        <iframe
+                          srcDoc={previewSrcDoc}
+                          title={`${design.title} card preview`}
+                          sandbox="allow-same-origin"
+                          className="w-[calc(100%/0.35)] h-[calc(100%/0.35)] border-0 overflow-hidden bg-transparent"
+                          scrolling="no"
+                        />
+                      </div>
+                    ) : (
+                      <Palette className="h-16 w-16 text-primary/70" />
+                    )}
                   </div>
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href={`/dashboard/designs/edit/${design.id}`}>
-                        <Eye className="mr-1 h-3 w-3"/> View/Edit
-                    </Link>
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
+                  <CardHeader className="pb-2 pt-3">
+                    <CardTitle className="text-lg font-semibold truncate" title={design.title}>{design.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex-grow py-0">
+                    <p className="text-xs text-muted-foreground line-clamp-2">{design.description}</p>
+                  </CardContent>
+                  <CardFooter className="pt-3 pb-3 text-xs justify-between">
+                    <div className="flex items-center text-muted-foreground">
+                      <Heart className="h-3.5 w-3.5 mr-1 text-red-500 fill-red-500" /> {design.likedBy?.length || 0} Likes
+                    </div>
+                    <Button variant="outline" size="sm" asChild>
+                      <Link href={`/dashboard/designs/edit/${design.id}`}>
+                          <Eye className="mr-1 h-3 w-3"/> View/Edit
+                      </Link>
+                    </Button>
+                  </CardFooter>
+                </Card>
+              );
+            })}
           </CardContent>
         </Card>
       )}
@@ -207,4 +246,3 @@ export default function UserDashboardPage() {
     </div>
   );
 }
-

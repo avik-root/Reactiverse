@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { getTopicDetailsAction } from '@/lib/actions';
+import { getTopicDetailsAction, getCategoryBySlugAction } from '@/lib/actions';
 import type { ForumTopic } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -50,7 +50,8 @@ export default function EditAdminAnnouncementPage() {
       try {
         const fetchedTopic = await getTopicDetailsAction(topicId, ANNOUNCEMENTS_CATEGORY_SLUG);
         if (fetchedTopic) {
-            if (fetchedTopic.categoryId !== (await getCategoryBySlugAction(ANNOUNCEMENTS_CATEGORY_SLUG))?.id) {
+            const announcementCategory = await getCategoryBySlugAction(ANNOUNCEMENTS_CATEGORY_SLUG);
+            if (fetchedTopic.categoryId !== announcementCategory?.id) {
                  setError("This topic does not belong to the Announcements category.");
                  setTopic(null);
             } else {

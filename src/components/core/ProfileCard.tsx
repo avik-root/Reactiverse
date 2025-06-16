@@ -3,8 +3,7 @@
 
 import React, { useEffect, useRef, useCallback, useMemo } from "react";
 import "./ProfileCard.css";
-import { Badge } from "@/components/ui/badge";
-import { Crown, Trophy, Medal, Star } from "lucide-react";
+// Removed Badge import as we'll use a div for more control over rank display
 import { cn } from "@/lib/utils";
 
 interface ProfileCardProps {
@@ -62,26 +61,26 @@ const easeInOutCubic = (x: number): number =>
 const RankingBadgeDisplay: React.FC<{ rank?: number }> = ({ rank }) => {
   if (!rank || rank === 0 || rank > 10) return null;
 
-  // Base classes for the badge itself (padding, border radius, etc.)
-  // Color and specific text styles will be added based on rank
-  let badgeBaseClasses = "pc-rank-badge text-sm px-2.5 py-1 font-bold border";
+  // Using a div for more control over styling instead of ShadCN Badge
+  // Base classes for positioning and common styles
+  let badgeBaseClasses = "pc-rank-badge text-base px-3 py-1.5 font-bold border rounded-md"; // Adjusted size and padding
   let colorClasses = "";
   let rankText = `#${rank}`;
 
   if (rank === 1) {
-    colorClasses = "bg-yellow-400/20 text-yellow-700 border-yellow-500/50";
+    colorClasses = "bg-yellow-500/20 text-yellow-700 border-yellow-600/60 shadow-md shadow-yellow-500/30";
   } else if (rank === 2) {
-    colorClasses = "bg-slate-400/20 text-slate-700 border-slate-500/50";
+    colorClasses = "bg-slate-400/20 text-slate-700 border-slate-500/60 shadow-md shadow-slate-500/30";
   } else if (rank === 3) {
-    colorClasses = "bg-orange-400/20 text-orange-700 border-orange-500/50";
+    colorClasses = "bg-orange-400/20 text-orange-600 border-orange-500/60 shadow-md shadow-orange-500/30";
   } else { // Ranks 4-10
-    colorClasses = "bg-sky-400/20 text-sky-700 border-sky-500/50";
+    colorClasses = "bg-sky-400/20 text-sky-700 border-sky-500/60 shadow-sm shadow-sky-500/20";
   }
 
   return (
-    <Badge className={cn(badgeBaseClasses, colorClasses)}>
+    <div className={cn(badgeBaseClasses, colorClasses)}>
       {rankText}
-    </Badge>
+    </div>
   );
 };
 

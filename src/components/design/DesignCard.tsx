@@ -5,10 +5,10 @@ import type { Design } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { IndianRupee, Filter, Code2, Heart } from 'lucide-react'; 
+import { IndianRupee, Filter, Code2, Heart, CheckCircle } from 'lucide-react'; // Added CheckCircle
 import { useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import LikeButton from './LikeButton'; // Import LikeButton
+import LikeButton from './LikeButton';
 
 interface DesignCardProps {
   design: Design;
@@ -19,7 +19,7 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
   const { user: currentUser } = useAuth();
 
   const getInitials = (name?: string) => {
-    if (!name) return 'D'; 
+    if (!name) return 'D';
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
   }
 
@@ -35,10 +35,10 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
     }
     const htmlBlock = design.codeBlocks.find(block => block.language.toLowerCase() === 'html');
     if (!htmlBlock) {
-      return null; 
+      return null;
     }
-    const cssBlocks = design.codeBlocks.filter(block => 
-      block.language.toLowerCase() === 'css' || 
+    const cssBlocks = design.codeBlocks.filter(block =>
+      block.language.toLowerCase() === 'css' ||
       block.language.toLowerCase() === 'scss' ||
       block.language.toLowerCase() === 'tailwind css'
     );
@@ -48,13 +48,13 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
       <html>
         <head>
           <style>
-            body { 
-              margin: 0; 
-              display: flex; 
-              justify-content: center; 
-              align-items: center; 
-              height: 100vh; 
-              overflow: hidden; 
+            body {
+              margin: 0;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              height: 100vh;
+              overflow: hidden;
               background-color: transparent;
             }
             ${cssContent}
@@ -68,10 +68,10 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
   }, [design.codeBlocks]);
 
   return (
-    <Card 
+    <Card
       className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 ease-in-out h-full flex flex-col rounded-lg"
     >
-      <CardHeader 
+      <CardHeader
         className="p-0 relative bg-muted/30 flex items-center justify-center aspect-[16/9] min-h-[150px] overflow-hidden cursor-pointer"
         onClick={() => onOpenDetail(design)}
         role="button"
@@ -89,7 +89,7 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
               scrolling="no"
             />
           </div>
-        ) : ( 
+        ) : (
           <Code2 className="h-16 w-16 text-primary/70" />
         )}
         {isPriced ? (
@@ -103,7 +103,7 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
           </Badge>
         )}
       </CardHeader>
-      <CardContent 
+      <CardContent
         className="p-4 flex-grow cursor-pointer"
         onClick={() => onOpenDetail(design)}
         role="button"
@@ -129,14 +129,18 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
             <AvatarImage src={design.designer.avatarUrl || `https://placehold.co/40x40.png?text=${getInitials(design.designer.name)}`} alt={design.designer.name} data-ai-hint="designer avatar" />
             <AvatarFallback>{getInitials(design.designer.name)}</AvatarFallback>
           </Avatar>
-          <span className="text-xs text-muted-foreground">{design.designer.name}</span>
+          <span className="text-xs text-muted-foreground flex items-center">
+            {design.designer.name}
+            {design.designer.isVerified && (
+              <CheckCircle className="ml-1 h-3.5 w-3.5 text-blue-500 fill-blue-500" />
+            )}
+          </span>
         </div>
-        <LikeButton 
+        <LikeButton
             designId={design.id}
             initialLikeCount={initialLikeCount}
             initialIsLiked={initialIsLiked}
             currentUserId={currentUserId}
-            // onLikeToggle is optional for card view if we don't update locally, or can pass a no-op
         />
       </CardFooter>
     </Card>
@@ -144,3 +148,4 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail }) => {
 };
 
 export default DesignCard;
+

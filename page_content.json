@@ -38,8 +38,8 @@
     "emailAddress": "support@reactiverse.com",
     "forumTitle": "Community Forum",
     "forumDescription": "Ask questions and find answers in our community.",
-    "forumLinkText": "Visit Forum (Coming Soon)",
-    "forumLinkUrl": "#",
+    "forumLinkText": "Visit Support & Q/A Forum",
+    "forumLinkUrl": "/community/category/support-qa",
     "faqTitle": "Frequently Asked Questions",
     "faqs": [
       {

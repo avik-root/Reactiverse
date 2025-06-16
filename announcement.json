@@ -1,1 +1,16 @@
-[]
+[
+  {
+    "id": "topic-1750074381974",
+    "categoryId": "cat-005",
+    "title": "Under Maintenance ",
+    "content": "This site is under maintenance till 21th June 2025",
+    "createdByUserId": "admin-1749930797589",
+    "authorName": "Aviksha",
+    "authorAvatarUrl": "https://placehold.co/100x100.png?text=A",
+    "createdAt": "2025-06-16T11:46:21.974Z",
+    "lastRepliedAt": "2025-06-16T11:46:21.974Z",
+    "viewCount": 0,
+    "replyCount": 0,
+    "posts": []
+  }
+]

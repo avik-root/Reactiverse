@@ -19,7 +19,8 @@ export default function NewTopicPage() {
   const router = useRouter();
   const { user, isAdmin, isLoading: authIsLoading } = useAuth();
 
-  const slug = typeof params.slug === 'string' ? params.slug : null;
+  const slugFromParams = typeof params.slug === 'string' ? params.slug : null;
+  const slug = slugFromParams ? slugFromParams.toLowerCase() : null; // Convert to lowercase
 
   const [category, setCategory] = useState<ForumCategory | null>(null);
   const [isLoadingPageData, setIsLoadingPageData] = useState(true);
@@ -41,7 +42,7 @@ export default function NewTopicPage() {
       setError(null);
 
       try {
-        const fetchedCategory = await getCategoryBySlugAction(slug);
+        const fetchedCategory = await getCategoryBySlugAction(slug); // Use lowercase slug
         if (fetchedCategory) {
           setCategory(fetchedCategory);
           // Authorization check
@@ -134,7 +135,7 @@ export default function NewTopicPage() {
         <CardContent>
           <CreateTopicForm
             categoryId={category.id}
-            categorySlug={category.slug}
+            categorySlug={category.slug} // Original slug (lowercase) from fetchedCategory
             userId={user.id}
             userName={user.name || 'Anonymous User'}
             userAvatarUrl={user.avatarUrl}
@@ -144,4 +145,3 @@ export default function NewTopicPage() {
     </div>
   );
 }
-```

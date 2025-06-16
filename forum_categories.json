@@ -1,4 +1,3 @@
-
 [
   {
     "id": "cat-001",
@@ -15,10 +14,10 @@
     "description": "Stay updated with the latest news and announcements from the Reactiverse team.",
     "iconName": "Megaphone",
     "slug": "announcements",
-    "topicCount": 0,
+    "topicCount": 1,
     "postCount": 0
   },
-   {
+  {
     "id": "cat-006",
     "name": "Support & Q/A",
     "description": "Got questions about using Reactiverse? Find answers and support.",
@@ -28,4 +27,3 @@
     "postCount": 0
   }
 ]
-

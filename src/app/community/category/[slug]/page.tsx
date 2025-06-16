@@ -29,7 +29,8 @@ const getInitials = (name?: string) => {
 
 export default function CategoryPage() {
   const params = useParams();
-  const slug = typeof params.slug === 'string' ? params.slug : null;
+  const slugFromParams = typeof params.slug === 'string' ? params.slug : null;
+  const slug = slugFromParams ? slugFromParams.toLowerCase() : null; // Convert to lowercase
 
   const { user, isAdmin, isLoading: authIsLoading } = useAuth();
   const [category, setCategory] = useState<ForumCategory | null>(null);
@@ -47,7 +48,7 @@ export default function CategoryPage() {
       setIsLoadingPageData(true);
       setError(null);
       try {
-        const fetchedCategory = await getCategoryBySlugAction(slug);
+        const fetchedCategory = await getCategoryBySlugAction(slug); // Use lowercase slug
         if (fetchedCategory) {
           setCategory(fetchedCategory);
           const fetchedTopics = await getTopicsByCategoryIdAction(fetchedCategory.id);
@@ -65,12 +66,19 @@ export default function CategoryPage() {
   }, [slug]);
 
   const getCreateTopicButtonInfo = () => {
-    if (!category || !slug || category.slug === 'announcements') return null; // Do not show button for announcements
+    if (!category || !slug) return null; 
 
     const baseHref = `/community/category/${slug}/new-topic`;
 
+    if (category.slug === 'announcements') {
+      if (isAdmin) {
+        return { text: "Create New Announcement", disabled: false, href: `/admin/forum/announcements/create`, icon: <PlusCircle className="mr-2 h-5 w-5" />};
+      }
+      return null; // Don't show button for announcements to non-admins
+    }
+    
     if (user) {
-      return { text: "Create New Topic", disabled: false, href: baseHref };
+      return { text: "Create New Topic", disabled: false, href: baseHref, icon: <PlusCircle className="mr-2 h-5 w-5" /> };
     }
     
     const redirectUrl = `/community/category/${slug}`;

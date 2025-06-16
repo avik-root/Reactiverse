@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { getPageContentAction } from '@/lib/actions';
 import type { AboutUsContent, TeamMembersContent, TeamMember } from '@/lib/types';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+
 
 interface FeatureCardProps {
   icon: React.ReactNode;
@@ -39,14 +39,16 @@ interface TeamMemberDisplayCardProps {
 function TeamMemberDisplayCard({ member }: TeamMemberDisplayCardProps) {
   return (
     <Card className="flex flex-col items-center text-center p-6 shadow-lg hover:shadow-xl transition-shadow w-full max-w-md mx-auto">
-      <Avatar className="w-32 h-32 mb-4 border-4 border-primary">
-        <AvatarImage
-          key={member.imageUrl} 
-          src={member.imageUrl || `https://placehold.co/128x128.png?text=${getInitials(member.name)}`} 
-          alt={member.imageAlt || member.name} 
-          data-ai-hint={member.imageDataAiHint || "profile photo"} />
-        <AvatarFallback className="text-4xl">{getInitials(member.name)}</AvatarFallback>
-      </Avatar>
+      <div className="relative w-32 h-32 mb-4 border-4 border-primary rounded-md overflow-hidden shadow-md">
+        <Image
+          key={member.imageUrl}
+          src={member.imageUrl || `https://placehold.co/128x128.png?text=${getInitials(member.name)}`}
+          alt={member.imageAlt || member.name}
+          layout="fill"
+          objectFit="cover"
+          data-ai-hint={member.imageDataAiHint || "profile photo"}
+        />
+      </div>
       <CardTitle className="text-2xl font-headline text-primary mb-1">{member.name}</CardTitle>
       <p className="text-md text-accent font-semibold mb-3">{member.title}</p>
       <CardDescription className="text-sm text-muted-foreground mb-4 whitespace-pre-line text-left max-h-48 overflow-y-auto">
@@ -166,3 +168,4 @@ export default async function AboutUsPage() {
     </div>
   );
 }
+

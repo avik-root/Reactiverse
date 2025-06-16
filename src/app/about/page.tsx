@@ -40,7 +40,11 @@ function TeamMemberDisplayCard({ member }: TeamMemberDisplayCardProps) {
   return (
     <Card className="flex flex-col items-center text-center p-6 shadow-lg hover:shadow-xl transition-shadow w-full max-w-md mx-auto">
       <Avatar className="w-32 h-32 mb-4 border-4 border-primary">
-        <AvatarImage src={member.imageUrl || `https://placehold.co/128x128.png?text=${getInitials(member.name)}`} alt={member.imageAlt || member.name} data-ai-hint={member.imageDataAiHint || "profile photo"} />
+        <AvatarImage
+          key={member.imageUrl} 
+          src={member.imageUrl || `https://placehold.co/128x128.png?text=${getInitials(member.name)}`} 
+          alt={member.imageAlt || member.name} 
+          data-ai-hint={member.imageDataAiHint || "profile photo"} />
         <AvatarFallback className="text-4xl">{getInitials(member.name)}</AvatarFallback>
       </Avatar>
       <CardTitle className="text-2xl font-headline text-primary mb-1">{member.name}</CardTitle>

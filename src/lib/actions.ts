@@ -39,6 +39,7 @@ import {
   getSupportForumData,
   saveSupportForumData,
   addForumTopicToFile as addForumTopicToServerFile, // Renamed to avoid conflict
+  deleteTopic as deleteTopicFromServerData,
 } from './server-data';
 import type {
   AdminUser,
@@ -78,6 +79,7 @@ import type {
   ForumTopic,
   CreateTopicFormState,
   ForumPost,
+  AdminDeleteTopicResult,
 } from './types';
 import { revalidatePath } from 'next/cache';
 import { hashPassword, comparePassword, hashPin, comparePin } from './auth-utils';
@@ -2008,23 +2010,30 @@ export async function getTopicsByCategoryIdAction(categoryId: string): Promise<F
 
 export async function getTopicDetailsAction(topicId: string, categorySlug?: string): Promise<ForumTopic | undefined> {
   let topics: ForumTopic[] = [];
-  if (!categorySlug) { // Attempt to find topic across all known types if slug not provided
-      const allTopics = [
-          ...(await getUsersForumData()),
-          ...(await getAnnouncementsData()),
-          ...(await getSupportForumData())
-      ];
-      const topic = allTopics.find(t => t.id === topicId);
-      if (topic) return topic; // Found topic, now need to determine its category slug or return without it
-      // If found, we could try to reverse-map categoryId to slug for consistency, or decide if slug is always needed.
-      // For now, if slug is not provided and topic is found, it will be returned.
-      // If not found, it will fall through to return undefined.
-      console.warn(`getTopicDetailsAction called without categorySlug for topicId: ${topicId}. Searching all sources.`);
-      return topic; // Return topic if found, or undefined
+  let slugToUse = categorySlug;
+
+  if (!slugToUse) {
+    const allKnownTopics = [
+        ...(await getUsersForumData()),
+        ...(await getAnnouncementsData()),
+        ...(await getSupportForumData())
+    ];
+    const topic = allKnownTopics.find(t => t.id === topicId);
+    if (topic) {
+        const category = (await getForumCategoriesFromFile()).find(c => c.id === topic.categoryId);
+        slugToUse = category?.slug;
+    } else {
+        console.warn(`getTopicDetailsAction: Topic with ID ${topicId} not found across all categories.`);
+        return undefined;
+    }
+  }
+  if (!slugToUse) {
+      console.warn(`getTopicDetailsAction: Could not determine category slug for topic ID ${topicId}.`);
+      return undefined;
   }
 
   try {
-    switch (categorySlug) {
+    switch (slugToUse) {
       case 'general-discussion':
         topics = await getUsersForumData();
         break;
@@ -2035,14 +2044,13 @@ export async function getTopicDetailsAction(topicId: string, categorySlug?: stri
         topics = await getSupportForumData();
         break;
       default:
-        console.warn(`Unknown category slug for fetching topic details: ${categorySlug}`);
+        console.warn(`Unknown category slug for fetching topic details: ${slugToUse}`);
         return undefined;
     }
     const topic = topics.find(t => t.id === topicId);
-    // Posts are embedded, so they are part of the topic object itself.
     return topic;
   } catch (error) {
-    console.error(`Error fetching topic details for ID "${topicId}" in category "${categorySlug}":`, error);
+    console.error(`Error fetching topic details for ID "${topicId}" in category "${slugToUse}":`, error);
     return undefined;
   }
 }
@@ -2141,7 +2149,7 @@ export async function createForumTopicAction(
     if (category.slug === 'announcements') {
         const adminUsers = await getAdminUsers();
         const userIsAdmin = adminUsers.some(admin => admin.id === userId);
-        if(!userIsAdmin) { // Check if the user ID matches an admin ID
+        if(!userIsAdmin) { 
              return { message: 'You are not authorized to post in Announcements.', success: false, errors: { general: ['Authorization failed.'] } };
         }
     }
@@ -2158,11 +2166,11 @@ export async function createForumTopicAction(
         lastRepliedAt: new Date().toISOString(),
         viewCount: 0,
         replyCount: 0,
-        posts: [], // Initialize with an empty array for posts
+        posts: [], 
     };
 
     try {
-        await addForumTopicToServerFile(newTopic, category.slug); // Use the correct server-data function
+        await addForumTopicToServerFile(newTopic, category.slug); 
 
         category.topicCount = (category.topicCount || 0) + 1;
         await saveForumCategoriesToFile(categories);
@@ -2190,3 +2198,29 @@ export async function getUserByIdAction(userId: string): Promise<User | null> {
     }
 }
 
+export async function adminDeleteTopicAction(topicId: string, categorySlug: string): Promise<AdminDeleteTopicResult> {
+  const adminToken = cookies().get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
+  if (!adminToken) {
+    return { success: false, message: "Admin authorization failed." };
+  }
+
+  if (!topicId || !categorySlug) {
+    return { success: false, message: 'Topic ID and Category Slug are required.' };
+  }
+
+  try {
+    const result = await deleteTopicFromServerData(topicId, categorySlug);
+    if (!result.success) {
+      return { success: false, message: 'Topic not found or already deleted.' };
+    }
+
+    revalidatePath(`/admin/forum/${categorySlug}`);
+    revalidatePath(`/community/category/${categorySlug}`);
+    revalidatePath('/community');
+
+    return { success: true, message: 'Topic deleted successfully.' };
+  } catch (error) {
+    console.error('Error deleting topic via admin action:', error);
+    return { success: false, message: 'Failed to delete topic due to a server error.' };
+  }
+}

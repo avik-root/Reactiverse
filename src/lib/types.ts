@@ -331,7 +331,7 @@ export type AddForumCategoryFormState = {
 
 export interface ForumPost {
   id: string;
-  topicId: string; // Parent topic ID
+  topicId: string; 
   content: string;
   createdByUserId: string;
   authorName: string;
@@ -341,9 +341,9 @@ export interface ForumPost {
 
 export interface ForumTopic {
   id: string;
-  categoryId: string; // This might map to a category slug or ID
+  categoryId: string; 
   title: string;
-  content: string; // Initial post content
+  content: string; 
   createdByUserId: string;
   authorName: string;
   authorAvatarUrl?: string;
@@ -351,7 +351,7 @@ export interface ForumTopic {
   lastRepliedAt: string;
   viewCount: number;
   replyCount: number;
-  posts?: ForumPost[]; // Embed posts directly
+  posts?: ForumPost[]; 
 }
 
 
@@ -378,5 +378,10 @@ export type CreateTopicFormState = {
     general?: string[];
   };
   newTopicId?: string | null;
+};
+
+export type AdminDeleteTopicResult = {
+  success: boolean;
+  message: string;
 };
 

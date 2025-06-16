@@ -699,6 +699,59 @@ export async function saveForumPostsToFile(posts: ForumPost[]): Promise<void> {
     console.warn("saveForumPostsToFile is deprecated as posts are now embedded in topics.");
     await writeJsonFile<ForumPost[]>(DEPRECATED_FORUM_POSTS_FILE_PATH, posts);
 }
+
+export async function deleteTopic(topicId: string, categorySlug: string): Promise<{ success: boolean; postsDeleted: number }> {
+  let topics: ForumTopic[];
+  let saveFunction: (topics: ForumTopic[]) => Promise<void>;
+  let filePath: string;
+
+  switch (categorySlug) {
+    case 'general-discussion':
+      filePath = USERS_FORUM_FILE_PATH;
+      topics = await getUsersForumData();
+      saveFunction = saveUsersForumData;
+      break;
+    case 'announcements':
+      filePath = ANNOUNCEMENT_FILE_PATH;
+      topics = await getAnnouncementsData();
+      saveFunction = saveAnnouncementsData;
+      break;
+    case 'support-qa':
+      filePath = SUPPORT_FORUM_FILE_PATH;
+      topics = await getSupportForumData();
+      saveFunction = saveSupportForumData;
+      break;
+    default:
+      console.error(`Unknown category slug for deleting topic: ${categorySlug}`);
+      return { success: false, postsDeleted: 0 };
+  }
+
+  const topicIndex = topics.findIndex(t => t.id === topicId);
+  if (topicIndex === -1) {
+    return { success: false, postsDeleted: 0 }; // Topic not found
+  }
+
+  const deletedTopic = topics[topicIndex];
+  const postsDeleted = deletedTopic.posts?.length || 0;
+
+  topics.splice(topicIndex, 1); // Remove the topic
+  await saveFunction(topics); // Save the updated list of topics
+
+  // Update category counts
+  const categories = await getForumCategoriesFromFile();
+  const categoryIndex = categories.findIndex(c => c.slug === categorySlug);
+  if (categoryIndex !== -1) {
+    categories[categoryIndex].topicCount = (categories[categoryIndex].topicCount || 1) - 1;
+    categories[categoryIndex].postCount = (categories[categoryIndex].postCount || postsDeleted) - postsDeleted;
+    if (categories[categoryIndex].topicCount! < 0) categories[categoryIndex].topicCount = 0;
+    if (categories[categoryIndex].postCount! < 0) categories[categoryIndex].postCount = 0;
+    await saveForumCategoriesToFile(categories);
+  }
+
+  return { success: true, postsDeleted };
+}
+
+
 // --- End New Forum Data Functions ---
 
 

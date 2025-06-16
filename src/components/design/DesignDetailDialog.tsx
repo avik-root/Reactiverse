@@ -7,7 +7,7 @@ import CodeBlock from './CodeBlock';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { IndianRupee, Filter, Code2, Eye, Info, ThumbsUp, Heart } from 'lucide-react';
-import SealCheckIcon from '@/components/icons/SealCheckIcon'; // Import the SealCheckIcon
+import SealCheckIcon from '@/components/icons/SealCheckIcon';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -22,16 +22,11 @@ interface DesignDetailDialogProps {
 
 const DesignDetailDialog: React.FC<DesignDetailDialogProps> = ({ design: initialDesignProp, isOpen, onOpenChange }) => {
   const { user: currentUser } = useAuth();
-  // Use internal state for the design to manage likes locally while dialog is open
   const [internalDesign, setInternalDesign] = useState<Design | null>(initialDesignProp);
-
-  // Ref to track if the dialog was previously open to handle re-initialization correctly
   const wasOpenRef = useRef(isOpen);
 
   useEffect(() => {
     if (isOpen) {
-      // If dialog is opening or if the initialDesignProp's ID has changed
-      // (meaning a new design is being passed in), update internalDesign.
       if (!wasOpenRef.current || (initialDesignProp && initialDesignProp.id !== internalDesign?.id)) {
         setInternalDesign(initialDesignProp);
       }
@@ -50,7 +45,6 @@ const DesignDetailDialog: React.FC<DesignDetailDialogProps> = ({ design: initial
   const isPriced = internalDesign.price && internalDesign.price > 0;
   const currentUserId = currentUser && 'id' in currentUser ? currentUser.id : undefined;
   
-  // Derive these from internalDesign, which is updated by handleLikeChange
   const initialIsLiked = currentUserId ? internalDesign.likedBy.includes(currentUserId) : false;
   const initialLikeCount = internalDesign.likedBy.length;
 
@@ -71,8 +65,6 @@ const DesignDetailDialog: React.FC<DesignDetailDialogProps> = ({ design: initial
           }
         }
       }
-      // The newLikeCountFromServer can be used if we want to directly set it,
-      // but relying on updatedLikedBy.length is also fine.
       return { ...prevDesign, likedBy: updatedLikedBy };
     });
   };
@@ -145,7 +137,7 @@ const DesignDetailDialog: React.FC<DesignDetailDialogProps> = ({ design: initial
                     designId={internalDesign.id}
                     initialLikeCount={initialLikeCount}
                     initialIsLiked={initialIsLiked}
-                    onLikeToggle={handleLikeChange} // This updates internalDesign
+                    onLikeToggle={handleLikeChange}
                 />
                 {isPriced ? (
                     <Badge variant="secondary">
@@ -237,4 +229,3 @@ const DesignDetailDialog: React.FC<DesignDetailDialogProps> = ({ design: initial
 };
 
 export default DesignDetailDialog;
-

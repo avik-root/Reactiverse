@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { IndianRupee, Filter, Code2, Heart } from 'lucide-react';
-import SealCheckIcon from '@/components/icons/SealCheckIcon'; // Import the new icon
+import SealCheckIcon from '@/components/icons/SealCheckIcon';
 import { useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import LikeButton from './LikeButton';

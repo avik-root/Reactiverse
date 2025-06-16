@@ -1,5 +1,4 @@
 
-
 // src/app/community/category/[slug]/page.tsx
 'use client';
 
@@ -10,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { FileText, MessageSquare, PlusCircle, Info, Users, CalendarDays, Eye, Tag, ShieldAlert, LogIn, ArrowLeft, BadgeCheck } from 'lucide-react';
-import SealCheckIcon from '@/components/icons/SealCheckIcon'; // Import the new icon
+import SealCheckIcon from '@/components/icons/SealCheckIcon';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
@@ -72,7 +71,6 @@ export default function CategoryPage() {
 
     const baseHref = `/community/category/${slug}/new-topic`;
 
-    // Announcements are now created from admin panel
     if (category.slug === 'announcements') {
       return null;
     }

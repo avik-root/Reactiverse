@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEffect, useState, useActionState, useCallback, startTransition, useRef } from 'react';
@@ -50,7 +49,6 @@ export default function ManageUsersPage() {
 
   const [userFor2FAManagement, setUserFor2FAManagement] = useState<User | null>(null);
   const [is2FADialogOpen, setIs2FADialogOpen] = useState(false);
-  // current2FAAction will effectively always be 'disable' when initiated by admin for another user.
   const [current2FAAction, setCurrent2FAAction] = useState<'disable' | null>(null);
 
 
@@ -173,7 +171,7 @@ export default function ManageUsersPage() {
     setIsDetailDialogOpen(true);
   };
 
-  const handleManage2FAClick = (user: User, action: 'disable') => { // Only 'disable' is now expected
+  const handleManage2FAClick = (user: User, action: 'disable') => {
     setUserFor2FAManagement(user);
     setCurrent2FAAction(action);
     setIs2FADialogOpen(true);
@@ -183,7 +181,7 @@ export default function ManageUsersPage() {
     if (userFor2FAManagement && current2FAAction === 'disable' && adminUser && 'id' in adminUser) {
       const formData = new FormData();
       formData.append('userId', userFor2FAManagement.id);
-      formData.append('enable', 'false'); // Admin can only disable for other users
+      formData.append('enable', 'false');
       formData.append('adminId', adminUser.id);
       startTransition(() => {
         set2FAFormAction(formData);
@@ -553,7 +551,7 @@ interface InfoItemProps {
 const InfoItem: React.FC<InfoItemProps> = ({ icon, label, value, isLink }) => (
     <div className="flex items-start">
         <span className="text-primary mr-3 mt-0.5 shrink-0">{icon}</span>
-        <div className="min-w-0"> {/* Ensure child text can wrap */}
+        <div className="min-w-0"> {}
             <p className="text-xs text-muted-foreground">{label}</p>
             {isLink && value !== 'N/A' ? (
                 <a href={value} target="_blank" rel="noopener noreferrer" className="font-medium text-accent hover:underline break-all">
@@ -565,5 +563,3 @@ const InfoItem: React.FC<InfoItemProps> = ({ icon, label, value, isLink }) => (
         </div>
     </div>
 );
-
-

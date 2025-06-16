@@ -1,5 +1,4 @@
 
-
 // src/app/community/topic/[topicId]/page.tsx
 'use client';
 
@@ -11,7 +10,7 @@ import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { MessageCircle, Info, CalendarDays, User as UserIcon, ArrowLeft, BadgeCheck, Loader2, Trash2 } from 'lucide-react';
-import SealCheckIcon from '@/components/icons/SealCheckIcon'; // Import the new icon
+import SealCheckIcon from '@/components/icons/SealCheckIcon';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 import { useParams, useSearchParams } from 'next/navigation';

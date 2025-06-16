@@ -6,8 +6,8 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { IndianRupee, Filter, Code2, Heart, Star, Crown, Trophy, Medal, AtSign } from 'lucide-react'; // Added AtSign
-import SealCheckIcon from '@/components/icons/SealCheckIcon'; // Import the new icon
+import { IndianRupee, Filter, Code2, Heart, Star, Crown, Trophy, Medal, AtSign } from 'lucide-react';
+import SealCheckIcon from '@/components/icons/SealCheckIcon';
 import { useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import LikeButton from '../design/LikeButton';
@@ -64,24 +64,27 @@ const DesignerCard: React.FC<DesignerCardProps> = ({ user, rank, highlightMetric
 
     switch (rank) {
       case 1:
-        icon = <Crown className="h-4 w-4 mr-1.5 text-yellow-600 fill-yellow-500" />;
+        icon = <Crown className="h-4 w-4 mr-1.5 text-yellow-500" />;
         colorClass = "bg-yellow-500/20 text-yellow-600 border-yellow-500/50";
         break;
       case 2:
-        icon = <Trophy className="h-4 w-4 mr-1.5 text-slate-600 fill-slate-500" />;
+        icon = <Trophy className="h-4 w-4 mr-1.5 text-slate-500" />;
         colorClass = "bg-slate-400/20 text-slate-600 border-slate-400/50";
         break;
       case 3:
-        icon = <Medal className="h-4 w-4 mr-1.5 text-orange-600 fill-orange-500" />;
+        icon = <Medal className="h-4 w-4 mr-1.5 text-orange-500" />;
         colorClass = "bg-orange-400/20 text-orange-600 border-orange-400/50";
         break;
       default:
         return null;
     }
 
+     const clonedIcon = React.cloneElement(icon, { className: `h-4 w-4 mr-1.5 ${rank === 1 ? 'fill-yellow-500' : rank === 2 ? 'fill-slate-500' : rank === 3 ? 'fill-orange-500' : ''} ${icon.props.className}` });
+
+
     return (
       <Badge variant="secondary" className={`absolute top-3 left-3 text-sm px-2.5 py-1 font-bold ${colorClass}`}>
-        {icon} {rankText}
+        {clonedIcon} {rankText}
       </Badge>
     );
   };

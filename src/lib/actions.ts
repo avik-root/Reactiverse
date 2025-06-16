@@ -173,8 +173,8 @@ export type UpdateDesignFormState = AddDesignFormState & {
 
 export async function loginUser(prevState: LoginFormState, formData: FormData): Promise<LoginFormState> {
   const LoginSchema = z.object({
-    identifier: z.string().min(1, { message: 'Username or email is required.' }),
-    password: z.string().min(1, { message: 'Password is required.' }),
+    identifier: z.string().min(1, { message: 'Username or email is required.' }).optional(), // Optional for PIN stage
+    password: z.string().min(1, { message: 'Password is required.' }).optional(), // Optional for PIN stage
     pin: z.string().length(6, { message: 'PIN must be 6 digits.' }).regex(/^\d{6}$/, "PIN must be 6 digits.").optional(),
     userIdForPin: z.string().optional(),
   });
@@ -191,7 +191,7 @@ export async function loginUser(prevState: LoginFormState, formData: FormData): 
   const users = await getUsersFromFile();
   let targetUser: StoredUser | undefined;
 
-  if (userIdForPin && pin) {
+  if (userIdForPin && pin) { // PIN verification stage
     targetUser = users.find(u => u.id === userIdForPin);
     if (!targetUser) {
       return { message: 'User not found for PIN verification.', errors: { general: ['An error occurred. Please try logging in again.'] } };
@@ -202,7 +202,7 @@ export async function loginUser(prevState: LoginFormState, formData: FormData): 
     }
 
     if (!targetUser.twoFactorEnabled || !targetUser.twoFactorPinHash) {
-      return { message: '2FA is not enabled for this user or PIN not set up.', errors: { general: ['2FA error. Please try logging in again.'] } };
+      return { message: '2FA is not enabled for this user or PIN not set up.', errors: { general: ['2FA error. Please try logging in again.'] }, requiresPin: true, userIdForPin: targetUser.id };
     }
 
     const pinMatches = await comparePin(pin, targetUser.twoFactorPinHash);
@@ -227,22 +227,19 @@ export async function loginUser(prevState: LoginFormState, formData: FormData): 
         userIdForPin: targetUser.id
       };
     }
-    targetUser.failedPinAttempts = 0;
+    targetUser.failedPinAttempts = 0; // Reset on successful PIN
     await updateUserInFile(targetUser);
     const { passwordHash, twoFactorPinHash: removedPinHash, ...userToReturn } = targetUser;
     return { message: 'Login successful!', user: {...userToReturn, isAdmin: false, canSetPrice: userToReturn.canSetPrice || false} };
 
-  } else {
-    if (!identifier || !password) {
-        return { message: 'Username/email and password are required.', errors: { general: ['Username/email and password are required.'] } };
-    }
+  } else if (identifier && password) { // Initial login (username/password) stage
     targetUser = users.find(u => (u.email === identifier || u.username === identifier));
     if (!targetUser || !targetUser.passwordHash) {
       return { message: 'Invalid credentials.', errors: { general: ['Invalid username/email or password.'] } };
     }
 
     if (targetUser.isLocked) {
-      return { message: 'Your account is locked. Please contact support.', accountLocked: true, errors: { general: ['Account locked.'] } };
+      return { message: 'Your account is locked. Please contact support to unlock it.', accountLocked: true, errors: { general: ['Account locked.'] } };
     }
 
     const passwordMatches = await comparePassword(password, targetUser.passwordHash);
@@ -257,9 +254,14 @@ export async function loginUser(prevState: LoginFormState, formData: FormData): 
         userIdForPin: targetUser.id
       };
     } else {
+      targetUser.failedPinAttempts = 0; // Reset just in case, though not strictly necessary if 2FA is off
+      await updateUserInFile(targetUser);
       const { passwordHash, twoFactorPinHash: removedPinHash, ...userToReturn } = targetUser;
       return { message: 'Login successful!', user: {...userToReturn, isAdmin: false, canSetPrice: userToReturn.canSetPrice || false} };
     }
+  } else {
+    // This case should not be reached if form validation works for either stage
+    return { message: 'Invalid login attempt.', errors: { general: ['Please provide credentials or PIN.']}};
   }
 }
 
@@ -1664,7 +1666,7 @@ export async function adminSetUser2FAStatusAction(
     await updateUserInFile(userToUpdate);
     revalidatePath('/admin/users');
     const { passwordHash, twoFactorPinHash, ...userToReturn } = userToUpdate;
-    return { message: `User 2FA status ${enable ? 'enabled' : 'disabled'} successfully.`, success: true, updatedUser: {...userToReturn, canSetPrice: userToReturn.canSetPrice || false} };
+    return { message: `User 2FA status ${enable ? 'enabled' : 'disabled'} successfully. ${!enable ? 'Account has been unlocked if it was locked.' : ''}`.trim(), success: true, updatedUser: {...userToReturn, canSetPrice: userToReturn.canSetPrice || false} };
   } catch (error) {
     console.error("Error setting user 2FA status by admin:", error);
     return { message: 'Failed to update user 2FA status.', success: false, errors: { general: ['Server error.'] } };
@@ -1748,7 +1750,7 @@ export async function adminSetUserVerificationStatusAction(
     await updateUserInFile(userToUpdate);
     revalidatePath('/admin/users');
     revalidatePath('/designers');
-    revalidatePath('/'); // Revalidate home if verified designers are featured
+    revalidatePath('/'); // Revalidate home if verified users are featured
     const { passwordHash, twoFactorPinHash, ...userToReturn } = userToUpdate;
     return { message: `User verification status updated to ${isVerified ? 'Verified' : 'Not Verified'} successfully.`, success: true, updatedUser: {...userToReturn, isVerified} };
   } catch (error) {
@@ -1957,6 +1959,8 @@ export async function getTopicsByCategoryIdAction(categoryId: string): Promise<F
         const author = usersMap.get(topic.createdByUserId);
         return {
           ...topic,
+          authorName: author?.name || topic.authorName,
+          authorAvatarUrl: author?.avatarUrl || topic.authorAvatarUrl,
           authorIsVerified: author?.isVerified || false,
         };
       }
@@ -2034,7 +2038,12 @@ export async function getTopicDetailsAction(topicId: string, categorySlug?: stri
       };
     } else {
       const author = usersMap.get(topic.createdByUserId);
-      topic = { ...topic, authorIsVerified: author?.isVerified || false };
+      topic = {
+        ...topic,
+        authorName: author?.name || topic.authorName,
+        authorAvatarUrl: author?.avatarUrl || topic.authorAvatarUrl,
+        authorIsVerified: author?.isVerified || false,
+      };
     }
     // Process post authors
     if (topic.posts && topic.posts.length > 0) {
@@ -2048,7 +2057,12 @@ export async function getTopicDetailsAction(topicId: string, categorySlug?: stri
           };
         } else {
           const postAuthor = usersMap.get(post.createdByUserId);
-          return { ...post, authorIsVerified: postAuthor?.isVerified || false };
+          return {
+            ...post,
+            authorName: postAuthor?.name || post.authorName,
+            authorAvatarUrl: postAuthor?.avatarUrl || post.authorAvatarUrl,
+            authorIsVerified: postAuthor?.isVerified || false,
+          };
         }
       });
     }
@@ -2454,6 +2468,8 @@ export async function searchAllForumTopicsAction(term: string): Promise<ForumTop
         const author = usersMap.get(topic.createdByUserId);
         return {
           ...topic,
+          authorName: author?.name || topic.authorName,
+          authorAvatarUrl: author?.avatarUrl || topic.authorAvatarUrl,
           authorIsVerified: author?.isVerified || false,
         };
       }

@@ -42,6 +42,7 @@ export default function LoginForm() {
           title: 'Account Locked',
           description: state.message || 'Your account is locked due to too many failed 2FA attempts. Please contact support.',
           variant: 'destructive',
+          duration: 10000, // Longer duration for important messages
         });
         setUserIdForPin(undefined); // Clear PIN stage if locked
       } else if (state.user) { // Successful login

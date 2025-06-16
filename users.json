@@ -26,7 +26,7 @@
     "phone": "+919192929292",
     "passwordHash": "$2a$10$nBP03fofdSqA8iyN4GdNDulwLUPZ.yGqfcdIzKvbUG.IHV56wW8Ti",
     "avatarUrl": "https://placehold.co/100x100.png?text=D",
-    "twoFactorEnabled": false,
+    "twoFactorEnabled": true,
     "failedPinAttempts": 0,
     "isLocked": false,
     "canSetPrice": false,
@@ -35,6 +35,7 @@
     "figmaUrl": "",
     "isEmailPublic": true,
     "isPhonePublic": false,
-    "isVerified": false
+    "isVerified": false,
+    "twoFactorPinHash": "$2a$10$O96uJMUnvG21PzSbWksV1ez59.f87PG7QM.S7O7lR3xq3Rz7TtMry"
   }
 ]

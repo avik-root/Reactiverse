@@ -75,6 +75,7 @@ import type {
   SiteLogoUploadState,
   AdminSetUser2FAStatusFormState,
   AdminSetUserCanSetPriceFormState,
+  AdminSetUserVerificationStatusFormState,
   TeamMembersContent,
   TeamMember,
   UpdateProfileFormState as UserUpdateProfileFormState,
@@ -318,6 +319,7 @@ export async function signupUser(prevState: SignupFormState, formData: FormData)
     figmaUrl: '',
     isEmailPublic: false,
     isPhonePublic: false,
+    isVerified: false, // New users are not verified by default
   };
 
   await saveUserToFile(newUser);
@@ -899,6 +901,7 @@ export async function getAllDesignsAction(): Promise<Design[]> {
       figmaUrl: '',
       isEmailPublic: false,
       isPhonePublic: false,
+      isVerified: false,
     };
 
     return designs.map(design => {
@@ -907,11 +910,12 @@ export async function getAllDesignsAction(): Promise<Design[]> {
 
       if (designerId.startsWith('admin-')) {
         finalDesigner = {
-          ...defaultDesigner, // Start with defaults in case admin details are sparse
+          ...defaultDesigner,
           id: designerId,
           name: "Admin",
           username: "@admin",
           avatarUrl: adminAvatarMap.get(designerId) || ADMIN_DEFAULT_AVATAR,
+          isVerified: true, // Admins are implicitly "verified" in this context
         };
       } else {
         const storedDesigner = usersMap.get(designerId);
@@ -925,6 +929,7 @@ export async function getAllDesignsAction(): Promise<Design[]> {
               twoFactorEnabled: rest.twoFactorEnabled || false,
               isEmailPublic: rest.isEmailPublic === undefined ? false : rest.isEmailPublic,
               isPhonePublic: rest.isPhonePublic === undefined ? false : rest.isPhonePublic,
+              isVerified: rest.isVerified === undefined ? false : rest.isVerified,
           } as User;
         } else {
           finalDesigner = defaultDesigner;
@@ -964,6 +969,7 @@ export async function getDesignByIdAction(id: string): Promise<Design | undefine
           failedPinAttempts: 0, isLocked: false, canSetPrice: true,
           githubUrl: '', linkedinUrl: '', figmaUrl: '',
           isEmailPublic: false, isPhonePublic: false,
+          isVerified: true, // Admins are implicitly "verified"
         };
       } else {
         const storedDesigner = users.find(u => u.id === designerId);
@@ -977,6 +983,7 @@ export async function getDesignByIdAction(id: string): Promise<Design | undefine
               twoFactorEnabled: rest.twoFactorEnabled || false,
               isEmailPublic: rest.isEmailPublic === undefined ? false : rest.isEmailPublic,
               isPhonePublic: rest.isPhonePublic === undefined ? false : rest.isPhonePublic,
+              isVerified: rest.isVerified === undefined ? false : rest.isVerified,
           } as User;
         } else {
           finalDesigner = {
@@ -984,7 +991,7 @@ export async function getDesignByIdAction(id: string): Promise<Design | undefine
             email: 'unknown@example.com', phone: '', twoFactorEnabled: false,
             failedPinAttempts: 0, isLocked: false, canSetPrice: false,
             githubUrl: '', linkedinUrl: '', figmaUrl: '',
-            isEmailPublic: false, isPhonePublic: false,
+            isEmailPublic: false, isPhonePublic: false, isVerified: false,
           };
         }
       }
@@ -1110,6 +1117,7 @@ export async function getAllUsersAdminAction(): Promise<User[]> {
         figmaUrl: user.figmaUrl || "",
         isEmailPublic: user.isEmailPublic === undefined ? false : user.isEmailPublic,
         isPhonePublic: user.isPhonePublic === undefined ? false : user.isPhonePublic,
+        isVerified: user.isVerified === undefined ? false : user.isVerified, // Ensure isVerified is returned
       };
     });
   } catch (error) {
@@ -1706,6 +1714,50 @@ export async function adminSetUserCanSetPriceAction(
   }
 }
 
+export async function adminSetUserVerificationStatusAction(
+  prevState: AdminSetUserVerificationStatusFormState,
+  formData: FormData
+): Promise<AdminSetUserVerificationStatusFormState> {
+  const AdminSetUserVerificationStatusSchema = z.object({
+    userId: z.string().min(1, "User ID is required."),
+    isVerified: z.preprocess((val) => String(val).toLowerCase() === 'true', z.boolean()),
+    adminId: z.string().min(1, "Admin ID is required for authorization."),
+  });
+  const adminToken = cookies().get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
+  if (!adminToken) {
+    return { message: "Admin authorization failed.", success: false, errors: { general: ["Not authorized."] } };
+  }
+
+  const validatedFields = AdminSetUserVerificationStatusSchema.safeParse(Object.fromEntries(formData.entries()));
+  if (!validatedFields.success) {
+    return { errors: validatedFields.error.flatten().fieldErrors, message: 'Invalid input.', success: false };
+  }
+
+  const { userId, isVerified } = validatedFields.data;
+  const users = await getUsersFromFile();
+  const userIndex = users.findIndex(u => u.id === userId);
+
+  if (userIndex === -1) {
+    return { message: 'User not found.', success: false, errors: { userId: ['User not found.'] } };
+  }
+
+  const userToUpdate = users[userIndex];
+  userToUpdate.isVerified = isVerified;
+
+  try {
+    await updateUserInFile(userToUpdate);
+    revalidatePath('/admin/users');
+    revalidatePath('/designers');
+    revalidatePath('/'); // Revalidate home if verified designers are featured
+    const { passwordHash, twoFactorPinHash, ...userToReturn } = userToUpdate;
+    return { message: `User verification status updated to ${isVerified ? 'Verified' : 'Not Verified'} successfully.`, success: true, updatedUser: {...userToReturn, isVerified} };
+  } catch (error) {
+    console.error("Error setting user verification status by admin:", error);
+    return { message: 'Failed to update user verification status.', success: false, errors: { general: ['Server error.'] } };
+  }
+}
+
+
 export async function incrementDesignCopyCountAction(designId: string): Promise<IncrementCopyCountResult> {
   if (!designId) {
     return { success: false, message: 'Design ID is required.' };
@@ -1890,15 +1942,24 @@ export async function getTopicsByCategoryIdAction(categoryId: string): Promise<F
     }
 
     const adminAvatarMap = await getAdminAvatarMap();
+    const users = await getUsersFromFile(); // Fetch all users to get verification status
+    const usersMap = new Map(users.map(u => [u.id, u]));
+
     const processedTopics = topics.map(topic => {
       if (topic.createdByUserId.startsWith('admin-')) {
         return {
           ...topic,
           authorName: "Admin",
-          authorAvatarUrl: adminAvatarMap.get(topic.createdByUserId) || ADMIN_DEFAULT_AVATAR
+          authorAvatarUrl: adminAvatarMap.get(topic.createdByUserId) || ADMIN_DEFAULT_AVATAR,
+          authorIsVerified: true, // Admins are "verified" by role
+        };
+      } else {
+        const author = usersMap.get(topic.createdByUserId);
+        return {
+          ...topic,
+          authorIsVerified: author?.isVerified || false,
         };
       }
-      return topic;
     });
 
     return processedTopics.sort((a, b) => new Date(b.lastRepliedAt).getTime() - new Date(a.lastRepliedAt).getTime());
@@ -1913,6 +1974,9 @@ export async function getTopicDetailsAction(topicId: string, categorySlug?: stri
   let slugToUse = categorySlug;
   let determinedSlug = false;
   const adminAvatarMap = await getAdminAvatarMap();
+  const users = await getUsersFromFile(); // Fetch users for verification status
+  const usersMap = new Map(users.map(u => [u.id, u]));
+
 
   if (!slugToUse) {
     const allCategories = await getForumCategoriesFromFile();
@@ -1961,13 +2025,16 @@ export async function getTopicDetailsAction(topicId: string, categorySlug?: stri
   let topic = topics.find(t => t.id === topicId);
 
   if (topic) {
-    // Process main topic author
     if (topic.createdByUserId.startsWith('admin-')) {
       topic = {
         ...topic,
         authorName: "Admin",
-        authorAvatarUrl: adminAvatarMap.get(topic.createdByUserId) || ADMIN_DEFAULT_AVATAR
+        authorAvatarUrl: adminAvatarMap.get(topic.createdByUserId) || ADMIN_DEFAULT_AVATAR,
+        authorIsVerified: true, // Admins are "verified"
       };
+    } else {
+      const author = usersMap.get(topic.createdByUserId);
+      topic = { ...topic, authorIsVerified: author?.isVerified || false };
     }
     // Process post authors
     if (topic.posts && topic.posts.length > 0) {
@@ -1976,10 +2043,13 @@ export async function getTopicDetailsAction(topicId: string, categorySlug?: stri
           return {
             ...post,
             authorName: "Admin",
-            authorAvatarUrl: adminAvatarMap.get(post.createdByUserId) || ADMIN_DEFAULT_AVATAR
+            authorAvatarUrl: adminAvatarMap.get(post.createdByUserId) || ADMIN_DEFAULT_AVATAR,
+            authorIsVerified: true, // Admins are "verified"
           };
+        } else {
+          const postAuthor = usersMap.get(post.createdByUserId);
+          return { ...post, authorIsVerified: postAuthor?.isVerified || false };
         }
-        return post;
       });
     }
   }
@@ -1987,7 +2057,7 @@ export async function getTopicDetailsAction(topicId: string, categorySlug?: stri
 }
 
 export async function getPostsByTopicIdAction(topicId: string, categorySlug: string): Promise<ForumPost[]> {
-  const topic = await getTopicDetailsAction(topicId, categorySlug); // This now handles admin avatar updates
+  const topic = await getTopicDetailsAction(topicId, categorySlug); // This now handles admin avatar updates and verification
   return topic?.posts || [];
 }
 
@@ -2058,8 +2128,8 @@ export async function createForumTopicAction(
     categoryId: string,
     categorySlug: string,
     userId: string,
-    userName: string, // This will be "Admin" if created by admin from dashboard
-    userAvatarUrl?: string // This will be the admin's actual avatar URL
+    userName: string,
+    userAvatarUrl?: string
 ): Promise<CreateTopicFormState> {
     const CreateTopicFormSchema = z.object({
       title: z.string().min(5, { message: "Title must be at least 5 characters long." }).max(150, { message: "Title cannot exceed 150 characters." }),
@@ -2084,22 +2154,24 @@ export async function createForumTopicAction(
         return { message: 'Category not found.', success: false, errors: { general: ['Category not found.'] } };
     }
 
-    // Admin check for announcements (already robustly handled in create page)
-    if (category.slug === 'announcements') {
-        const adminUsers = await getAdminUsers(); // Could optimize if admin status is passed
-        const userIsAdmin = adminUsers.some(admin => admin.id === userId);
-        if(!userIsAdmin) {
-             return { message: 'You are not authorized to post in Announcements.', success: false, errors: { general: ['Authorization failed.'] } };
-        }
-    }
-    
     let finalAuthorName = userName;
     let finalAvatarUrl = userAvatarUrl;
+    let authorIsVerified = false;
 
     if (userId.startsWith('admin-')) {
-        finalAuthorName = "Admin"; // Standardize name for storage, though display name is what matters
+        finalAuthorName = "Admin";
         const adminAvatarMap = await getAdminAvatarMap();
         finalAvatarUrl = adminAvatarMap.get(userId) || ADMIN_DEFAULT_AVATAR;
+        authorIsVerified = true; // Admins are "verified"
+    } else {
+        const user = (await getUsersFromFile()).find(u => u.id === userId);
+        if (user) {
+            authorIsVerified = user.isVerified || false;
+            // Use the name and avatar from the user object if available,
+            // falling back to passed params if needed (though usually user object is source of truth)
+            finalAuthorName = user.name || userName;
+            finalAvatarUrl = user.avatarUrl || userAvatarUrl || `https://placehold.co/40x40.png?text=${(user.name || userName).charAt(0).toUpperCase()}`;
+        }
     }
 
 
@@ -2109,8 +2181,9 @@ export async function createForumTopicAction(
         title,
         content,
         createdByUserId: userId,
-        authorName: finalAuthorName, // Store actual name if user, or standardized "Admin"
-        authorAvatarUrl: finalAvatarUrl || `https://placehold.co/40x40.png?text=${finalAuthorName.charAt(0).toUpperCase()}`,
+        authorName: finalAuthorName,
+        authorAvatarUrl: finalAvatarUrl,
+        authorIsVerified,
         createdAt: new Date().toISOString(),
         lastRepliedAt: new Date().toISOString(),
         viewCount: 0,
@@ -2161,14 +2234,23 @@ export async function createForumPostAction(
     }
 
     const { content } = validatedFields.data;
-    
+
     let finalAuthorName = userName;
     let finalAvatarUrl = userAvatarUrl;
+    let authorIsVerified = false;
 
     if (userId.startsWith('admin-')) {
-        finalAuthorName = "Admin"; // Standardize name for storage
+        finalAuthorName = "Admin";
         const adminAvatarMap = await getAdminAvatarMap();
         finalAvatarUrl = adminAvatarMap.get(userId) || ADMIN_DEFAULT_AVATAR;
+        authorIsVerified = true; // Admins are "verified"
+    } else {
+        const user = (await getUsersFromFile()).find(u => u.id === userId);
+        if (user) {
+            authorIsVerified = user.isVerified || false;
+            finalAuthorName = user.name || userName;
+            finalAvatarUrl = user.avatarUrl || userAvatarUrl || `https://placehold.co/40x40.png?text=${(user.name || userName).charAt(0).toUpperCase()}`;
+        }
     }
 
 
@@ -2178,7 +2260,8 @@ export async function createForumPostAction(
         content,
         createdByUserId: userId,
         authorName: finalAuthorName,
-        authorAvatarUrl: finalAvatarUrl || `https://placehold.co/40x40.png?text=${finalAuthorName.charAt(0).toUpperCase()}`,
+        authorAvatarUrl: finalAvatarUrl,
+        authorIsVerified,
         createdAt: new Date().toISOString(),
     };
 
@@ -2325,9 +2408,7 @@ export async function updateAdminAnnouncementAction(
     }
 
     const topicToUpdate = announcements[topicIndex];
-    
-    // The original author's avatar and name are preserved unless updated by profile changes
-    // The actual display name will be "Admin" with the current avatar due to getTopicDetailsAction
+
     topicToUpdate.title = title;
     topicToUpdate.content = content;
     topicToUpdate.lastRepliedAt = new Date().toISOString(); // Indicate edit by updating last activity
@@ -2351,6 +2432,9 @@ export async function searchAllForumTopicsAction(term: string): Promise<ForumTop
   }
   const lowerTerm = term.toLowerCase();
   const adminAvatarMap = await getAdminAvatarMap();
+  const users = await getUsersFromFile(); // Fetch users for verification status
+  const usersMap = new Map(users.map(u => [u.id, u]));
+
   try {
     const generalTopics = await getUsersForumData();
     const announcementTopics = await getAnnouncementsData();
@@ -2363,21 +2447,27 @@ export async function searchAllForumTopicsAction(term: string): Promise<ForumTop
         return {
           ...topic,
           authorName: "Admin",
-          authorAvatarUrl: adminAvatarMap.get(topic.createdByUserId) || ADMIN_DEFAULT_AVATAR
+          authorAvatarUrl: adminAvatarMap.get(topic.createdByUserId) || ADMIN_DEFAULT_AVATAR,
+          authorIsVerified: true, // Admins are "verified"
+        };
+      } else {
+        const author = usersMap.get(topic.createdByUserId);
+        return {
+          ...topic,
+          authorIsVerified: author?.isVerified || false,
         };
       }
-      return topic;
     });
-    
+
     const filteredTopics = processedTopics.filter(topic =>
       topic.title.toLowerCase().includes(lowerTerm) ||
       topic.content.toLowerCase().includes(lowerTerm) ||
-      topic.authorName.toLowerCase().includes(lowerTerm) // Search by "Admin" if admin post
+      topic.authorName.toLowerCase().includes(lowerTerm)
     );
 
     return filteredTopics.sort((a, b) => new Date(b.lastRepliedAt).getTime() - new Date(a.lastRepliedAt).getTime());
   } catch (error) {
     console.error('Error searching forum topics:', error);
-    return []; 
+    return [];
   }
 }

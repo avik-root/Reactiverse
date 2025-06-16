@@ -152,8 +152,10 @@ export default function AdminManageAnnouncementsPage() {
                             <Eye className="mr-1 h-3.5 w-3.5" /> View
                         </Link>
                       </Button>
-                      <Button variant="outline" size="sm" disabled>
-                        <Edit className="mr-1 h-3.5 w-3.5" /> Edit (Soon)
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href={`/admin/forum/announcements/edit/${topic.id}`}>
+                            <Edit className="mr-1 h-3.5 w-3.5" /> Edit
+                        </Link>
                       </Button>
                       <Button variant="destructive" size="sm" onClick={() => handleDeleteClick(topic)}>
                         <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete
@@ -194,3 +196,4 @@ export default function AdminManageAnnouncementsPage() {
     </Card>
   );
 }
+

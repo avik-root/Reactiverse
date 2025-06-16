@@ -399,3 +399,16 @@ export interface AdminDeletePostResult {
   success: boolean;
   message: string;
 }
+
+export type UpdateAdminAnnouncementFormState = {
+  message?: string | null;
+  success?: boolean;
+  errors?: {
+    topicId?: string[];
+    title?: string[];
+    content?: string[];
+    general?: string[];
+  };
+  updatedTopic?: ForumTopic | null;
+};
+

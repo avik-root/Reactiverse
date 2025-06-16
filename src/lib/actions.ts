@@ -48,6 +48,7 @@ import {
   addPostToTopic,
   deleteTopic as deleteTopicFromServerData,
   deletePostFromTopic as deletePostFromServerData,
+  updateAnnouncementInFile,
 } from './server-data';
 import type {
   AdminUser,
@@ -89,6 +90,7 @@ import type {
   AdminDeleteTopicResult,
   CreatePostFormState,
   AdminDeletePostResult,
+  UpdateAdminAnnouncementFormState,
 } from './types';
 import { revalidatePath } from 'next/cache';
 import { hashPassword, comparePassword, hashPin, comparePin } from './auth-utils';
@@ -1104,8 +1106,8 @@ export async function updateSiteSettingsAction(
   const SiteSettingsSchema = z.object({
     siteTitle: z.string().min(3, { message: 'Site title must be at least 3 characters.' }),
     allowNewUserRegistrations: z.preprocess((val) => val === 'on' || val === true, z.boolean()),
-    primaryHSL: HSLColorSchema, // Imported from form-schemas
-    accentHSL: HSLColorSchema,   // Imported from form-schemas
+    primaryHSL: HSLColorSchema, 
+    accentHSL: HSLColorSchema,   
   });
   const validatedFields = SiteSettingsSchema.safeParse(Object.fromEntries(formData.entries()));
 
@@ -1150,7 +1152,7 @@ export async function updateAdminProfileAction(
   const UpdateAdminProfileSchema = z.object({
     adminId: z.string(),
     name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
-    avatarFile: AvatarFileSchema, // Imported from form-schemas
+    avatarFile: AvatarFileSchema, 
   });
   const rawData = Object.fromEntries(formData.entries());
   const avatarFile = formData.get('avatarFile') as File | null;
@@ -1543,7 +1545,7 @@ export async function updatePageContentAction<T extends PageContentKeys>(
 
 export async function updateSiteLogoAction(prevState: SiteLogoUploadState, formData: FormData): Promise<SiteLogoUploadState> {
   const SiteLogoSchema = z.object({
-    logoFile: ValidImageFileSchema.refine(file => file !== undefined, "Logo file is required."), // ValidImageFileSchema imported
+    logoFile: ValidImageFileSchema.refine(file => file !== undefined, "Logo file is required."), 
   });
   const validatedFields = SiteLogoSchema.safeParse({ logoFile: formData.get('logoFile') });
 
@@ -2171,7 +2173,6 @@ export async function adminDeleteForumPostAction(
     revalidatePath(`/community/topic/${topicId}?categorySlug=${categorySlug}`);
     revalidatePath(`/community/category/${categorySlug}`);
     revalidatePath('/community');
-    // Also revalidate admin views if they show post counts or post details
     revalidatePath(`/admin/forum/${categorySlug}`);
 
 
@@ -2181,3 +2182,73 @@ export async function adminDeleteForumPostAction(
     return { success: false, message: 'Failed to delete post due to a server error.' };
   }
 }
+
+
+export async function updateAdminAnnouncementAction(
+  prevState: UpdateAdminAnnouncementFormState,
+  formData: FormData
+): Promise<UpdateAdminAnnouncementFormState> {
+  const UpdateAnnouncementSchema = z.object({
+    topicId: z.string().min(1, "Topic ID is required."),
+    adminId: z.string().min(1, "Admin ID is required for authorization."),
+    title: z.string().min(5, "Title must be at least 5 characters.").max(150, "Title cannot exceed 150 characters."),
+    content: z.string().min(10, "Content must be at least 10 characters.").max(5000, "Content cannot exceed 5000 characters."),
+  });
+
+  const adminToken = cookies().get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
+  if (!adminToken) {
+    return { success: false, message: "Admin authorization failed.", errors: {general: ["Not authorized."]} };
+  }
+  
+  const validatedFields = UpdateAnnouncementSchema.safeParse(Object.fromEntries(formData.entries()));
+
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+      message: 'Invalid fields. Please check your input.',
+      success: false,
+    };
+  }
+
+  const { topicId, adminId, title, content } = validatedFields.data;
+  
+  const adminUsers = await getAdminUsers();
+  if (!adminUsers.some(admin => admin.id === adminId)) {
+    return { message: "Admin authorization failed.", success: false, errors: {general: ["Invalid admin."]} };
+  }
+  
+  try {
+    const announcements = await getAnnouncementsData();
+    const topicIndex = announcements.findIndex(t => t.id === topicId);
+
+    if (topicIndex === -1) {
+      return { message: "Announcement not found.", success: false, errors: { topicId: ["Announcement not found."] } };
+    }
+
+    const topicToUpdate = announcements[topicIndex];
+    
+    // Ensure only admin who created it or any other admin can edit
+    if (topicToUpdate.createdByUserId !== adminId && !adminUsers.some(admin => admin.id === adminId)) {
+         // This specific check might be redundant if ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS is the primary gatekeeper
+         // But it's good for ensuring the specific admin making the request has general rights if not the original author.
+    }
+
+
+    topicToUpdate.title = title;
+    topicToUpdate.content = content;
+    // lastRepliedAt could be updated if we consider edits as a form of "update"
+    // For now, we'll leave it as the last actual reply time or creation time.
+
+    await saveAnnouncementsData(announcements);
+
+    revalidatePath('/admin/forum/announcements');
+    revalidatePath(`/community/topic/${topicId}?categorySlug=announcements`);
+    revalidatePath('/community/category/announcements');
+
+    return { message: 'Announcement updated successfully!', success: true, updatedTopic: topicToUpdate };
+  } catch (error) {
+    console.error("Error updating announcement:", error);
+    return { message: 'Failed to update announcement. Please try again.', success: false, errors: { general: ['Server error.'] } };
+  }
+}
+

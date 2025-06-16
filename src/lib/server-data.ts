@@ -872,6 +872,28 @@ export async function deletePostFromTopic(
   return { success: true, postDeletedCount: 1 };
 }
 
+export async function updateAnnouncementInFile(updatedTopic: ForumTopic): Promise<boolean> {
+  try {
+    let announcements = await getAnnouncementsData();
+    const topicIndex = announcements.findIndex(t => t.id === updatedTopic.id);
+    if (topicIndex === -1) {
+      console.error('Announcement not found for update:', updatedTopic.id);
+      return false;
+    }
+    // Preserve posts and other non-editable fields, only update title and content
+    announcements[topicIndex] = {
+      ...announcements[topicIndex], // Keep existing fields like posts, author, etc.
+      title: updatedTopic.title,
+      content: updatedTopic.content,
+      // Potentially update a 'lastModifiedAt' field if you add one
+    };
+    await saveAnnouncementsData(announcements);
+    return true;
+  } catch (error) {
+    console.error('Failed to update announcement in announcement.json:', error);
+    throw error;
+  }
+}
 
 // --- End New Forum Data Functions ---
 

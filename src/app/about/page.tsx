@@ -1,11 +1,11 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Layers3, Sparkles, Users, Info } from 'lucide-react';
+import { Layers3, Sparkles, Users, Info, Mail, Github, Linkedin } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { getPageContentAction } from '@/lib/actions';
-import type { AboutUsContent, TeamMembersContent } from '@/lib/types';
-import ProfileCard from '@/components/core/ProfileCard';
+import type { AboutUsContent, TeamMembersContent, TeamMember } from '@/lib/types';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface FeatureCardProps {
   icon: React.ReactNode;
@@ -23,6 +23,53 @@ function FeatureCard({ icon, title, description }: FeatureCardProps) {
   );
 }
 
+const getInitials = (name?: string) => {
+    if (!name) return '??';
+    const parts = name.split(' ');
+    if (parts.length > 1 && parts[0] && parts[parts.length - 1]) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+};
+
+interface TeamMemberDisplayCardProps {
+  member: TeamMember;
+}
+
+function TeamMemberDisplayCard({ member }: TeamMemberDisplayCardProps) {
+  return (
+    <Card className="flex flex-col items-center text-center p-6 shadow-lg hover:shadow-xl transition-shadow w-full max-w-md mx-auto">
+      <Avatar className="w-32 h-32 mb-4 border-4 border-primary">
+        <AvatarImage src={member.imageUrl || `https://placehold.co/128x128.png?text=${getInitials(member.name)}`} alt={member.imageAlt || member.name} data-ai-hint={member.imageDataAiHint || "profile photo"} />
+        <AvatarFallback className="text-4xl">{getInitials(member.name)}</AvatarFallback>
+      </Avatar>
+      <CardTitle className="text-2xl font-headline text-primary mb-1">{member.name}</CardTitle>
+      <p className="text-md text-accent font-semibold mb-3">{member.title}</p>
+      <CardDescription className="text-sm text-muted-foreground mb-4 whitespace-pre-line text-left max-h-48 overflow-y-auto">
+        {member.bio}
+      </CardDescription>
+      <div className="flex space-x-4 mt-auto pt-4">
+        {member.emailAddress && (
+          <Link href={`mailto:${member.emailAddress}`} target="_blank" rel="noopener noreferrer" aria-label={`Email ${member.name}`}>
+            <Mail className="h-6 w-6 text-muted-foreground hover:text-primary transition-colors" />
+          </Link>
+        )}
+        {member.githubUrl && (
+          <Link href={member.githubUrl} target="_blank" rel="noopener noreferrer" aria-label={`${member.name}'s GitHub profile`}>
+            <Github className="h-6 w-6 text-muted-foreground hover:text-primary transition-colors" />
+          </Link>
+        )}
+        {member.linkedinUrl && (
+          <Link href={member.linkedinUrl} target="_blank" rel="noopener noreferrer" aria-label={`${member.name}'s LinkedIn profile`}>
+            <Linkedin className="h-6 w-6 text-muted-foreground hover:text-primary transition-colors" />
+          </Link>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+
 export default async function AboutUsPage() {
   const aboutContent = await getPageContentAction('aboutUs') as AboutUsContent;
   const teamContent = await getPageContentAction('teamMembers') as TeamMembersContent;
@@ -31,9 +78,6 @@ export default async function AboutUsPage() {
     return <div className="container mx-auto py-12">Error loading content. Please try again later.</div>;
   }
   
-  const generateHandle = (name: string) => {
-    return name.toLowerCase().replace(/\s+/g, '.').replace(/[^a-z0-9.]/g, '');
-  }
 
   return (
     <div className="container mx-auto py-12 space-y-12">
@@ -88,41 +132,9 @@ export default async function AboutUsPage() {
           {teamContent.founder && teamContent.coFounder && (
             <section className="text-center space-y-8">
               <h2 className="text-3xl font-semibold font-headline mb-6">{teamContent.title || "Meet Our Team"}</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 justify-items-center">
-                <div className="pc-card-wrapper-container">
-                  <ProfileCard
-                    avatarUrl={teamContent.founder.imageUrl || "https://placehold.co/128x128.png?text=F"}
-                    name={teamContent.founder.name}
-                    title={teamContent.founder.title}
-                    handle={generateHandle(teamContent.founder.name)}
-                    status={teamContent.founder.title} 
-                    contactText={`Email ${teamContent.founder.name.split(' ')[0]}`}
-                    contactEmail={teamContent.founder.emailAddress}
-                    showUserInfo={true}
-                    enableTilt={true}
-                    miniAvatarUrl={teamContent.founder.imageUrl}
-                  />
-                </div>
-                <div className="pc-card-wrapper-container">
-                  <ProfileCard
-                    avatarUrl={teamContent.coFounder.imageUrl || "https://placehold.co/128x128.png?text=C"}
-                    name={teamContent.coFounder.name}
-                    title={teamContent.coFounder.title}
-                    handle={generateHandle(teamContent.coFounder.name)}
-                    status={teamContent.coFounder.title}
-                    contactText={`Email ${teamContent.coFounder.name.split(' ')[0]}`}
-                    contactEmail={teamContent.coFounder.emailAddress}
-                    showUserInfo={true}
-                    enableTilt={true}
-                    miniAvatarUrl={teamContent.coFounder.imageUrl}
-                  />
-                </div>
-              </div>
-               <div className="mt-4 text-sm text-muted-foreground">
-                <p className="font-semibold text-primary">Founder Bio:</p>
-                <p className="whitespace-pre-line">{teamContent.founder.bio}</p>
-                <p className="font-semibold text-primary mt-2">Co-Founder Bio:</p>
-                <p className="whitespace-pre-line">{teamContent.coFounder.bio}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start justify-items-center">
+                <TeamMemberDisplayCard member={teamContent.founder} />
+                <TeamMemberDisplayCard member={teamContent.coFounder} />
               </div>
             </section>
           )}

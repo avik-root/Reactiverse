@@ -39,10 +39,10 @@ interface TeamMemberDisplayCardProps {
 function TeamMemberDisplayCard({ member }: TeamMemberDisplayCardProps) {
   return (
     <Card className="flex flex-col items-center text-center p-6 shadow-lg hover:shadow-xl transition-shadow w-full max-w-md mx-auto">
-      <div className="relative w-32 h-32 mb-4 border-4 border-primary rounded-md overflow-hidden shadow-md">
+      <div className="relative w-32 h-40 mb-4 border-4 border-primary rounded-md overflow-hidden shadow-md">
         <Image
           key={member.imageUrl}
-          src={member.imageUrl || `https://placehold.co/128x128.png?text=${getInitials(member.name)}`}
+          src={member.imageUrl || `https://placehold.co/128x160.png?text=${getInitials(member.name)}`}
           alt={member.imageAlt || member.name}
           layout="fill"
           objectFit="cover"

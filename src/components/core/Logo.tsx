@@ -44,13 +44,12 @@ const Logo = () => {
         <Image 
           src="/site_logo.png" 
           alt="Reactiverse Logo" 
-          width={160} // Adjust as needed
-          height={32} // Adjust as needed
-          priority // Good for LCP if logo is above the fold
+          width={160} 
+          height={32} 
+          priority 
+          className="object-contain" // Added object-contain
           data-ai-hint="site logo"
           onError={() => {
-            // This secondary onError is a safeguard in case the initial check failed or race condition.
-            // Should ideally not be hit if the useEffect check is robust.
             setUseFallbackLogo(true);
           }}
         />
@@ -60,3 +59,4 @@ const Logo = () => {
 };
 
 export default Logo;
+

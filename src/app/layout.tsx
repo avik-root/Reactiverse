@@ -6,8 +6,9 @@ import { Toaster } from '@/components/ui/toaster';
 import Header from '@/components/core/Header';
 import Footer from '@/components/core/Footer';
 import { AuthProvider } from '@/contexts/AuthContext';
-import ClientDotGrid from '@/components/core/ClientDotGrid'; // Import the new client component
-import AutoRefresher from '@/components/core/AutoRefresher'; // Import the new AutoRefresher component
+import ClientDotGrid from '@/components/core/ClientDotGrid'; 
+import AutoRefresher from '@/components/core/AutoRefresher';
+import ClientSplashCursor from '@/components/core/ClientSplashCursor'; // Import the new client component
 
 export const metadata: Metadata = {
   title: 'Reactiverse - Showcase Your Designs',
@@ -29,22 +30,23 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased"> {/* Main body styling */}
         <ClientDotGrid
-          dotSize={2} // Size of each dot
-          gap={30} // Spacing between dots
-          baseColor="#B085FF" // Dark theme primary: hsl(271, 100%, 75.3%)
-          activeColor="#FF66FF" // Dark theme accent: hsl(300, 100%, 70%)
-          proximity={120} // How close mouse needs to be to affect dots
-          speedTrigger={80} // Mouse speed to trigger inertia effect
-          shockRadius={180} // Radius of click shockwave
-          shockStrength={3} // Strength of click shockwave
-          maxSpeed={4000} // Max speed for inertia calculation
-          resistance={600} // Resistance for inertia movement
-          returnDuration={1.2} // How quickly dots return to original position
+          dotSize={2} 
+          gap={30} 
+          baseColor="#B085FF" 
+          activeColor="#FF66FF" 
+          proximity={120} 
+          speedTrigger={80} 
+          shockRadius={180} 
+          shockStrength={3} 
+          maxSpeed={4000} 
+          resistance={600} 
+          returnDuration={1.2} 
         />
-        {/* Main content wrapper with z-index to be above the DotGrid */}
+        <ClientSplashCursor /> {/* Use the new client component */}
+        
         <div className="relative z-0 flex flex-col min-h-screen">
           <AuthProvider>
-            <AutoRefresher /> {/* Add the AutoRefresher component here */}
+            <AutoRefresher /> 
             <Header />
             <main className="flex-grow container mx-auto px-4 py-8">
               {children}

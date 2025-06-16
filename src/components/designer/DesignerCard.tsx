@@ -6,7 +6,8 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { IndianRupee, Filter, Code2, Heart, BadgeCheck, Star, Crown, Trophy, Medal } from 'lucide-react';
+import { IndianRupee, Filter, Code2, Heart, Star, Crown, Trophy, Medal, AtSign } from 'lucide-react'; // Added AtSign
+import SealCheckIcon from '@/components/icons/SealCheckIcon'; // Import the new icon
 import { useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import LikeButton from '../design/LikeButton';
@@ -14,7 +15,9 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import FigmaIcon from '@/components/icons/FigmaIcon'; // Added FigmaIcon import
+import FigmaIcon from '@/components/icons/FigmaIcon';
+import { Github, Linkedin, Mail } from 'lucide-react';
+
 
 interface DesignerCardProps {
   user: User;
@@ -55,20 +58,21 @@ const DesignerCard: React.FC<DesignerCardProps> = ({ user, rank, highlightMetric
       ) : null;
     }
 
-    let iconElement: React.ReactElement;
+    let icon: React.ReactElement;
     let colorClass = "";
+    let rankText = `#${rank}`;
 
     switch (rank) {
       case 1:
-        iconElement = <Crown className="h-4 w-4 mr-1.5 fill-yellow-500 text-yellow-600" />;
+        icon = <Crown className="h-4 w-4 mr-1.5 text-yellow-600 fill-yellow-500" />;
         colorClass = "bg-yellow-500/20 text-yellow-600 border-yellow-500/50";
         break;
       case 2:
-        iconElement = <Trophy className="h-4 w-4 mr-1.5 fill-slate-500 text-slate-600" />;
+        icon = <Trophy className="h-4 w-4 mr-1.5 text-slate-600 fill-slate-500" />;
         colorClass = "bg-slate-400/20 text-slate-600 border-slate-400/50";
         break;
       case 3:
-        iconElement = <Medal className="h-4 w-4 mr-1.5 fill-orange-500 text-orange-600" />;
+        icon = <Medal className="h-4 w-4 mr-1.5 text-orange-600 fill-orange-500" />;
         colorClass = "bg-orange-400/20 text-orange-600 border-orange-400/50";
         break;
       default:
@@ -77,7 +81,7 @@ const DesignerCard: React.FC<DesignerCardProps> = ({ user, rank, highlightMetric
 
     return (
       <Badge variant="secondary" className={`absolute top-3 left-3 text-sm px-2.5 py-1 font-bold ${colorClass}`}>
-        {iconElement} #{rank}
+        {icon} {rankText}
       </Badge>
     );
   };
@@ -99,7 +103,7 @@ const DesignerCard: React.FC<DesignerCardProps> = ({ user, rank, highlightMetric
       </Avatar>
       <CardTitle className="text-2xl font-headline text-primary mb-1 flex items-center">
         {user.name}
-        {user.isVerified && <BadgeCheck className="ml-2 h-5 w-5 text-blue-500 fill-blue-500" />}
+        {user.isVerified && <SealCheckIcon className="ml-2 h-5 w-5 text-blue-500" />}
       </CardTitle>
       <CardDescription className="text-accent font-medium flex items-center mb-2">
         <AtSign className="h-4 w-4 mr-1" />

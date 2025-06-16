@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { FileText, MessageSquare, PlusCircle, Info, Users, CalendarDays, Eye, Tag, ShieldAlert, LogIn, ArrowLeft, BadgeCheck } from 'lucide-react';
+import SealCheckIcon from '@/components/icons/SealCheckIcon'; // Import the new icon
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
@@ -226,7 +227,7 @@ export default function CategoryPage() {
                               </Avatar>
                               <span>{authorDisplayName}</span>
                               {isAuthorAdmin && <BadgeCheck className="h-3.5 w-3.5 text-primary ml-1" />}
-                              {!isAuthorAdmin && topic.authorIsVerified && <BadgeCheck className="ml-1.5 h-3.5 w-3.5 text-blue-500 fill-blue-500" />}
+                              {!isAuthorAdmin && topic.authorIsVerified && <SealCheckIcon className="ml-1.5 h-4 w-4 text-blue-500" />}
                           </div>
                           <div className="flex items-center">
                               <CalendarDays className="h-3.5 w-3.5 mr-1" />

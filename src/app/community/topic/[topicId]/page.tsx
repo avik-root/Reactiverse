@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { MessageCircle, Info, CalendarDays, User as UserIcon, ArrowLeft, BadgeCheck, Loader2, Trash2 } from 'lucide-react';
+import SealCheckIcon from '@/components/icons/SealCheckIcon'; // Import the new icon
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 import { useParams, useSearchParams } from 'next/navigation';
@@ -183,7 +184,7 @@ export default function TopicPage() {
               </Avatar>
               <span>{topicAuthorDisplayName}</span>
               {isTopicAuthorAdmin && <BadgeCheck className="h-4 w-4 text-primary ml-1" />}
-              {!isTopicAuthorAdmin && topic.authorIsVerified && <BadgeCheck className="ml-1.5 h-4 w-4 text-blue-500 fill-blue-500" />}
+              {!isTopicAuthorAdmin && topic.authorIsVerified && <SealCheckIcon className="ml-1.5 h-4 w-4 text-blue-500" />}
             </div>
             <div className="flex items-center">
               <CalendarDays className="h-4 w-4 mr-1.5" />
@@ -225,7 +226,7 @@ export default function TopicPage() {
                               <span className="font-medium text-sm flex items-center">
                                 {postAuthorDisplayName}
                                 {isPostAuthorAdmin && <BadgeCheck className="h-4 w-4 text-primary ml-1.5" />}
-                                {!isPostAuthorAdmin && post.authorIsVerified && <BadgeCheck className="ml-1.5 h-4 w-4 text-blue-500 fill-blue-500" />}
+                                {!isPostAuthorAdmin && post.authorIsVerified && <SealCheckIcon className="ml-1.5 h-4 w-4 text-blue-500" />}
                               </span>
                           </div>
                           <div className="flex items-center gap-2">

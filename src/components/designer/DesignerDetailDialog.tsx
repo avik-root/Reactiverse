@@ -4,7 +4,8 @@
 import type { User } from '@/lib/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { AtSign, Github, Linkedin, Mail, Palette, Phone, User as UserIcon, Eye, EyeOff, Star, BadgeCheck } from 'lucide-react';
+import { AtSign, Github, Linkedin, Mail, Palette, Phone, User as UserIcon, Eye, EyeOff, Star } from 'lucide-react';
+import SealCheckIcon from '@/components/icons/SealCheckIcon'; // Import the new icon
 import FigmaIcon from '@/components/icons/FigmaIcon';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -80,7 +81,7 @@ const DesignerDetailDialog: React.FC<DesignerDetailDialogProps> = ({ user, isOpe
           </Avatar>
           <DialogTitle className="text-3xl font-headline text-primary flex items-center">
             {user.name}
-            {user.isVerified && <BadgeCheck className="ml-2 h-6 w-6 text-blue-500 fill-blue-500" />}
+            {user.isVerified && <SealCheckIcon className="ml-2 h-6 w-6 text-blue-500" />}
           </DialogTitle>
           <DialogDescription className="text-accent font-medium flex items-center justify-center">
             <AtSign className="h-5 w-5 mr-1" />

@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
 import { Users, Trash2, Eye, ShieldCheck, ShieldOff, Phone, Mail, UserSquare2, User as UserIcon, AlertTriangle, LockIcon, UnlockIcon, IndianRupee, XCircle, Github, Linkedin, EyeOff } from 'lucide-react';
-import SealCheckIcon from '@/components/icons/SealCheckIcon'; // Import the new icon
+import SealCheckIcon from '@/components/icons/SealCheckIcon'; 
 import FigmaIcon from '@/components/icons/FigmaIcon';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -353,7 +353,13 @@ export default function ManageUsersPage() {
          <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle className="flex items-center"><UserIcon className="mr-2 h-5 w-5 text-primary" />User Details: {selectedUserForView.name}</DialogTitle>
+              <DialogTitle className="flex items-center">
+                <UserIcon className="mr-2 h-5 w-5 text-primary" />
+                User Details: {selectedUserForView.name}
+                {selectedUserForView.isVerified && (
+                  <SealCheckIcon className="ml-2 h-5 w-5 text-blue-500" />
+                )}
+              </DialogTitle>
               <DialogDescription>Full information for {selectedUserForView.username}.</DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-2">
@@ -553,3 +559,4 @@ const InfoItem: React.FC<InfoItemProps> = ({ icon, label, value, isLink }) => (
         </div>
     </div>
 );
+

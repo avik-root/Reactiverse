@@ -9,7 +9,7 @@ import {
   ValidImageFileSchema,
   AvatarFileSchema,
   HSLColorSchema,
-  CodeBlockSchema,
+  CodeBlockSchema as SharedCodeBlockSchema,
   FAQItemSchema
 } from './form-schemas';
 import {
@@ -423,7 +423,7 @@ export async function submitDesignAction(prevState: AddDesignFormState, formData
           const arr = JSON.parse(val);
           if (!Array.isArray(arr) || arr.length === 0) return false;
           return arr.every(
-            (item) => CodeBlockSchema.safeParse(item).success // CodeBlockSchema imported from form-schemas
+            (item) => SharedCodeBlockSchema.safeParse(item).success // CodeBlockSchema imported from form-schemas
           );
         } catch {
           return false;
@@ -533,7 +533,7 @@ export async function updateDesignAction(prevState: UpdateDesignFormState, formD
           const arr = JSON.parse(val);
           if (!Array.isArray(arr) || arr.length === 0) return false;
           return arr.every(
-            (item) => CodeBlockSchema.safeParse(item).success // CodeBlockSchema imported
+            (item) => SharedCodeBlockSchema.safeParse(item).success // CodeBlockSchema imported
           );
         } catch {
           return false;
@@ -772,7 +772,19 @@ export async function changePasswordAction(prevState: ChangeAdminPasswordFormSta
   }
 }
 
-export async function enableTwoFactorAction(prevState: AdminTwoFactorAuthFormState, formData: FormData): Promise<AdminTwoFactorAuthFormState> {
+export type TwoFactorAuthFormState = { // Ensure this is exported if used in components
+  message?: string | null;
+  success?: boolean;
+  actionType?: 'enable' | 'disable';
+  errors?: {
+    pin?: string[];
+    confirmPin?: string[];
+    currentPasswordFor2FA?: string[];
+    general?: string[];
+  };
+};
+
+export async function enableTwoFactorAction(prevState: TwoFactorAuthFormState, formData: FormData): Promise<TwoFactorAuthFormState> {
   const EnableTwoFactorSchema = z.object({
     userId: z.string(),
     pin: z.string().length(6, { message: 'PIN must be 6 digits.' }).regex(/^\d{6}$/, "PIN must be 6 digits."),
@@ -817,7 +829,7 @@ export async function enableTwoFactorAction(prevState: AdminTwoFactorAuthFormSta
   }
 }
 
-export async function disableTwoFactorAction(prevState: AdminTwoFactorAuthFormState, formData: FormData): Promise<AdminTwoFactorAuthFormState> {
+export async function disableTwoFactorAction(prevState: TwoFactorAuthFormState, formData: FormData): Promise<TwoFactorAuthFormState> {
   const DisableTwoFactorSchema = z.object({
     userId: z.string(),
     currentPasswordFor2FA: z.string().min(1, {message: "Current password is required to disable 2FA."}),
@@ -1106,8 +1118,8 @@ export async function updateSiteSettingsAction(
   const SiteSettingsSchema = z.object({
     siteTitle: z.string().min(3, { message: 'Site title must be at least 3 characters.' }),
     allowNewUserRegistrations: z.preprocess((val) => val === 'on' || val === true, z.boolean()),
-    primaryHSL: HSLColorSchema, 
-    accentHSL: HSLColorSchema,   
+    primaryHSL: HSLColorSchema,
+    accentHSL: HSLColorSchema,
   });
   const validatedFields = SiteSettingsSchema.safeParse(Object.fromEntries(formData.entries()));
 
@@ -1152,7 +1164,7 @@ export async function updateAdminProfileAction(
   const UpdateAdminProfileSchema = z.object({
     adminId: z.string(),
     name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
-    avatarFile: AvatarFileSchema, 
+    avatarFile: AvatarFileSchema,
   });
   const rawData = Object.fromEntries(formData.entries());
   const avatarFile = formData.get('avatarFile') as File | null;
@@ -1545,7 +1557,7 @@ export async function updatePageContentAction<T extends PageContentKeys>(
 
 export async function updateSiteLogoAction(prevState: SiteLogoUploadState, formData: FormData): Promise<SiteLogoUploadState> {
   const SiteLogoSchema = z.object({
-    logoFile: ValidImageFileSchema.refine(file => file !== undefined, "Logo file is required."), 
+    logoFile: ValidImageFileSchema.refine(file => file !== undefined, "Logo file is required."),
   });
   const validatedFields = SiteLogoSchema.safeParse({ logoFile: formData.get('logoFile') });
 
@@ -2089,7 +2101,7 @@ export async function createForumPostAction(
             return { message: 'Failed to save reply. Topic not found or error saving.', success: false, errors: { general: ['Failed to save reply.'] } };
         }
 
-        revalidatePath(`/community/topic/${topicId}`);
+        revalidatePath(`/community/topic/${topicId}?categorySlug=${categorySlug}`);
         revalidatePath(`/community/category/${categorySlug}`);
         revalidatePath('/community');
 
@@ -2199,7 +2211,7 @@ export async function updateAdminAnnouncementAction(
   if (!adminToken) {
     return { success: false, message: "Admin authorization failed.", errors: {general: ["Not authorized."]} };
   }
-  
+
   const validatedFields = UpdateAnnouncementSchema.safeParse(Object.fromEntries(formData.entries()));
 
   if (!validatedFields.success) {
@@ -2211,12 +2223,12 @@ export async function updateAdminAnnouncementAction(
   }
 
   const { topicId, adminId, title, content } = validatedFields.data;
-  
+
   const adminUsers = await getAdminUsers();
   if (!adminUsers.some(admin => admin.id === adminId)) {
     return { message: "Admin authorization failed.", success: false, errors: {general: ["Invalid admin."]} };
   }
-  
+
   try {
     const announcements = await getAnnouncementsData();
     const topicIndex = announcements.findIndex(t => t.id === topicId);
@@ -2226,7 +2238,7 @@ export async function updateAdminAnnouncementAction(
     }
 
     const topicToUpdate = announcements[topicIndex];
-    
+
     // Ensure only admin who created it or any other admin can edit
     if (topicToUpdate.createdByUserId !== adminId && !adminUsers.some(admin => admin.id === adminId)) {
          // This specific check might be redundant if ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS is the primary gatekeeper
@@ -2252,3 +2264,28 @@ export async function updateAdminAnnouncementAction(
   }
 }
 
+export async function searchAllForumTopicsAction(term: string): Promise<ForumTopic[]> {
+  if (!term || term.trim() === '') {
+    return [];
+  }
+  const lowerTerm = term.toLowerCase();
+  try {
+    const generalTopics = await getUsersForumData();
+    const announcementTopics = await getAnnouncementsData();
+    const supportTopics = await getSupportForumData();
+
+    const allTopics = [...generalTopics, ...announcementTopics, ...supportTopics];
+
+    const filteredTopics = allTopics.filter(topic =>
+      topic.title.toLowerCase().includes(lowerTerm) ||
+      topic.content.toLowerCase().includes(lowerTerm) ||
+      topic.authorName.toLowerCase().includes(lowerTerm)
+    );
+
+    // Sort by relevance (e.g., most recent first)
+    return filteredTopics.sort((a, b) => new Date(b.lastRepliedAt).getTime() - new Date(a.lastRepliedAt).getTime());
+  } catch (error) {
+    console.error('Error searching forum topics:', error);
+    return []; // Return empty on error
+  }
+}

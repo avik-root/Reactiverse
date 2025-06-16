@@ -47,7 +47,7 @@ const Logo = () => {
           width={160} 
           height={32} 
           priority 
-          className="object-contain" // Added object-contain
+          className="object-contain" // This ensures the logo is contained and scaled correctly
           data-ai-hint="site logo"
           onError={() => {
             setUseFallbackLogo(true);
@@ -59,4 +59,3 @@ const Logo = () => {
 };
 
 export default Logo;
-

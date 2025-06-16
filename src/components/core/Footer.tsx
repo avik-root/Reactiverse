@@ -1,6 +1,7 @@
 
 import Link from 'next/link';
-import { Layers3, Linkedin, Github, Mail } from 'lucide-react'; 
+import { Linkedin, Github, Mail } from 'lucide-react';
+import Logo from './Logo'; // Import the Logo component
 
 const FooterLink: React.FC<{ href: string; children: React.ReactNode }> = ({ href, children }) => (
   <li>
@@ -19,12 +20,11 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
           {/* Reactiverse Info */}
           <div className="md:col-span-12 lg:col-span-5">
-            <Link href="/" className="flex items-center gap-2 mb-3 text-[hsl(var(--footer-foreground))] hover:opacity-80 transition-opacity">
-              <Layers3 size={28} /> 
-              <span className="text-2xl font-headline font-semibold">Reactiverse</span> 
-            </Link>
+            <div className="mb-3"> {/* Wrapper for Logo for styling consistency if needed */}
+              <Logo />
+            </div>
             <p className="text-sm text-[hsl(var(--footer-muted-foreground))] mb-6 max-w-xs">
-              A platform for designers to showcase their components and designs. 
+              A platform for designers to showcase their components and designs.
             </p>
             <div className="flex space-x-4">
               <Link href="https://www.linkedin.com/in/avik-samanta-root/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="text-[hsl(var(--footer-muted-foreground))] hover:text-[hsl(var(--footer-foreground))] transition-colors">
@@ -59,7 +59,7 @@ const Footer = () => {
             <ul className="space-y-2">
               <FooterLink href="/about">About Us</FooterLink>
               <FooterLink href="/community">Community Forum</FooterLink>
-              <FooterLink href="/support">Contact Support</FooterLink> 
+              <FooterLink href="/support">Contact Support</FooterLink>
               <FooterLink href="/admin">Admin Access</FooterLink>
             </ul>
           </div>
@@ -77,4 +77,3 @@ const Footer = () => {
 };
 
 export default Footer;
-

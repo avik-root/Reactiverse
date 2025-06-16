@@ -1,17 +1,17 @@
 
 'use client';
 
-import { useEffect, type ReactNode, useState } from 'react'; // Added useState
+import { useEffect, type ReactNode, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { LayoutDashboard, Users, Palette, Settings, LogOut, ShieldCheck, UserCog, FileText, Image as ImageIcon, Loader2, Users2, MailOpen, LayoutList, MessagesSquare, Megaphone, HelpCircle, Menu as MenuIcon } from 'lucide-react'; // Added MenuIcon
+import { LayoutDashboard, Users, Palette, Settings, LogOut, ShieldCheck, UserCog, FileText, Image as ImageIcon, Loader2, Users2, MailOpen, LayoutList, MessagesSquare, Megaphone, HelpCircle, Menu as MenuIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Logo from '@/components/core/Logo';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet'; // Added Sheet components
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -41,13 +41,26 @@ const contentEditingNavItems = [
     { href: '/admin/forum/support-qa', label: 'Edit Support & Q/A', icon: HelpCircle },
 ];
 
-function AdminNavContent({ onLinkClick }: { onLinkClick?: () => void }) {
+interface AdminNavContentProps {
+  onLinkClick?: () => void;
+}
+
+function AdminNavContent({ onLinkClick }: AdminNavContentProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
   const handleLogout = async () => {
     await logout();
-    window.location.href = '/';
+    window.location.href = '/'; // Redirect to home page or admin login
+    if (onLinkClick) {
+      onLinkClick();
+    }
+  };
+
+  const handleLinkNavigation = () => {
+    if (onLinkClick) {
+      onLinkClick();
+    }
   };
 
   const getInitials = (name?: string) => {
@@ -67,19 +80,18 @@ function AdminNavContent({ onLinkClick }: { onLinkClick?: () => void }) {
       </div>
       <nav className="flex-grow space-y-1 overflow-y-auto">
         {mainNavItems.map((item) => (
-          <SheetClose asChild key={`main-${item.href}`}>
-            <Link
-              href={item.href}
-              onClick={onLinkClick}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-muted-foreground transition-all hover:text-primary hover:bg-muted",
-                pathname === item.href && "bg-muted text-primary font-semibold shadow-sm"
-              )}
-            >
-              <item.icon className="h-5 w-5" />
-              {item.label}
-            </Link>
-          </SheetClose>
+          <Link
+            key={`main-${item.href}`}
+            href={item.href}
+            onClick={handleLinkNavigation}
+            className={cn(
+              "flex items-center gap-3 rounded-lg px-3 py-2.5 text-muted-foreground transition-all hover:text-primary hover:bg-muted",
+              pathname === item.href && "bg-muted text-primary font-semibold shadow-sm"
+            )}
+          >
+            <item.icon className="h-5 w-5" />
+            {item.label}
+          </Link>
         ))}
 
         <Accordion type="single" collapsible className="w-full" defaultValue="content-editing">
@@ -90,19 +102,18 @@ function AdminNavContent({ onLinkClick }: { onLinkClick?: () => void }) {
             <AccordionContent className="pl-4 pt-1 pb-0">
               <nav className="flex-grow space-y-1">
                 {contentEditingNavItems.map((item) => (
-                  <SheetClose asChild key={`content-${item.href}`}>
-                    <Link
-                      href={item.href}
-                      onClick={onLinkClick}
-                      className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted-foreground transition-all hover:text-primary hover:bg-muted/80",
-                        pathname === item.href && "bg-muted/80 text-primary font-medium"
-                      )}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      {item.label}
-                    </Link>
-                  </SheetClose>
+                  <Link
+                    key={`content-${item.href}`}
+                    href={item.href}
+                    onClick={handleLinkNavigation}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted-foreground transition-all hover:text-primary hover:bg-muted/80",
+                      pathname === item.href && "bg-muted/80 text-primary font-medium"
+                    )}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    {item.label}
+                  </Link>
                 ))}
               </nav>
             </AccordionContent>
@@ -124,11 +135,9 @@ function AdminNavContent({ onLinkClick }: { onLinkClick?: () => void }) {
             <p className="text-xs text-muted-foreground">Administrator</p>
           </div>
         </div>
-        <SheetClose asChild>
-          <Button variant="ghost" onClick={handleLogout} className="w-full justify-start mt-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
-            <LogOut className="mr-2 h-4 w-4" /> Log Out
-          </Button>
-        </SheetClose>
+        <Button variant="ghost" onClick={handleLogout} className="w-full justify-start mt-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+          <LogOut className="mr-2 h-4 w-4" /> Log Out
+        </Button>
       </div>
     </>
   );

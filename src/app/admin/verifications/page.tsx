@@ -1,20 +1,22 @@
 
+
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
-import type { VerificationRequest } from '@/lib/types';
-import { getVerificationRequestsAction } from '@/lib/actions';
+import { useEffect, useState, useMemo, useActionState, startTransition } from 'react';
+import type { VerificationRequest, AdminApproveVerificationFormState, AdminRejectVerificationFormState } from '@/lib/types';
+import { getVerificationRequestsAction, adminApproveVerificationAction, adminRejectVerificationAction } from '@/lib/actions';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { BadgeCheck, Search, ListFilter, XCircle, UserSquare2, AtSign, Mail, Phone, CalendarDays } from 'lucide-react';
+import { BadgeCheck, Search, ListFilter, XCircle, UserSquare2, AtSign, Mail, Phone, CalendarDays, CheckCircle2, XSquare, ShieldQuestion } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 type VerificationSortOption =
   | 'date-newest' | 'date-oldest'
@@ -23,7 +25,7 @@ type VerificationSortOption =
 
 
 export default function AdminVerificationsPage() {
-  const { isAdmin } = useAuth();
+  const { user: adminUser, isAdmin } = useAuth();
   const { toast } = useToast();
   const [requests, setRequests] = useState<VerificationRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -31,8 +33,18 @@ export default function AdminVerificationsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<VerificationSortOption>('date-newest');
 
-  useEffect(() => {
-    async function fetchRequests() {
+  const [requestToProcess, setRequestToProcess] = useState<VerificationRequest | null>(null);
+  const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
+  const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
+
+  const initialApproveState: AdminApproveVerificationFormState = { message: null, success: false, errors: {} };
+  const [approveFormState, approveFormAction] = useActionState(adminApproveVerificationAction, initialApproveState);
+
+  const initialRejectState: AdminRejectVerificationFormState = { message: null, success: false, errors: {} };
+  const [rejectFormState, rejectFormAction] = useActionState(adminRejectVerificationAction, initialRejectState);
+
+
+  const fetchRequests = async () => {
       if (!isAdmin) return;
       setIsLoading(true);
       try {
@@ -43,9 +55,42 @@ export default function AdminVerificationsPage() {
         toast({ title: "Error", description: "Could not load verification requests.", variant: "destructive" });
       }
       setIsLoading(false);
-    }
+    };
+
+  useEffect(() => {
     fetchRequests();
   }, [isAdmin, toast]);
+
+  useEffect(() => {
+    if (approveFormState?.message) {
+      toast({
+        title: approveFormState.success ? "Success" : "Error",
+        description: approveFormState.message,
+        variant: approveFormState.success ? "default" : "destructive",
+      });
+      if (approveFormState.success) {
+        fetchRequests(); // Re-fetch to update the list
+        setIsApproveDialogOpen(false);
+        setRequestToProcess(null);
+      }
+    }
+  }, [approveFormState, toast]);
+
+  useEffect(() => {
+    if (rejectFormState?.message) {
+      toast({
+        title: rejectFormState.success ? "Success" : "Error",
+        description: rejectFormState.message,
+        variant: rejectFormState.success ? "default" : "destructive",
+      });
+      if (rejectFormState.success) {
+        fetchRequests(); // Re-fetch to update the list
+        setIsRejectDialogOpen(false);
+        setRequestToProcess(null);
+      }
+    }
+  }, [rejectFormState, toast]);
+
 
   const filteredAndSortedRequests = useMemo(() => {
     let filtered = [...requests];
@@ -85,6 +130,32 @@ export default function AdminVerificationsPage() {
     }
     return filtered;
   }, [requests, searchTerm, sortBy]);
+
+  const handleApproveClick = (request: VerificationRequest) => {
+    setRequestToProcess(request);
+    setIsApproveDialogOpen(true);
+  };
+
+  const handleRejectClick = (request: VerificationRequest) => {
+    setRequestToProcess(request);
+    setIsRejectDialogOpen(true);
+  };
+  
+  const confirmApprove = () => {
+    if (!requestToProcess || !adminUser || !('id' in adminUser)) return;
+    const formData = new FormData();
+    formData.append('requestId', requestToProcess.id);
+    formData.append('adminId', adminUser.id);
+    startTransition(() => approveFormAction(formData));
+  };
+
+  const confirmReject = () => {
+    if (!requestToProcess || !adminUser || !('id' in adminUser)) return;
+    const formData = new FormData();
+    formData.append('requestId', requestToProcess.id);
+    formData.append('adminId', adminUser.id);
+    startTransition(() => rejectFormAction(formData));
+  };
 
 
   if (isLoading) {
@@ -207,20 +278,29 @@ export default function AdminVerificationsPage() {
                           'secondary'
                         }
                         className={
-                          req.status === 'approved' ? 'bg-green-600 hover:bg-green-700' : ''
+                          req.status === 'approved' ? 'bg-green-600 hover:bg-green-700' : 
+                          req.status === 'pending' ? 'bg-yellow-500 hover:bg-yellow-600 text-background' : ''
                         }
                       >
+                        {req.status === 'pending' && <ShieldQuestion className="mr-1.5 h-3.5 w-3.5" />}
+                        {req.status === 'approved' && <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />}
+                        {req.status === 'rejected' && <XSquare className="mr-1.5 h-3.5 w-3.5" />}
                         {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right space-x-2">
-                      {/* TODO: Implement Approve/Reject actions */}
-                      <Button variant="outline" size="sm" disabled>
-                        Approve
-                      </Button>
-                      <Button variant="destructive" size="sm" disabled>
-                        Reject
-                      </Button>
+                      {req.status === 'pending' ? (
+                        <>
+                          <Button variant="outline" size="sm" onClick={() => handleApproveClick(req)} className="text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700">
+                            <CheckCircle2 className="mr-1.5 h-3.5 w-3.5"/> Approve
+                          </Button>
+                          <Button variant="destructive" size="sm" onClick={() => handleRejectClick(req)}>
+                            <XSquare className="mr-1.5 h-3.5 w-3.5"/> Reject
+                          </Button>
+                        </>
+                      ) : (
+                        <span className="text-xs text-muted-foreground italic">Processed</span>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -233,6 +313,46 @@ export default function AdminVerificationsPage() {
           </p>
         )}
       </CardContent>
+
+      {requestToProcess && (
+        <>
+          <AlertDialog open={isApproveDialogOpen} onOpenChange={setIsApproveDialogOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Approve Verification Request?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to approve the verification request for <span className="font-semibold">{requestToProcess.submittedName}</span> ({requestToProcess.submittedUsername})?
+                  This will mark the user as verified.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setRequestToProcess(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmApprove} className="bg-green-600 hover:bg-green-700">
+                  Approve
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          <AlertDialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Reject Verification Request?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to reject the verification request for <span className="font-semibold">{requestToProcess.submittedName}</span> ({requestToProcess.submittedUsername})?
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setRequestToProcess(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmReject} className="bg-destructive hover:bg-destructive/90">
+                  Reject
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </>
+      )}
     </Card>
   );
 }
+

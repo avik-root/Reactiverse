@@ -434,7 +434,7 @@ export interface VerificationRequest {
   submittedEmail: string;
   submittedPhone: string;
   requestDate: string;
-  status: 'pending' | 'approved' | 'rejected'; // Added status
+  status: 'pending' | 'approved' | 'rejected';
 }
 
 export type ApplyForVerificationFormState = {
@@ -449,4 +449,19 @@ export type ApplyForVerificationFormState = {
     general?: string[];
   };
 };
+
+export type AdminApproveVerificationFormState = {
+  message?: string | null;
+  success?: boolean;
+  errors?: {
+    requestId?: string[];
+    adminId?: string[];
+    general?: string[];
+  };
+  updatedRequest?: VerificationRequest | null;
+  updatedUser?: User | null;
+};
+
+export type AdminRejectVerificationFormState = AdminApproveVerificationFormState; // Same structure for now
+
 

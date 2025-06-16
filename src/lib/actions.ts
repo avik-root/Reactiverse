@@ -53,6 +53,7 @@ import {
   updateAnnouncementInFile,
   getVerificationRequestsFromFile,
   addVerificationRequestToFile,
+  updateVerificationRequestInFile,
 } from './server-data';
 import type {
   AdminUser,
@@ -98,6 +99,8 @@ import type {
   UpdateAdminAnnouncementFormState,
   VerificationRequest,
   ApplyForVerificationFormState,
+  AdminApproveVerificationFormState,
+  AdminRejectVerificationFormState,
 } from './types';
 import { revalidatePath } from 'next/cache';
 import { hashPassword, comparePassword, hashPin, comparePin } from './auth-utils';
@@ -2517,6 +2520,16 @@ export async function searchAllForumTopicsAction(term: string): Promise<ForumTop
   }
 }
 
+export async function getVerificationRequestsAction(): Promise<VerificationRequest[]> {
+  try {
+    const requests = await getVerificationRequestsFromFile();
+    return requests.sort((a, b) => new Date(b.requestDate).getTime() - new Date(a.requestDate).getTime());
+  } catch (error) {
+    console.error("Error fetching verification requests via action:", error);
+    return [];
+  }
+}
+
 export async function applyForVerificationAction(
   prevState: ApplyForVerificationFormState,
   formData: FormData
@@ -2564,12 +2577,110 @@ export async function applyForVerificationAction(
   }
 }
 
-export async function getVerificationRequestsAction(): Promise<VerificationRequest[]> {
+export async function adminApproveVerificationAction(
+  prevState: AdminApproveVerificationFormState,
+  formData: FormData
+): Promise<AdminApproveVerificationFormState> {
+  const ApproveVerificationSchema = z.object({
+    requestId: z.string().min(1, "Request ID is required."),
+    adminId: z.string().min(1, "Admin ID is required for authorization."),
+  });
+
+  const adminToken = cookies().get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
+  if (!adminToken) { // Basic auth check
+    return { message: "Admin authorization failed.", success: false, errors: { general: ["Not authorized."] } };
+  }
+
+  const validatedFields = ApproveVerificationSchema.safeParse(Object.fromEntries(formData.entries()));
+  if (!validatedFields.success) {
+    return { errors: validatedFields.error.flatten().fieldErrors, message: 'Invalid input.', success: false };
+  }
+
+  const { requestId } = validatedFields.data;
+
   try {
     const requests = await getVerificationRequestsFromFile();
-    return requests.sort((a, b) => new Date(b.requestDate).getTime() - new Date(a.requestDate).getTime());
+    const requestIndex = requests.findIndex(req => req.id === requestId);
+
+    if (requestIndex === -1) {
+      return { message: 'Verification request not found.', success: false, errors: { requestId: ['Request not found.'] } };
+    }
+
+    const requestToUpdate = requests[requestIndex];
+    if (requestToUpdate.status !== 'pending') {
+      return { message: `Request is already ${requestToUpdate.status}.`, success: false, errors: { general: [`Request already ${requestToUpdate.status}.`] } };
+    }
+
+    requestToUpdate.status = 'approved';
+    await updateVerificationRequestInFile(requestToUpdate);
+
+    let updatedUser: User | null = null;
+    if (requestToUpdate.userId) {
+      const users = await getUsersFromFile();
+      const userToVerify = users.find(u => u.id === requestToUpdate.userId);
+      if (userToVerify) {
+        userToVerify.isVerified = true;
+        await updateUserInFile(userToVerify);
+        const { passwordHash, twoFactorPinHash, ...userToReturn } = userToVerify;
+        updatedUser = userToReturn as User;
+      } else {
+        console.warn(`User with ID ${requestToUpdate.userId} not found for verification approval.`);
+      }
+    }
+
+    revalidatePath('/admin/verifications');
+    if (updatedUser) revalidatePath('/admin/users');
+    revalidatePath('/designers');
+
+    return { message: 'Verification request approved successfully.', success: true, updatedRequest: requestToUpdate, updatedUser };
   } catch (error) {
-    console.error("Error fetching verification requests via action:", error);
-    return [];
+    console.error("Error approving verification request:", error);
+    return { message: 'Failed to approve request.', success: false, errors: { general: ['Server error.'] } };
+  }
+}
+
+export async function adminRejectVerificationAction(
+  prevState: AdminRejectVerificationFormState,
+  formData: FormData
+): Promise<AdminRejectVerificationFormState> {
+  const RejectVerificationSchema = z.object({
+    requestId: z.string().min(1, "Request ID is required."),
+    adminId: z.string().min(1, "Admin ID is required for authorization."),
+  });
+
+  const adminToken = cookies().get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
+   if (!adminToken) {
+    return { message: "Admin authorization failed.", success: false, errors: { general: ["Not authorized."] } };
+  }
+
+  const validatedFields = RejectVerificationSchema.safeParse(Object.fromEntries(formData.entries()));
+  if (!validatedFields.success) {
+    return { errors: validatedFields.error.flatten().fieldErrors, message: 'Invalid input.', success: false };
+  }
+
+  const { requestId } = validatedFields.data;
+
+  try {
+    const requests = await getVerificationRequestsFromFile();
+    const requestIndex = requests.findIndex(req => req.id === requestId);
+
+    if (requestIndex === -1) {
+      return { message: 'Verification request not found.', success: false, errors: { requestId: ['Request not found.'] } };
+    }
+
+    const requestToUpdate = requests[requestIndex];
+     if (requestToUpdate.status !== 'pending') {
+      return { message: `Request is already ${requestToUpdate.status}.`, success: false, errors: { general: [`Request already ${requestToUpdate.status}.`] } };
+    }
+
+    requestToUpdate.status = 'rejected';
+    await updateVerificationRequestInFile(requestToUpdate);
+
+    revalidatePath('/admin/verifications');
+
+    return { message: 'Verification request rejected.', success: true, updatedRequest: requestToUpdate };
+  } catch (error) {
+    console.error("Error rejecting verification request:", error);
+    return { message: 'Failed to reject request.', success: false, errors: { general: ['Server error.'] } };
   }
 }

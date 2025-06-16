@@ -1,6 +1,6 @@
 
 
-// This file should only be imported by server-side code (e.g., server actions, API routes)
+// This file is only imported by server-side code (e.g., server actions, API routes)
 import type { StoredAdminUser, StoredUser, Design, SiteSettings, PageContentData, PageContentKeys, TeamMembersContent, TeamMember, ForumCategory, NewsletterSubscriber, ForumTopic, ForumPost, VerificationRequest } from './types';
 import fs from 'fs/promises';
 import path from 'path';
@@ -943,4 +943,21 @@ export async function addVerificationRequestToFile(request: VerificationRequest)
   const requests = await getVerificationRequestsFromFile();
   requests.push(request);
   await writeJsonFile<VerificationRequest[]>(VERIFICATION_REQUESTS_FILE_PATH, requests);
+}
+
+export async function updateVerificationRequestInFile(updatedRequest: VerificationRequest): Promise<boolean> {
+  try {
+    let requests = await getVerificationRequestsFromFile();
+    const requestIndex = requests.findIndex(req => req.id === updatedRequest.id);
+    if (requestIndex === -1) {
+      console.error('Verification request not found for update:', updatedRequest.id);
+      return false;
+    }
+    requests[requestIndex] = updatedRequest;
+    await writeJsonFile<VerificationRequest[]>(VERIFICATION_REQUESTS_FILE_PATH, requests);
+    return true;
+  } catch (error) {
+    console.error('Failed to update verification request:', error);
+    throw error;
+  }
 }

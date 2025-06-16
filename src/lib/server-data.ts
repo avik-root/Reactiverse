@@ -15,10 +15,18 @@ const PAGE_CONTENT_FILE_PATH = path.join(process.cwd(), 'page_content.json');
 const PUBLIC_DIR = path.join(process.cwd(), 'public');
 const AVATARS_DIR = path.join(PUBLIC_DIR, 'avatars');
 const CONTENT_IMAGES_DIR = path.join(PUBLIC_DIR, 'content_images');
+
 const FORUM_CATEGORIES_FILE_PATH = path.join(process.cwd(), 'forum_categories.json');
-const FORUM_TOPICS_FILE_PATH = path.join(process.cwd(), 'forum_topics.json');
-const FORUM_POSTS_FILE_PATH = path.join(process.cwd(), 'forum_posts.json');
 const NEWSLETTER_SUBSCRIBERS_FILE_PATH = path.join(process.cwd(), 'newsletter_subscribers.json');
+
+// New Forum Data Files
+const USERS_FORUM_FILE_PATH = path.join(process.cwd(), 'users_forum.json'); // For "General Discussion"
+const ANNOUNCEMENT_FILE_PATH = path.join(process.cwd(), 'announcement.json'); // For "Announcements"
+const SUPPORT_FORUM_FILE_PATH = path.join(process.cwd(), 'support.json'); // For "Support & Q/A"
+
+// Old files to be deprecated or re-purposed if necessary - for now, we'll mostly ignore them for new operations.
+const DEPRECATED_FORUM_TOPICS_FILE_PATH = path.join(process.cwd(), 'forum_topics.json');
+const DEPRECATED_FORUM_POSTS_FILE_PATH = path.join(process.cwd(), 'forum_posts.json');
 
 
 const DEFAULT_SITE_SETTINGS: SiteSettings = {
@@ -188,6 +196,37 @@ async function ensureDirExists(dirPath: string): Promise<void> {
     await fs.access(dirPath);
   } catch {
     await fs.mkdir(dirPath, { recursive: true });
+  }
+}
+
+async function readJsonFile<T>(filePath: string, defaultValue: T): Promise<T> {
+  try {
+    if (!(await fileExists(filePath))) {
+      await fs.writeFile(filePath, JSON.stringify(defaultValue, null, 2));
+      return defaultValue;
+    }
+    const jsonData = await fs.readFile(filePath, 'utf-8');
+    return JSON.parse(jsonData) as T;
+  } catch (error) {
+    console.error(`Failed to read or initialize ${filePath}:`, error);
+    // If parsing fails or any other error, try to write default and return it
+    try {
+        await fs.writeFile(filePath, JSON.stringify(defaultValue, null, 2));
+        return defaultValue;
+    } catch (writeError) {
+        console.error(`Failed to write default value to ${filePath} after read error:`, writeError);
+        // If writing default also fails, return the in-memory default (this might lead to data loss if the file was corrupted)
+        return defaultValue;
+    }
+  }
+}
+
+async function writeJsonFile<T>(filePath: string, data: T): Promise<void> {
+  try {
+    await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (error) {
+    console.error(`Failed to write to ${filePath}:`, error);
+    throw error;
   }
 }
 
@@ -583,64 +622,84 @@ export async function addForumCategoryToFile(newCategory: ForumCategory): Promis
   }
 }
 
+// --- New Forum Data Functions ---
 
+// General purpose function to get topics from a specific file
+async function getTopicsFromFile(filePath: string): Promise<ForumTopic[]> {
+  return readJsonFile<ForumTopic[]>(filePath, []);
+}
+
+// General purpose function to save topics to a specific file
+async function saveTopicsToFile(filePath: string, topics: ForumTopic[]): Promise<void> {
+  await writeJsonFile<ForumTopic[]>(filePath, topics);
+}
+
+export async function getUsersForumData(): Promise<ForumTopic[]> {
+  return getTopicsFromFile(USERS_FORUM_FILE_PATH);
+}
+export async function saveUsersForumData(topics: ForumTopic[]): Promise<void> {
+  await saveTopicsToFile(USERS_FORUM_FILE_PATH, topics);
+}
+
+export async function getAnnouncementsData(): Promise<ForumTopic[]> {
+  return getTopicsFromFile(ANNOUNCEMENT_FILE_PATH);
+}
+export async function saveAnnouncementsData(topics: ForumTopic[]): Promise<void> {
+  await saveTopicsToFile(ANNOUNCEMENT_FILE_PATH, topics);
+}
+
+export async function getSupportForumData(): Promise<ForumTopic[]> {
+  return getTopicsFromFile(SUPPORT_FORUM_FILE_PATH);
+}
+export async function saveSupportForumData(topics: ForumTopic[]): Promise<void> {
+  await saveTopicsToFile(SUPPORT_FORUM_FILE_PATH, topics);
+}
+
+// Deprecate old topic/post functions or adapt them if they have other uses.
+// For this refactor, direct use of the new functions is preferred.
 export async function getForumTopicsFromFile(): Promise<ForumTopic[]> {
-  try {
-    if (!(await fileExists(FORUM_TOPICS_FILE_PATH))) {
-      await fs.writeFile(FORUM_TOPICS_FILE_PATH, JSON.stringify([], null, 2));
-      return [];
-    }
-    const jsonData = await fs.readFile(FORUM_TOPICS_FILE_PATH, 'utf-8');
-    return JSON.parse(jsonData) as ForumTopic[];
-  } catch (error) {
-    console.error('Failed to read forum_topics.json:', error);
-    return [];
-  }
+    console.warn("getForumTopicsFromFile is deprecated. Use category-specific functions like getUsersForumData, getAnnouncementsData, or getSupportForumData.");
+    return readJsonFile<ForumTopic[]>(DEPRECATED_FORUM_TOPICS_FILE_PATH, []);
 }
-
 export async function saveForumTopicsToFile(topics: ForumTopic[]): Promise<void> {
-  try {
-    await fs.writeFile(FORUM_TOPICS_FILE_PATH, JSON.stringify(topics, null, 2), 'utf-8');
-  } catch (error) {
-    console.error('Failed to save forum topics to forum_topics.json:', error);
-    throw error;
+    console.warn("saveForumTopicsToFile is deprecated. Use category-specific functions like saveUsersForumData, saveAnnouncementsData, or saveSupportForumData.");
+    await writeJsonFile<ForumTopic[]>(DEPRECATED_FORUM_TOPICS_FILE_PATH, topics);
+}
+export async function addForumTopicToFile(newTopic: ForumTopic, categorySlug: string): Promise<void> {
+  let topics;
+  let saveFunction;
+
+  switch (categorySlug) {
+    case 'general-discussion':
+      topics = await getUsersForumData();
+      saveFunction = saveUsersForumData;
+      break;
+    case 'announcements':
+      topics = await getAnnouncementsData();
+      saveFunction = saveAnnouncementsData;
+      break;
+    case 'support-qa':
+      topics = await getSupportForumData();
+      saveFunction = saveSupportForumData;
+      break;
+    default:
+      console.error(`Unknown category slug for adding topic: ${categorySlug}`);
+      throw new Error(`Cannot add topic to unknown category: ${categorySlug}`);
   }
+  topics.push(newTopic);
+  await saveFunction(topics);
 }
 
-export async function addForumTopicToFile(newTopic: ForumTopic): Promise<void> {
-  try {
-    const topics = await getForumTopicsFromFile();
-    topics.push(newTopic);
-    await saveForumTopicsToFile(topics);
-  } catch (error) {
-    console.error('Failed to add topic to forum_topics.json:', error);
-    throw error;
-  }
-}
-
-
+// Post data functions (posts are now embedded, so these are mainly for direct manipulation if needed)
 export async function getForumPostsFromFile(): Promise<ForumPost[]> {
-  try {
-    if (!(await fileExists(FORUM_POSTS_FILE_PATH))) {
-      await fs.writeFile(FORUM_POSTS_FILE_PATH, JSON.stringify([], null, 2));
-      return [];
-    }
-    const jsonData = await fs.readFile(FORUM_POSTS_FILE_PATH, 'utf-8');
-    return JSON.parse(jsonData) as ForumPost[];
-  } catch (error) {
-    console.error('Failed to read forum_posts.json:', error);
-    return [];
-  }
+    console.warn("getForumPostsFromFile is deprecated as posts are now embedded in topics.");
+    return readJsonFile<ForumPost[]>(DEPRECATED_FORUM_POSTS_FILE_PATH, []);
 }
-
 export async function saveForumPostsToFile(posts: ForumPost[]): Promise<void> {
-  try {
-    await fs.writeFile(FORUM_POSTS_FILE_PATH, JSON.stringify(posts, null, 2), 'utf-8');
-  } catch (error) {
-    console.error('Failed to save forum posts to forum_posts.json:', error);
-    throw error;
-  }
+    console.warn("saveForumPostsToFile is deprecated as posts are now embedded in topics.");
+    await writeJsonFile<ForumPost[]>(DEPRECATED_FORUM_POSTS_FILE_PATH, posts);
 }
+// --- End New Forum Data Functions ---
 
 
 export async function getNewsletterSubscribersFromFile(): Promise<NewsletterSubscriber[]> {
@@ -667,3 +726,4 @@ export async function addSubscriberToFile(newSubscriber: NewsletterSubscriber): 
     throw error;
   }
 }
+

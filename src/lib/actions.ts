@@ -27,13 +27,18 @@ import {
   saveAdminAvatar,
   savePageContentImage,
   getForumCategoriesFromFile,
-  addForumCategoryToFile,
+  addForumCategoryToFile as addForumCategoryToServerData, // Renamed to avoid conflict
   saveForumCategoriesToFile,
   getNewsletterSubscribersFromFile,
   addSubscriberToFile,
-  getForumTopicsFromFile,
-  addForumTopicToFile,
-  getForumPostsFromFile,
+  // New forum data functions from server-data
+  getUsersForumData,
+  saveUsersForumData,
+  getAnnouncementsData,
+  saveAnnouncementsData,
+  getSupportForumData,
+  saveSupportForumData,
+  addForumTopicToFile as addForumTopicToServerFile, // Renamed to avoid conflict
 } from './server-data';
 import type {
   AdminUser,
@@ -403,7 +408,6 @@ const AddForumCategorySchema = z.object({
 const CreateTopicFormSchema = z.object({
   title: z.string().min(5, { message: "Title must be at least 5 characters long." }).max(150, { message: "Title cannot exceed 150 characters." }),
   content: z.string().min(10, { message: "Content must be at least 10 characters long." }).max(5000, { message: "Content cannot exceed 5000 characters." }),
-  // categoryId, userId, userName, userAvatarUrl will be passed as arguments, not part of formData directly from user
 });
 
 
@@ -1947,7 +1951,7 @@ export async function addForumCategoryAction(
   };
 
   try {
-    await addForumCategoryToFile(newCategory);
+    await addForumCategoryToServerData(newCategory);
     revalidatePath('/admin/forum-categories');
     revalidatePath('/community');
     return { message: 'Forum category added successfully!', success: true, category: newCategory };
@@ -1973,44 +1977,79 @@ export async function getCategoryBySlugAction(slug: string): Promise<ForumCatego
 }
 
 export async function getTopicsByCategoryIdAction(categoryId: string): Promise<ForumTopic[]> {
+  const category = (await getForumCategoriesFromFile()).find(c => c.id === categoryId);
+  if (!category) {
+    console.error(`Category not found for ID: ${categoryId}`);
+    return [];
+  }
+
+  let topics: ForumTopic[] = [];
   try {
-    const topics = await getForumTopicsFromFile();
-    return topics.filter(topic => topic.categoryId === categoryId)
-                 .sort((a, b) => new Date(b.lastRepliedAt).getTime() - new Date(a.lastRepliedAt).getTime());
+    switch (category.slug) {
+      case 'general-discussion':
+        topics = await getUsersForumData();
+        break;
+      case 'announcements':
+        topics = await getAnnouncementsData();
+        break;
+      case 'support-qa':
+        topics = await getSupportForumData();
+        break;
+      default:
+        console.warn(`No specific data source for category slug: ${category.slug}. Returning empty list.`);
+        return [];
+    }
+    return topics.sort((a, b) => new Date(b.lastRepliedAt).getTime() - new Date(a.lastRepliedAt).getTime());
   } catch (error) {
-    console.error(`Error fetching topics for category ID "${categoryId}":`, error);
+    console.error(`Error fetching topics for category slug "${category.slug}":`, error);
     return [];
   }
 }
 
-export async function getTopicDetailsAction(topicId: string): Promise<ForumTopic | undefined> {
+export async function getTopicDetailsAction(topicId: string, categorySlug?: string): Promise<ForumTopic | undefined> {
+  let topics: ForumTopic[] = [];
+  if (!categorySlug) { // Attempt to find topic across all known types if slug not provided
+      const allTopics = [
+          ...(await getUsersForumData()),
+          ...(await getAnnouncementsData()),
+          ...(await getSupportForumData())
+      ];
+      const topic = allTopics.find(t => t.id === topicId);
+      if (topic) return topic; // Found topic, now need to determine its category slug or return without it
+      // If found, we could try to reverse-map categoryId to slug for consistency, or decide if slug is always needed.
+      // For now, if slug is not provided and topic is found, it will be returned.
+      // If not found, it will fall through to return undefined.
+      console.warn(`getTopicDetailsAction called without categorySlug for topicId: ${topicId}. Searching all sources.`);
+      return topic; // Return topic if found, or undefined
+  }
+
   try {
-    const topics = await getForumTopicsFromFile();
-    const topic = topics.find(t => t.id === topicId);
-
-    if (topic) {
-      // Potentially increment view count here, but be mindful of revalidation
-      // For simplicity, view count incrementation might be better handled
-      // with client-side triggers or more complex state management.
-      // For now, just return the topic.
+    switch (categorySlug) {
+      case 'general-discussion':
+        topics = await getUsersForumData();
+        break;
+      case 'announcements':
+        topics = await getAnnouncementsData();
+        break;
+      case 'support-qa':
+        topics = await getSupportForumData();
+        break;
+      default:
+        console.warn(`Unknown category slug for fetching topic details: ${categorySlug}`);
+        return undefined;
     }
+    const topic = topics.find(t => t.id === topicId);
+    // Posts are embedded, so they are part of the topic object itself.
     return topic;
-
   } catch (error) {
-    console.error(`Error fetching topic details for ID "${topicId}":`, error);
+    console.error(`Error fetching topic details for ID "${topicId}" in category "${categorySlug}":`, error);
     return undefined;
   }
 }
 
-export async function getPostsByTopicIdAction(topicId: string): Promise<ForumPost[]> {
-  try {
-    const posts = await getForumPostsFromFile();
-    return posts.filter(post => post.topicId === topicId)
-                .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()); // Oldest first
-  } catch (error) {
-    console.error(`Error fetching posts for topic ID "${topicId}":`, error);
-    return [];
-  }
+export async function getPostsByTopicIdAction(topicId: string, categorySlug: string): Promise<ForumPost[]> {
+  const topic = await getTopicDetailsAction(topicId, categorySlug);
+  return topic?.posts || [];
 }
 
 
@@ -2075,7 +2114,7 @@ export async function createForumTopicAction(
     prevState: CreateTopicFormState,
     formData: FormData,
     categoryId: string,
-    categorySlug: string, // Used for revalidation and redirection
+    categorySlug: string,
     userId: string,
     userName: string,
     userAvatarUrl?: string
@@ -2099,11 +2138,11 @@ export async function createForumTopicAction(
         return { message: 'Category not found.', success: false, errors: { general: ['Category not found.'] } };
     }
 
-    // Authorization: Ensure only admins post to "announcements"
     if (category.slug === 'announcements') {
         const adminUsers = await getAdminUsers();
-        if (!adminUsers.some(admin => admin.id === userId)) { // Assuming admin ID is passed as userId for simplicity here
-             return { message: 'You are not authorized to post in this category.', success: false, errors: { general: ['Authorization failed.'] } };
+        const userIsAdmin = adminUsers.some(admin => admin.id === userId);
+        if(!userIsAdmin) { // Check if the user ID matches an admin ID
+             return { message: 'You are not authorized to post in Announcements.', success: false, errors: { general: ['Authorization failed.'] } };
         }
     }
 
@@ -2119,17 +2158,17 @@ export async function createForumTopicAction(
         lastRepliedAt: new Date().toISOString(),
         viewCount: 0,
         replyCount: 0,
-        postIds: [],
+        posts: [], // Initialize with an empty array for posts
     };
 
     try {
-        await addForumTopicToFile(newTopic);
+        await addForumTopicToServerFile(newTopic, category.slug); // Use the correct server-data function
 
         category.topicCount = (category.topicCount || 0) + 1;
         await saveForumCategoriesToFile(categories);
 
         revalidatePath(`/community/category/${categorySlug}`);
-        revalidatePath('/community'); // If main page shows category stats
+        revalidatePath('/community');
 
         return { message: 'Topic created successfully!', success: true, newTopicId: newTopic.id };
     } catch (error) {
@@ -2137,3 +2176,17 @@ export async function createForumTopicAction(
         return { message: 'Failed to create topic. Please try again.', success: false, errors: { general: ['Server error.'] } };
     }
 }
+
+export async function getUserByIdAction(userId: string): Promise<User | null> {
+    try {
+        const users = await getUsersFromFile();
+        const user = users.find(u => u.id === userId);
+        if (!user) return null;
+        const { passwordHash, twoFactorPinHash, ...safeUser } = user;
+        return safeUser as User;
+    } catch (error) {
+        console.error("Error fetching user by ID:", error);
+        return null;
+    }
+}
+

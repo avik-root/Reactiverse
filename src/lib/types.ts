@@ -329,11 +329,21 @@ export type AddForumCategoryFormState = {
   category?: ForumCategory | null;
 };
 
+export interface ForumPost {
+  id: string;
+  topicId: string; // Parent topic ID
+  content: string;
+  createdByUserId: string;
+  authorName: string;
+  authorAvatarUrl?: string;
+  createdAt: string;
+}
+
 export interface ForumTopic {
   id: string;
-  categoryId: string;
+  categoryId: string; // This might map to a category slug or ID
   title: string;
-  content: string;
+  content: string; // Initial post content
   createdByUserId: string;
   authorName: string;
   authorAvatarUrl?: string;
@@ -341,17 +351,7 @@ export interface ForumTopic {
   lastRepliedAt: string;
   viewCount: number;
   replyCount: number;
-  postIds: string[];
-}
-
-export interface ForumPost {
-  id: string;
-  topicId: string;
-  content: string;
-  createdByUserId: string;
-  authorName: string;
-  authorAvatarUrl?: string;
-  createdAt: string;
+  posts?: ForumPost[]; // Embed posts directly
 }
 
 
@@ -380,4 +380,3 @@ export type CreateTopicFormState = {
   newTopicId?: string | null;
 };
 
-```

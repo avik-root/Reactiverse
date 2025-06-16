@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
 import { Users, Trash2, Eye, ShieldCheck, ShieldOff, Phone, Mail, UserSquare2, User as UserIcon, AlertTriangle, LockIcon, UnlockIcon, IndianRupee, XCircle, Github, Linkedin, EyeOff } from 'lucide-react';
-import SealCheckIcon from '@/components/icons/SealCheckIcon'; 
+import SealCheckIcon from '@/components/icons/SealCheckIcon';
 import FigmaIcon from '@/components/icons/FigmaIcon';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -292,7 +292,7 @@ export default function ManageUsersPage() {
                     <TableCell className="text-center">
                       {user.isVerified ? (
                         <Badge variant="default" className="bg-transparent hover:bg-transparent border-none p-0">
-                           <SealCheckIcon className="h-5 w-5 text-blue-500 fill-blue-500" />
+                           <SealCheckIcon className="h-5 w-5 text-blue-500" />
                         </Badge>
                       ) : (
                         <Badge variant="outline">
@@ -359,7 +359,7 @@ export default function ManageUsersPage() {
                 <UserIcon className="mr-2 h-5 w-5 text-primary" />
                 User Details: {selectedUserForView.name}
                 {selectedUserForView.isVerified && (
-                  <SealCheckIcon className="ml-2 h-5 w-5 text-blue-500 fill-blue-500" />
+                  <SealCheckIcon className="ml-2 h-5 w-5 text-blue-500" />
                 )}
               </DialogTitle>
               <DialogDescription>Full information for {selectedUserForView.username}.</DialogDescription>
@@ -388,7 +388,7 @@ export default function ManageUsersPage() {
                     <InfoItem icon={selectedUserForView.isEmailPublic ? <Eye /> : <EyeOff />} label="Email Public" value={selectedUserForView.isEmailPublic ? "Yes" : "No"} />
                     <InfoItem icon={selectedUserForView.isPhonePublic ? <Eye /> : <EyeOff />} label="Phone Public" value={selectedUserForView.isPhonePublic ? "Yes" : "No"} />
                     <InfoItem
-                        icon={selectedUserForView.isVerified ? <SealCheckIcon className="text-blue-500 fill-blue-500"/> : <XCircle className="text-muted-foreground"/>}
+                        icon={selectedUserForView.isVerified ? <SealCheckIcon className="text-blue-500"/> : <XCircle className="text-muted-foreground"/>}
                         label="Verification Status"
                         value={selectedUserForView.isVerified ? "Verified" : "Not Verified"}
                     />
@@ -565,4 +565,5 @@ const InfoItem: React.FC<InfoItemProps> = ({ icon, label, value, isLink }) => (
         </div>
     </div>
 );
+
 

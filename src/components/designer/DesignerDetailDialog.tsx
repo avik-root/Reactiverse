@@ -1,11 +1,12 @@
 
+
 'use client';
 
 import type { User } from '@/lib/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AtSign, Github, Linkedin, Mail, Palette, Phone, User as UserIcon, Eye, EyeOff, Star } from 'lucide-react';
-import SealCheckIcon from '@/components/icons/SealCheckIcon'; // Import the new icon
+import SealCheckIcon from '@/components/icons/SealCheckIcon';
 import FigmaIcon from '@/components/icons/FigmaIcon';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';

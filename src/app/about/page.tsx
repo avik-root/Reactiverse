@@ -1,12 +1,11 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Layers3, Sparkles, Users, Info } from 'lucide-react'; // Removed Github, Linkedin, Mail as ProfileCard handles contact
+import { Layers3, Sparkles, Users, Info } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { getPageContentAction } from '@/lib/actions';
-import type { AboutUsContent, TeamMembersContent, TeamMember } from '@/lib/types';
-import ProfileCard from '@/components/core/ProfileCard'; // Import the new ProfileCard
+import type { AboutUsContent, TeamMembersContent } from '@/lib/types';
+import ProfileCard from '@/components/core/ProfileCard';
 
 interface FeatureCardProps {
   icon: React.ReactNode;
@@ -23,8 +22,6 @@ function FeatureCard({ icon, title, description }: FeatureCardProps) {
     </Card>
   );
 }
-
-// TeamMemberCard is no longer needed as ProfileCard replaces it.
 
 export default async function AboutUsPage() {
   const aboutContent = await getPageContentAction('aboutUs') as AboutUsContent;
@@ -98,17 +95,12 @@ export default async function AboutUsPage() {
                     name={teamContent.founder.name}
                     title={teamContent.founder.title}
                     handle={generateHandle(teamContent.founder.name)}
-                    status={teamContent.founder.title} // Or a generic "Online" / Role
+                    status={teamContent.founder.title} 
                     contactText={`Email ${teamContent.founder.name.split(' ')[0]}`}
-                    onContactClick={() => {
-                        if (typeof window !== 'undefined' && teamContent.founder.emailAddress) {
-                            window.location.href = `mailto:${teamContent.founder.emailAddress}`;
-                        }
-                    }}
+                    contactEmail={teamContent.founder.emailAddress}
                     showUserInfo={true}
                     enableTilt={true}
                     miniAvatarUrl={teamContent.founder.imageUrl}
-                    // You can pass grainUrl, iconUrl if you have them
                   />
                 </div>
                 <div className="pc-card-wrapper-container">
@@ -119,11 +111,7 @@ export default async function AboutUsPage() {
                     handle={generateHandle(teamContent.coFounder.name)}
                     status={teamContent.coFounder.title}
                     contactText={`Email ${teamContent.coFounder.name.split(' ')[0]}`}
-                     onContactClick={() => {
-                        if (typeof window !== 'undefined' && teamContent.coFounder.emailAddress) {
-                            window.location.href = `mailto:${teamContent.coFounder.emailAddress}`;
-                        }
-                    }}
+                    contactEmail={teamContent.coFounder.emailAddress}
                     showUserInfo={true}
                     enableTilt={true}
                     miniAvatarUrl={teamContent.coFounder.imageUrl}

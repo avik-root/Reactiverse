@@ -23,7 +23,8 @@ interface ProfileCardProps {
   contactText?: string;
   showUserInfo?: boolean;
   onContactClick?: () => void;
-  rank?: number; // Added rank prop
+  contactEmail?: string; // Added this prop
+  rank?: number;
 }
 
 const DEFAULT_BEHIND_GRADIENT =
@@ -58,10 +59,10 @@ const easeInOutCubic = (x: number): number =>
   x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
 
 const RankingBadgeDisplay: React.FC<{ rank?: number }> = ({ rank }) => {
-  if (!rank || rank === 0 || rank > 10) return null; // Only show for ranks 1-10
+  if (!rank || rank === 0 || rank > 10) return null; 
 
   let icon: React.ReactElement | null = null;
-  let badgeClasses = "pc-rank-badge text-xs px-2 py-0.5 font-bold flex items-center gap-1"; // Using CSS class for positioning
+  let badgeClasses = "pc-rank-badge text-xs px-2 py-0.5 font-bold flex items-center gap-1"; 
   let rankText = `#${rank}`;
 
   if (rank === 1) {
@@ -73,7 +74,7 @@ const RankingBadgeDisplay: React.FC<{ rank?: number }> = ({ rank }) => {
   } else if (rank === 3) {
     icon = <Medal className="h-3 w-3 fill-orange-500 text-orange-600" />;
     badgeClasses += " bg-orange-400/20 text-orange-600 border border-orange-400/50";
-  } else { // Ranks 4-10
+  } else { 
     icon = <Star className="h-3 w-3 fill-sky-500 text-sky-600" />;
     badgeClasses += " bg-sky-400/20 text-sky-600 border border-sky-500/50";
   }
@@ -103,7 +104,8 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
   contactText = "Contact",
   showUserInfo = true,
   onContactClick,
-  rank, // Destructure rank
+  contactEmail, // Destructure new prop
+  rank,
 }) => {
   const wrapRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -119,8 +121,11 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
       card: HTMLElement,
       wrap: HTMLElement
     ) => {
+      if (!card || !wrap) return;
       const width = card.clientWidth;
       const height = card.clientHeight;
+      if (width === 0 || height === 0) return;
+
 
       const percentX = clamp((100 / width) * offsetX);
       const percentY = clamp((100 / height) * offsetY);
@@ -152,6 +157,7 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
       card: HTMLElement,
       wrap: HTMLElement
     ) => {
+      if (!card || !wrap || wrap.clientWidth === 0 || wrap.clientHeight === 0) return;
       const startTime = performance.now();
       const targetX = wrap.clientWidth / 2;
       const targetY = wrap.clientHeight / 2;
@@ -251,6 +257,7 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
     card.addEventListener("pointermove", pointerMoveHandler);
     card.addEventListener("pointerleave", pointerLeaveHandler);
 
+    // Ensure wrap has dimensions before initial animation
     if (wrap.clientWidth > 0 && wrap.clientHeight > 0) {
       const initialX = wrap.clientWidth - ANIMATION_CONFIG.INITIAL_X_OFFSET;
       const initialY = ANIMATION_CONFIG.INITIAL_Y_OFFSET;
@@ -264,6 +271,7 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
         wrap
       );
     }
+
 
     return () => {
       card.removeEventListener("pointerenter", pointerEnterHandler);
@@ -288,14 +296,20 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
           ? (behindGradient ?? DEFAULT_BEHIND_GRADIENT)
           : "none",
         "--inner-gradient": innerGradient ?? DEFAULT_INNER_GRADIENT,
-        "--card-opacity": "var(--card-opacity-val, 0.15)",
+        "--card-opacity": "var(--card-opacity-val, 0.15)", // Ensure default is set
       }) as React.CSSProperties,
     [iconUrl, grainUrl, showBehindGradient, behindGradient, innerGradient]
   );
 
-  const handleContactClick = useCallback(() => {
-    onContactClick?.();
-  }, [onContactClick]);
+  const internalHandleContactClick = useCallback(() => {
+    if (onContactClick) {
+      onContactClick();
+    } else if (contactEmail) {
+      if (typeof window !== 'undefined') {
+        window.location.href = `mailto:${contactEmail}`;
+      }
+    }
+  }, [onContactClick, contactEmail]);
 
   return (
     <div
@@ -317,7 +331,6 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
                 target.src = "https://placehold.co/128x128.png?text=??";
-                target.style.display = "block";
               }}
             />
             {showUserInfo && (
@@ -330,8 +343,8 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
                       loading="lazy"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
-                        target.src = avatarUrl;
-                         if (target.src === avatarUrl) {
+                        target.src = avatarUrl; // Try main avatar
+                         if (target.src === avatarUrl) { // If main avatar also fails or is the same
                             target.src = "https://placehold.co/32x32.png?text=?";
                          }
                       }}
@@ -342,10 +355,10 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
                     <div className="pc-status">{status}</div>
                   </div>
                 </div>
-                {onContactClick && contactText && (
+                {(onContactClick || contactEmail) && contactText && (
                     <button
                         className="pc-contact-btn"
-                        onClick={handleContactClick}
+                        onClick={internalHandleContactClick}
                         style={{ pointerEvents: "auto" }}
                         type="button"
                         aria-label={`Contact ${name || "user"}`}

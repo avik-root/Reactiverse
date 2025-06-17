@@ -14,7 +14,7 @@ import SealCheckIcon from '@/components/icons/SealCheckIcon';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 import { useParams, useSearchParams } from 'next/navigation';
-import React, { useEffect, useState, useCallback } from 'react'; // Import React
+import React, { useEffect, useState, useCallback, useMemo } from 'react'; // Import React
 import { useAuth } from '@/contexts/AuthContext';
 import CreatePostForm from '@/components/forum/CreatePostForm';
 import { useToast } from '@/hooks/use-toast';
@@ -109,7 +109,7 @@ export default function TopicPage() {
     });
 
     if (result.success) {
-      setPosts(prev => prev.filter(p => p.id !== postToDelete.id));
+      setPosts(prev => prev.filter(p => p.id !== postToDelete!.id)); // Ensure postToDelete is not null
       setTopic(prevTopic => {
         if (!prevTopic) return null;
         return {
@@ -319,7 +319,7 @@ export default function TopicPage() {
       )}
 
       {postToDelete && (
-        <AlertDialog open={isDeleteAlertOpen} onOpenChange={(isOpen) => { if (!isOpen) setPostToDelete(null); setIsDeleteAlertOpen(isOpen);}}>
+        <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Confirm Post Deletion</AlertDialogTitle>
@@ -328,7 +328,10 @@ export default function TopicPage() {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => { setIsDeleteAlertOpen(false); setPostToDelete(null); }}>Cancel</AlertDialogCancel>
+              <AlertDialogCancel onClick={() => {
+                setIsDeleteAlertOpen(false);
+                setPostToDelete(null);
+              }}>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleConfirmDeletePost}
                 className="bg-destructive hover:bg-destructive/90"

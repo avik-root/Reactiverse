@@ -112,7 +112,7 @@ export default function TopicPage() {
       });
     }
     
-    setIsDeleteAlertOpen(false); // This will trigger onOpenChange
+    setIsDeleteAlertOpen(false); // This will trigger onAlertDialogOpenChange
 
     toast({
       title: result.success ? "Success" : "Error",
@@ -137,9 +137,9 @@ export default function TopicPage() {
   const onAlertDialogOpenChange = useCallback((isOpen: boolean) => {
     setIsDeleteAlertOpen(isOpen);
     if (!isOpen) {
-      setPostForDialogData(null); // Clear data when dialog closes
+      setPostForDialogData(null); 
     }
-  }, []); // setIsDeleteAlertOpen and setPostForDialogData are stable
+  }, []); 
 
 
   if (isLoading || authIsLoading) {

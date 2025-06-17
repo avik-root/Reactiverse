@@ -18,6 +18,10 @@ interface AdminLayoutProps {
 }
 
 const PUBLIC_ADMIN_PATHS = ['/admin/login', '/admin/create-account', '/admin', '/admin/'];
+const ADMIN_LOGIN_URL = '/admin/login';
+const ADMIN_CREATE_ACCOUNT_URL = '/admin/create-account';
+const ADMIN_DASHBOARD_URL = '/admin/dashboard';
+
 
 const mainNavItems = [
   { href: '/admin/dashboard', label: 'Overview', icon: LayoutDashboard },
@@ -180,15 +184,32 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const isPublicAdminPage = PUBLIC_ADMIN_PATHS.includes(pathname);
 
   useEffect(() => {
-    if (!isPublicAdminPage && !isLoading && (!user || !isAdmin)) {
-      router.push('/admin/login');
+    // If auth is still loading its initial state, don't make redirect decisions.
+    if (isLoading) {
+      return;
+    }
+
+    // If on a protected admin page...
+    if (!isPublicAdminPage) {
+      // ...and user is not an authenticated admin, redirect to login.
+      if (!user || !isAdmin) {
+        router.push(ADMIN_LOGIN_URL);
+        return; // Exit early after redirect
+      }
+    } else { // If on a public admin page (login, create, or /admin root)...
+      // ...and user IS an authenticated admin, redirect them to the dashboard.
+      // This handles cases like an admin landing on /admin/login when already logged in.
+      if (user && isAdmin) {
+         if (pathname === ADMIN_LOGIN_URL || pathname === ADMIN_CREATE_ACCOUNT_URL || pathname === '/admin' || pathname === '/admin/') {
+            router.push(ADMIN_DASHBOARD_URL);
+            return; // Exit early after redirect
+        }
+      }
     }
   }, [user, isAdmin, isLoading, router, pathname, isPublicAdminPage]);
 
-  if (isPublicAdminPage) {
-    return <>{children}</>;
-  }
 
+  // Render loading spinner if AuthContext is still initializing
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background">
@@ -198,6 +219,14 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     );
   }
 
+  // If on a public admin page, render children directly.
+  // The useEffect above handles redirecting to dashboard if already logged in.
+  if (isPublicAdminPage) {
+    return <>{children}</>;
+  }
+
+  // If NOT on a public page, AND we are past initial loading, BUT user is not an admin,
+  // show a "redirecting" spinner. The useEffect should have already initiated the redirect.
   if (!user || !isAdmin) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background">
@@ -207,6 +236,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     );
   }
 
+  // If authenticated admin and on a protected page, render the full admin layout
   return (
     <div className="flex min-h-screen bg-muted/30">
       <aside className="fixed top-0 left-0 h-full md:w-72 bg-card text-card-foreground shadow-lg flex-col p-4 space-y-6 z-40 transition-transform -translate-x-full md:translate-x-0 hidden md:flex">
@@ -235,3 +265,4 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     </div>
   );
 }
+

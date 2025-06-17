@@ -14,7 +14,7 @@ import SealCheckIcon from '@/components/icons/SealCheckIcon';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 import { useParams, useSearchParams } from 'next/navigation';
-import { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react'; // Import React
 import { useAuth } from '@/contexts/AuthContext';
 import CreatePostForm from '@/components/forum/CreatePostForm';
 import { useToast } from '@/hooks/use-toast';
@@ -76,7 +76,13 @@ export default function TopicPage() {
   }, [fetchTopicData]);
 
   const handlePostCreated = (newPost: ForumPost) => {
-    setPosts(prevPosts => [...prevPosts, newPost]);
+    setPosts(prevPosts => {
+        // Prevent adding duplicate if already present (e.g., due to rapid re-fetch or state issue)
+        if (prevPosts.some(p => p.id === newPost.id)) {
+          return prevPosts;
+        }
+        return [...prevPosts, newPost];
+      });
     setTopic(prevTopic => {
         if (!prevTopic) return null;
         return {
@@ -115,6 +121,19 @@ export default function TopicPage() {
     setIsDeleteAlertOpen(false);
     setPostToDelete(null);
   };
+
+  // De-duplicate posts before rendering
+  const uniquePostsToRender = React.useMemo(() => {
+    if (!posts) return [];
+    const seenIds = new Set<string>();
+    return posts.filter(post => {
+      if (seenIds.has(post.id)) {
+        return false;
+      }
+      seenIds.add(post.id);
+      return true;
+    });
+  }, [posts]);
 
 
   if (isLoading || authIsLoading) {
@@ -208,10 +227,10 @@ export default function TopicPage() {
       </Card>
 
       <section className="space-y-6">
-        <h2 className="text-2xl font-semibold font-headline">Replies ({posts.length})</h2>
-        {posts.length > 0 ? (
+        <h2 className="text-2xl font-semibold font-headline">Replies ({uniquePostsToRender.length})</h2>
+        {uniquePostsToRender.length > 0 ? (
           <ul className="space-y-6">
-            {posts.map((post) => {
+            {uniquePostsToRender.map((post) => {
               const isPostAuthorAdmin = post.createdByUserId.startsWith('admin-');
               const postAuthorDisplayName = post.authorName;
               const postAuthorDisplayAvatar = post.authorAvatarUrl || `https://placehold.co/32x32.png?text=${getInitials(post.authorName)}`;

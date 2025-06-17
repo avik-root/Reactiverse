@@ -48,12 +48,12 @@
     "twoFactorEnabled": false,
     "failedPinAttempts": 0,
     "isLocked": false,
-    "canSetPrice": false,
+    "canSetPrice": true,
     "githubUrl": "",
     "linkedinUrl": "",
     "figmaUrl": "",
     "isEmailPublic": false,
     "isPhonePublic": false,
-    "isVerified": false
+    "isVerified": true
   }
 ]

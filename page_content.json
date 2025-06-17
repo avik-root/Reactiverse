@@ -1,4 +1,3 @@
-
 {
   "aboutUs": {
     "title": "About Reactiverse",
@@ -35,7 +34,7 @@
     "description": "Need help? We're here for you. Find answers or get in touch with our support team.",
     "emailSupportTitle": "Email Support",
     "emailSupportDescription": "Get in touch via email for any inquiries.",
-    "emailAddress": "support@reactiverse.com",
+    "emailAddress": "mintfire.official@gmail.com",
     "forumTitle": "Community Forum",
     "forumDescription": "Ask questions and find answers in our community.",
     "forumLinkText": "Visit Support & Q/A Forum",
@@ -64,7 +63,7 @@
       },
       {
         "question": "Who can I contact for support?",
-        "answer": "If you have questions or need assistance, you can reach out to us via email at support@reactiverse.com or visit our community forum (coming soon) to connect with other users and our team."
+        "answer": "If you have questions or need assistance, you can reach out to us via email at mintfire.official@gmail.com or visit our community forum (coming soon) to connect with other users and our team."
       }
     ]
   },
@@ -104,7 +103,7 @@
       "imageDataAiHint": "professional portrait",
       "githubUrl": "https://github.com/avik-root",
       "linkedinUrl": "https://www.linkedin.com/in/avik-samanta-root/",
-      "emailAddress": "mintfire.server@gmail.com"
+      "emailAddress": "mintfire.official@gmail.com"
     },
     "coFounder": {
       "name": "Anusha Gupta",
@@ -119,5 +118,3 @@
     }
   }
 }
-
-    

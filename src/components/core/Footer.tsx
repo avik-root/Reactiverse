@@ -33,7 +33,7 @@ const Footer = () => {
               <Link href="https://github.com/avik-root" target="_blank" rel="noopener noreferrer" aria-label="GitHub" className="text-[hsl(var(--footer-muted-foreground))] hover:text-[hsl(var(--footer-foreground))] transition-colors">
                 <Github size={20} />
               </Link>
-              <Link href="mailto:mintfire.server@gmail.com" aria-label="Email" className="text-[hsl(var(--footer-muted-foreground))] hover:text-[hsl(var(--footer-foreground))] transition-colors">
+              <Link href="mailto:mintfire.official@gmail.com" aria-label="Email" className="text-[hsl(var(--footer-muted-foreground))] hover:text-[hsl(var(--footer-foreground))] transition-colors">
                 <Mail size={20} />
               </Link>
             </div>
@@ -77,3 +77,4 @@ const Footer = () => {
 };
 
 export default Footer;
+

@@ -76,6 +76,7 @@ import type {
   SupportPageContent,
   GuidelinesPageContent,
   TopDesignersPageContent,
+  PrivacyPolicyContent, // Added import
   SiteLogoUploadState,
   AdminSetUser2FAStatusFormState,
   AdminSetUserCanSetPriceFormState,
@@ -100,7 +101,7 @@ import type {
   ApplyForVerificationFormState,
   AdminApproveVerificationFormState,
   AdminRejectVerificationFormState,
-  FAQItem, // Added FAQItem import
+  FAQItem,
 } from './types';
 import { revalidatePath } from 'next/cache';
 import { hashPassword, comparePassword, hashPin, comparePin } from './auth-utils';
@@ -404,7 +405,7 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
   }
 
   // Authentication successful (either password or PIN), set cookie and return success
-  const cookieStore = cookies(); // No await here based on current understanding
+  const cookieStore = await cookies(); // Use await here based on TS error
   cookieStore.set(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS, targetAdmin.id, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -417,15 +418,15 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
   return {
     message: 'Admin login successful!',
     adminUser: { ...adminUserToReturn, isAdmin: true },
-    requiresPin: false, // Explicitly set to false on full success
-    adminIdForPin: undefined // Explicitly clear
+    requiresPin: false,
+    adminIdForPin: undefined
   };
 }
 
 
 export async function logoutAdminAction(): Promise<{ success: boolean }> {
   try {
-    cookies().set(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS, '', {
+    (await cookies()).set(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS, '', { // Use await here based on TS error
       path: '/admin',
       maxAge: 0,
       httpOnly: true,
@@ -1424,70 +1425,25 @@ export async function disableAdminTwoFactorAction(
   }
 }
 
-const defaultAboutUs: AboutUsContent = {
-  title: "Default About Us", description: "Default description.",
-  missionTitle: "Our Mission", missionContentP1: "Default P1", missionContentP2: "Default P2",
-  offerTitle: "What We Offer", offerItems: [{ title: "Item1", description: "Desc1"}],
-  joinTitle: "Join Us", joinContent: "Default join content."
-};
-
-const defaultSupport: SupportPageContent = {
-  title: "Support", description: "Support description.", emailSupportTitle: "Email Support",
-  emailSupportDescription: "Email desc.", emailAddress: "support@example.com",
-  forumTitle: "Forum", forumDescription: "Forum desc.", forumLinkText: "Visit Forum", forumLinkUrl: "#",
-  faqTitle: "FAQs", faqs: []
-};
-
-const defaultGuidelines: GuidelinesPageContent = {
-  title: "Guidelines", description: "Guidelines description.", mainPlaceholderTitle: "Placeholder Title",
-  mainPlaceholderContent: "Placeholder content.", keyAreasTitle: "Key Areas", keyAreas: ["Area 1"]
-};
-
-const defaultTopDesigners: TopDesignersPageContent = {
-  title: "Top Designers", description: "Top designers description.",
-  mainPlaceholderTitle: "Placeholder", mainPlaceholderContent: "Placeholder content."
-};
-
-const defaultTeamMember: TeamMember = {
-    name: "Team Member", title: "Role", bio: "Bio", imageUrl: "", imageAlt: "",
-    imageDataAiHint: "professional", githubUrl: "", linkedinUrl: "", emailAddress: ""
-};
-
-const defaultTeamMembers: TeamMembersContent = {
-    title: "Our Team", founder: defaultTeamMember, coFounder: defaultTeamMember
-};
-
-const defaultPrivacyPolicy: PrivacyPolicyContent = {
-    title: "Privacy Policy", description: "Privacy description.", lastUpdated: new Date().toISOString(),
-    sections: [{heading: "Section 1", content: "Content 1"}]
-};
-
-
 export async function getPageContentAction(pageKey: PageContentKeys): Promise<any> {
   try {
     const allContent = await getPageContentFromFile();
-    if (allContent.hasOwnProperty(pageKey)) {
+    if (allContent && Object.prototype.hasOwnProperty.call(allContent, pageKey)) {
       return allContent[pageKey];
     }
-    console.warn(`Content for key "${pageKey}" not found in getPageContentAction. Returning default.`);
-    switch (pageKey) {
-      case 'aboutUs': return defaultAboutUs;
-      case 'support': return defaultSupport;
-      case 'guidelines': return defaultGuidelines;
-      case 'topDesigners': return defaultTopDesigners;
-      case 'teamMembers': return defaultTeamMembers;
-      case 'privacyPolicy': return defaultPrivacyPolicy;
-      default: return null;
-    }
+    // Fallback to default if key is missing - should be handled by getPageContentFromFile defaults
+    console.warn(`Content for key "${pageKey}" not found in getPageContentAction. This implies an issue with getPageContentFromFile's default handling.`);
+    return {}; // Return empty object or a more specific default based on pageKey if necessary
   } catch (error) {
     console.error(`Error in getPageContentAction for key "${pageKey}":`, error);
+    // Robust default based on key in case of error
     switch (pageKey) {
-      case 'aboutUs': return defaultAboutUs;
-      case 'support': return defaultSupport;
-      case 'guidelines': return defaultGuidelines;
-      case 'topDesigners': return defaultTopDesigners;
-      case 'teamMembers': return defaultTeamMembers;
-      case 'privacyPolicy': return defaultPrivacyPolicy;
+      case 'aboutUs': return { title: "About Us", description: "", missionTitle: "", missionContentP1: "", missionContentP2: "", offerTitle: "", offerItems: [], joinTitle: "", joinContent: "" };
+      case 'support': return { title: "Support", description: "", emailSupportTitle: "", emailSupportDescription: "", emailAddress: "", forumTitle: "", forumDescription: "", forumLinkText: "", forumLinkUrl: "", faqTitle: "", faqs: [] };
+      case 'guidelines': return { title: "Guidelines", description: "", mainPlaceholderTitle: "", mainPlaceholderContent: "", keyAreasTitle: "", keyAreas: [] };
+      case 'topDesigners': return { title: "Top Designers", description: "", mainPlaceholderTitle: "", mainPlaceholderContent: "" };
+      case 'teamMembers': return { title: "Team Members", founder: {} as TeamMember, coFounder: {} as TeamMember };
+      case 'privacyPolicy': return { title: "Privacy Policy", description: "", lastUpdated: "", sections: [] };
       default: return null;
     }
   }
@@ -1497,7 +1453,7 @@ export async function updatePageContentAction<T extends PageContentKeys>(
   pageKey: T,
   formData: FormData
 ): Promise<UpdatePageContentFormState<PageContentData[T]>> {
-  const schema = pageContentSchemasMap[pageKey];
+  const schema = pageContentSchemasMap[pageKey as keyof typeof pageContentSchemasMap];
   if (!schema) {
     return { message: `No validation schema found for page: ${pageKey}`, success: false, errors: { general: ["Configuration error."] } as any };
   }
@@ -1506,10 +1462,10 @@ export async function updatePageContentAction<T extends PageContentKeys>(
   let dataToValidate: Record<string, any> = { ...rawData };
 
   if (pageKey === 'aboutUs') {
-    const offerItems: { title: string; description: string }[] = [];
+    const currentOfferItems: { title: string; description: string }[] = [];
     let i = 0;
     while(rawData[`offerItems[${i}].title`] !== undefined || rawData[`offerItems[${i}].description`] !== undefined) {
-      items.push({
+      currentOfferItems.push({
         title: String(rawData[`offerItems[${i}].title`] || ''),
         description: String(rawData[`offerItems[${i}].description`] || '')
       });
@@ -1517,8 +1473,8 @@ export async function updatePageContentAction<T extends PageContentKeys>(
       delete dataToValidate[`offerItems[${i}].description`];
       i++;
     }
-    if (items.length > 0) {
-      dataToValidate.offerItems = items;
+    if (currentOfferItems.length > 0) {
+      dataToValidate.offerItems = currentOfferItems;
     } else if (!dataToValidate.offerItems) {
       dataToValidate.offerItems = [];
     }
@@ -1579,7 +1535,7 @@ export async function updatePageContentAction<T extends PageContentKeys>(
 
   if (!validatedFields.success) {
     return {
-      errors: validatedFields.error.flatten().fieldErrors as any, // Cast to any to simplify error type handling for now
+      errors: validatedFields.error.flatten().fieldErrors as any,
       message: 'Invalid fields. Please check your input.',
       success: false,
     };
@@ -1632,10 +1588,10 @@ export async function updatePageContentAction<T extends PageContentKeys>(
      return { message: `Failed to save image. Please try again.`, success: false, errors: { general: ['Image saving error.'] } as any };
   }
 
-  if (pageKey === 'support' && (contentToSave as SupportPageContent).faqsJSON) {
+  if (pageKey === 'support' && (rawData as any).faqsJSON) {
     try {
-      (contentToSave as SupportPageContent).faqs = JSON.parse((contentToSave as SupportPageContent).faqsJSON as string) as FAQItem[];
-      delete (contentToSave as SupportPageContent & {faqsJSON?: string}).faqsJSON;
+      contentToSave.faqs = JSON.parse((rawData as any).faqsJSON as string) as FAQItem[];
+      // No need to delete faqsJSON from contentToSave as it was never part of validatedFields.data
     } catch (e) {
       return { message: 'Invalid JSON format for FAQs.', success: false, errors: { faqsJSON: ['Invalid JSON.'] } as any };
     }
@@ -1700,7 +1656,8 @@ export async function adminSetUser2FAStatusAction(
     enable: z.preprocess((val) => String(val).toLowerCase() === 'true', z.boolean()),
     adminId: z.string().min(1, "Admin ID is required for authorization."),
   });
-  const adminToken = cookies().get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
+  const cookieStore = await cookies();
+  const adminToken = cookieStore.get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
   if (!adminToken) {
     return { message: "Admin authorization failed.", success: false, errors: { general: ["Not authorized."] } };
   }
@@ -1746,7 +1703,8 @@ export async function adminSetUserCanSetPriceAction(
     canSetPrice: z.preprocess((val) => String(val).toLowerCase() === 'true', z.boolean()),
     adminId: z.string().min(1, "Admin ID is required for authorization."),
   });
-  const adminToken = cookies().get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
+  const cookieStore = await cookies();
+  const adminToken = cookieStore.get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
   if (!adminToken) {
     return { message: "Admin authorization failed.", success: false, errors: { general: ["Not authorized."] } };
   }
@@ -1789,7 +1747,8 @@ export async function adminSetUserVerificationStatusAction(
     isVerified: z.preprocess((val) => String(val).toLowerCase() === 'true', z.boolean()),
     adminId: z.string().min(1, "Admin ID is required for authorization."),
   });
-  const adminToken = cookies().get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
+  const cookieStore = await cookies();
+  const adminToken = cookieStore.get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
   if (!adminToken) {
     return { message: "Admin authorization failed.", success: false, errors: { general: ["Not authorized."] } };
   }
@@ -2407,7 +2366,8 @@ export async function getUserByIdAction(userId: string): Promise<User | null> {
 }
 
 export async function adminDeleteTopicAction(topicId: string, categorySlug: string): Promise<AdminDeleteTopicResult> {
-  const adminToken = cookies().get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
+  const cookieStore = await cookies();
+  const adminToken = cookieStore.get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
   if (!adminToken) {
     return { success: false, message: "Admin authorization failed." };
   }
@@ -2438,7 +2398,8 @@ export async function adminDeleteForumPostAction(
   topicId: string,
   categorySlug: string
 ): Promise<AdminDeletePostResult> {
-  const adminToken = cookies().get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
+  const cookieStore = await cookies();
+  const adminToken = cookieStore.get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
   if (!adminToken) {
     return { success: false, message: "Admin authorization failed. Please log in as an admin." };
   }
@@ -2477,8 +2438,8 @@ export async function updateAdminAnnouncementAction(
     title: z.string().min(5, "Title must be at least 5 characters.").max(150, "Title cannot exceed 150 characters."),
     content: z.string().min(10, "Content must be at least 10 characters.").max(5000, "Content cannot exceed 5000 characters."),
   });
-
-  const adminToken = cookies().get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
+  const cookieStore = await cookies();
+  const adminToken = cookieStore.get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
   if (!adminToken) {
     return { success: false, message: "Admin authorization failed.", errors: {general: ["Not authorized."]} };
   }
@@ -2643,7 +2604,8 @@ export async function adminApproveVerificationAction(
     adminId: z.string().min(1, "Admin ID is required for authorization."),
   });
 
-  const adminToken = cookies().get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
+  const cookieStore = await cookies();
+  const adminToken = cookieStore.get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
   if (!adminToken) { // Basic auth check
     return { message: "Admin authorization failed.", success: false, errors: { general: ["Not authorized."] } };
   }
@@ -2705,7 +2667,8 @@ export async function adminRejectVerificationAction(
     adminId: z.string().min(1, "Admin ID is required for authorization."),
   });
 
-  const adminToken = cookies().get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
+  const cookieStore = await cookies();
+  const adminToken = cookieStore.get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
    if (!adminToken) {
     return { message: "Admin authorization failed.", success: false, errors: { general: ["Not authorized."] } };
   }
@@ -2741,3 +2704,4 @@ export async function adminRejectVerificationAction(
     return { message: 'Failed to reject request.', success: false, errors: { general: ['Server error.'] } };
   }
 }
+

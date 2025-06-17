@@ -1830,6 +1830,8 @@ export async function toggleLikeDesignAction(designId: string, userId: string): 
     revalidatePath('/');
     revalidatePath(`/designers`);
     revalidatePath(`/dashboard/designs`);
+    revalidatePath('/dashboard'); // Also revalidate user dashboard for most liked
+
 
     return {
       success: true,
@@ -2684,3 +2686,4 @@ export async function adminRejectVerificationAction(
     return { message: 'Failed to reject request.', success: false, errors: { general: ['Server error.'] } };
   }
 }
+

@@ -464,4 +464,3 @@ export type AdminApproveVerificationFormState = {
 
 export type AdminRejectVerificationFormState = AdminApproveVerificationFormState; // Same structure for now
 
-

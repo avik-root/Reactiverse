@@ -4,7 +4,7 @@
 
 import type { ForumTopic, ForumPost, AdminDeletePostResult } from '@/lib/types';
 import { getTopicDetailsAction, adminDeleteForumPostAction } from '@/lib/actions';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -43,7 +43,7 @@ export default function TopicPage() {
   const [error, setError] = useState<string | null>(null);
   const { user: currentUser, isAdmin, isLoading: authIsLoading } = useAuth();
 
-  const [postToDelete, setPostToDelete] = useState<ForumPost | null>(null);
+  const [postForDialogData, setPostForDialogData] = useState<ForumPost | null>(null);
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
 
 
@@ -56,7 +56,6 @@ export default function TopicPage() {
     setIsLoading(true);
     setError(null);
     try {
-      // getTopicDetailsAction now increments view count
       const fetchedTopic = await getTopicDetailsAction(topicId, categorySlug || undefined);
       if (fetchedTopic) {
         setTopic(fetchedTopic);
@@ -77,7 +76,6 @@ export default function TopicPage() {
 
   const handlePostCreated = (newPost: ForumPost) => {
     setPosts(prevPosts => {
-        // Prevent adding duplicate if already present (e.g., due to rapid re-fetch or state issue)
         if (prevPosts.some(p => p.id === newPost.id)) {
           return prevPosts;
         }
@@ -94,22 +92,17 @@ export default function TopicPage() {
   };
 
   const handleDeletePostClick = (post: ForumPost) => {
-    setPostToDelete(post);
+    setPostForDialogData(post);
     setIsDeleteAlertOpen(true);
   };
 
   const handleConfirmDeletePost = async () => {
-    if (!postToDelete || !topic || !categorySlug) return;
+    if (!postForDialogData || !topic || !categorySlug) return;
 
-    const result: AdminDeletePostResult = await adminDeleteForumPostAction(postToDelete.id, topic.id, categorySlug);
-    toast({
-      title: result.success ? "Success" : "Error",
-      description: result.message,
-      variant: result.success ? "default" : "destructive",
-    });
-
+    const result: AdminDeletePostResult = await adminDeleteForumPostAction(postForDialogData.id, topic.id, categorySlug);
+    
     if (result.success) {
-      setPosts(prev => prev.filter(p => p.id !== postToDelete!.id));
+      setPosts(prev => prev.filter(p => p.id !== postForDialogData!.id));
       setTopic(prevTopic => {
         if (!prevTopic) return null;
         return {
@@ -117,13 +110,18 @@ export default function TopicPage() {
           replyCount: Math.max(0, (prevTopic.replyCount || 1) - 1),
         };
       });
-      setPostToDelete(null); // Clear content first
     }
-    setIsDeleteAlertOpen(false); // Then close dialog
+    
+    setIsDeleteAlertOpen(false); // This will trigger onOpenChange, which clears postForDialogData
+
+    toast({
+      title: result.success ? "Success" : "Error",
+      description: result.message,
+      variant: result.success ? "default" : "destructive",
+    });
   };
 
 
-  // De-duplicate posts before rendering
   const uniquePostsToRender = React.useMemo(() => {
     if (!posts) return [];
     const seenIds = new Set<string>();
@@ -319,8 +317,16 @@ export default function TopicPage() {
         </section>
       )}
 
-      {postToDelete && (
-        <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
+      <AlertDialog
+        open={isDeleteAlertOpen}
+        onOpenChange={(isOpen) => {
+          setIsDeleteAlertOpen(isOpen);
+          if (!isOpen) {
+            setPostForDialogData(null); 
+          }
+        }}
+      >
+        {postForDialogData && (
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Confirm Post Deletion</AlertDialogTitle>
@@ -329,10 +335,7 @@ export default function TopicPage() {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => { 
-                  setIsDeleteAlertOpen(false); 
-                  setPostToDelete(null); 
-              }}>Cancel</AlertDialogCancel>
+              <AlertDialogCancel onClick={() => setIsDeleteAlertOpen(false)}>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleConfirmDeletePost}
                 className="bg-destructive hover:bg-destructive/90"
@@ -341,8 +344,8 @@ export default function TopicPage() {
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
-        </AlertDialog>
-      )}
+        )}
+      </AlertDialog>
     </div>
   );
 }

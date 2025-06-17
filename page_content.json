@@ -1,4 +1,3 @@
-
 {
   "aboutUs": {
     "title": "About Reactiverse",
@@ -6,7 +5,6 @@
     "missionTitle": "Our Mission",
     "missionContentP1": "At Reactiverse, our mission is to foster a vibrant community where creativity thrives. We provide a platform for UI/UX designers and front-end developers to showcase their innovative components, share knowledge, and inspire one another. We believe in the power of open collaboration to push the boundaries of web design and development.",
     "missionContentP2": "Whether you're looking for inspiration, ready-to-use code snippets, or a place to share your own masterpieces, Reactiverse is your go-to destination.",
-    "image1Url": "/content_images/about/mission_image-1750057020985.png",
     "image1Alt": "Team working collaboratively on a design project",
     "image1DataAiHint": "collaboration team",
     "offerTitle": "What We Offer",
@@ -26,9 +24,10 @@
     ],
     "joinTitle": "Join Our Universe",
     "joinContent": "Reactiverse is more than just a platform; it's a community. We invite you to join us, share your work, learn from others, and help build the future of UI design.",
-    "image2Url": "/content_images/about/join_image-1750057020986.png",
     "image2Alt": "Abstract representation of a digital community network",
-    "image2DataAiHint": "community digital"
+    "image2DataAiHint": "community digital",
+    "image1Url": "/content_images/about/mission_image-1750161551720.jpg",
+    "image2Url": "/content_images/about/join_image-1750161551724.jpg"
   },
   "support": {
     "title": "Support Center",
@@ -117,48 +116,5 @@
       "linkedinUrl": "https://www.linkedin.com/in/anusha-gupta-ofc/",
       "emailAddress": "anusha73gupta@gmail.com"
     }
-  },
-  "privacyPolicy": {
-    "title": "Privacy Policy",
-    "description": "Your privacy is important to us. This policy explains how we collect, use, and protect your personal information when you use Reactiverse.",
-    "lastUpdated": "2024-07-15",
-    "sections": [
-      {
-        "heading": "1. Information We Collect",
-        "content": "We collect information you provide directly to us, such as when you create an account, submit a design, or communicate with us. This may include:\n- Account Information: Name, username, email address, phone number, password.\n- Profile Information: Avatar, social media links (GitHub, LinkedIn, Figma).\n- Design Submissions: UI components, code snippets, descriptions, tags, and any pricing information.\n- Communications: Information you provide when you contact support or interact with our community forum.\n- Verification Information: If you apply for verification, we collect your full name, username, email, and phone number for this purpose.\n\nWe also collect information automatically when you use our platform:\n- Usage Information: How you interact with Reactiverse, designs you view or copy, features you use.\n- Log Information: IP address, browser type, access times, pages viewed."
-      },
-      {
-        "heading": "2. How We Use Your Information",
-        "content": "We use the information we collect to:\n- Provide, maintain, and improve Reactiverse.\n- Personalize your experience on the platform.\n- Process your design submissions and verification applications.\n- Communicate with you, including responding to inquiries and sending platform updates (if you opt-in).\n- Monitor and analyze trends, usage, and activities in connection with our platform.\n- Detect, investigate, and prevent fraudulent transactions and other illegal activities and protect the rights and property of Reactiverse and others.\n- Facilitate community interaction and display user profiles and designs as intended by the platform's features."
-      },
-      {
-        "heading": "3. Information Sharing and Disclosure",
-        "content": "We do not sell your personal information. We may share information about you as follows or as otherwise described in this Privacy Policy:\n- With other users: Your profile information (name, username, avatar, social links if public) and submitted designs are visible to other users of Reactiverse.\n- With your consent: For example, if you choose to make your email or phone number public in your profile settings.\n- With service providers: We may share information with vendors, consultants, and other service providers who need access to such information to carry out work on our behalf (e.g., data hosting, analytics).\n- For legal reasons: If we believe disclosure is in accordance with, or required by, any applicable law, regulation, or legal process.\n- To protect rights and property: If we believe your actions are inconsistent with our user agreements or policies, or to protect the rights, property, and safety of Reactiverse or others."
-      },
-      {
-        "heading": "4. Data Security",
-        "content": "We take reasonable measures to help protect information about you from loss, theft, misuse, and unauthorized access, disclosure, alteration, and destruction. However, no internet-based site can be 100% secure, and we cannot guarantee the absolute security of your information."
-      },
-      {
-        "heading": "5. Your Rights and Choices",
-        "content": "Account Information: You may update, correct, or delete information about you at any time by logging into your account and accessing your profile settings.\n- Two-Factor Authentication: You can enable or disable 2FA for your account through your profile settings.\n- Profile Visibility: You can control the visibility of your email and phone number through your profile settings.\n- Cookies: Most web browsers are set to accept cookies by default. If you prefer, you can usually choose to set your browser to remove or reject browser cookies. Please note that if you choose to remove or reject cookies, this could affect the availability and functionality of our services."
-      },
-      {
-        "heading": "6. Cookies and Tracking Technologies",
-        "content": "We may use cookies and similar tracking technologies to access or store information. Specific information about how we use such technologies and how you can refuse certain cookies is set out in our (future) Cookie Policy."
-      },
-      {
-        "heading": "7. Data Retention",
-        "content": "We store the information we collect about you for as long as is necessary for the purpose(s) for which we originally collected it, or for other legitimate business purposes, including to meet our legal, regulatory, or other compliance obligations."
-      },
-      {
-        "heading": "8. Changes to This Policy",
-        "content": "We may change this Privacy Policy from time to time. If we make changes, we will notify you by revising the date at the top of the policy and, in some cases, we may provide you with additional notice (such as adding a statement to our homepage or sending you a notification). We encourage you to review the Privacy Policy whenever you access our services to stay informed about our information practices and the ways you can help protect your privacy."
-      },
-      {
-        "heading": "9. Contact Us",
-        "content": "If you have any questions about this Privacy Policy, please contact us at: mintfire.official@gmail.com"
-      }
-    ]
   }
 }

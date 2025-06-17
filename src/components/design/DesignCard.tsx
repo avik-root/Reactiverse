@@ -90,12 +90,12 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail, onLikeCha
         aria-label={`View details for ${design.title}`}
       >
         {previewSrcDoc ? (
-          <div className="w-full h-full transform scale-[0.35] origin-center flex items-center justify-center pointer-events-none">
+          <div className="w-full h-full transform scale-[0.5] origin-center flex items-center justify-center pointer-events-none">
             <iframe
               srcDoc={previewSrcDoc}
               title={`${design.title} card preview`}
               sandbox="allow-same-origin"
-              className="w-[calc(100%/0.35)] h-[calc(100%/0.35)] border-0 overflow-hidden bg-transparent"
+              className="w-[calc(100%/0.5)] h-[calc(100%/0.5)] border-0 overflow-hidden bg-transparent"
               scrolling="no"
             />
           </div>
@@ -159,3 +159,4 @@ const DesignCard: React.FC<DesignCardProps> = ({ design, onOpenDetail, onLikeCha
 };
 
 export default DesignCard;
+

@@ -403,17 +403,22 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
   }
 
   // Authentication successful (either password or PIN), set cookie and return success
-  const cookieStore = await cookies(); // Added await based on error message
+  const cookieStore = await cookies();
   cookieStore.set(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS, targetAdmin.id, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    path: '/admin',
+    path: '/admin', // Important: Scope cookie to /admin path
     maxAge: 60 * 60 * 24, // 1 day
     sameSite: 'lax',
   });
 
   const { passwordHash: removedPasswordHash, twoFactorPinHash: removedPinHash, ...adminUserToReturn } = targetAdmin;
-  return { message: 'Admin login successful!', adminUser: { ...adminUserToReturn, isAdmin: true } };
+  return {
+    message: 'Admin login successful!',
+    adminUser: { ...adminUserToReturn, isAdmin: true },
+    requiresPin: false, // Explicitly set to false on full success
+    adminIdForPin: undefined // Explicitly clear
+  };
 }
 
 
@@ -2696,4 +2701,5 @@ export async function adminRejectVerificationAction(
     return { message: 'Failed to reject request.', success: false, errors: { general: ['Server error.'] } };
   }
 }
+
 

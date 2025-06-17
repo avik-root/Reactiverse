@@ -206,7 +206,7 @@ export default function EditAboutUsPage() {
             </div>
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                 <div>
-                  <Label htmlFor="image1File">Mission Image (JPG/PNG, max 5MB)</Label>
+                  <Label htmlFor="image1File">Mission Image (JPG/PNG, max 5MB, rec. 3:2 ratio)</Label>
                   <div className="relative mt-1">
                     <UploadCloud className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input id="image1File" name="image1File" type="file" accept="image/jpeg,image/png" onChange={(e) => handleImageFileChange(e, setImage1File, setImage1Preview, initialContent?.image1Url)} className="pl-10 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"/>
@@ -284,7 +284,7 @@ export default function EditAboutUsPage() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                 <div>
-                  <Label htmlFor="image2File">Join Section Image (JPG/PNG, max 5MB)</Label>
+                  <Label htmlFor="image2File">Join Section Image (JPG/PNG, max 5MB, rec. 2:1 ratio)</Label>
                   <div className="relative mt-1">
                     <UploadCloud className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input id="image2File" name="image2File" type="file" accept="image/jpeg,image/png" onChange={(e) => handleImageFileChange(e, setImage2File, setImage2Preview, initialContent?.image2Url)} className="pl-10 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"/>
@@ -316,3 +316,4 @@ export default function EditAboutUsPage() {
     </Card>
   );
 }
+

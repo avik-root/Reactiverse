@@ -5,8 +5,8 @@
     "description": "Talk about anything related to UI/UX design, development, and Reactiverse.",
     "iconName": "MessagesSquare",
     "slug": "general-discussion",
-    "topicCount": 0,
-    "postCount": 0
+    "topicCount": 1,
+    "postCount": 1
   },
   {
     "id": "cat-005",
@@ -24,6 +24,6 @@
     "iconName": "HelpCircle",
     "slug": "support-qa",
     "topicCount": 2,
-    "postCount": 4
+    "postCount": 6
   }
 ]

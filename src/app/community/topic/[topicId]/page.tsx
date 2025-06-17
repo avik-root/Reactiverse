@@ -109,7 +109,7 @@ export default function TopicPage() {
     });
 
     if (result.success) {
-      setPosts(prev => prev.filter(p => p.id !== postToDelete!.id)); // Ensure postToDelete is not null
+      setPosts(prev => prev.filter(p => p.id !== postToDelete!.id));
       setTopic(prevTopic => {
         if (!prevTopic) return null;
         return {
@@ -118,9 +118,17 @@ export default function TopicPage() {
         };
       });
     }
+    // Close the dialog. The useEffect below will handle setting postToDelete to null.
     setIsDeleteAlertOpen(false);
-    setPostToDelete(null);
   };
+
+  // Effect to nullify postToDelete after the dialog is closed
+  useEffect(() => {
+    if (!isDeleteAlertOpen && postToDelete) {
+      setPostToDelete(null);
+    }
+  }, [isDeleteAlertOpen, postToDelete]);
+
 
   // De-duplicate posts before rendering
   const uniquePostsToRender = React.useMemo(() => {
@@ -330,7 +338,7 @@ export default function TopicPage() {
             <AlertDialogFooter>
               <AlertDialogCancel onClick={() => {
                 setIsDeleteAlertOpen(false);
-                setPostToDelete(null);
+                // Do not setPostToDelete(null) here; let the useEffect handle it
               }}>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleConfirmDeletePost}

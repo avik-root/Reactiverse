@@ -1,1 +1,28 @@
-[]
+[
+  {
+    "id": "topic-1750186452108",
+    "categoryId": "cat-001",
+    "title": "Generally Discussing",
+    "content": "\"Follow greatness everywhere till you get AGTG\"\r\n- Buddha",
+    "createdByUserId": "user-1750185208418",
+    "authorName": "AG",
+    "authorAvatarUrl": "https://placehold.co/100x100.png?text=A",
+    "authorIsVerified": true,
+    "createdAt": "2025-06-17T18:54:12.108Z",
+    "lastRepliedAt": "2025-06-17T18:57:17.116Z",
+    "viewCount": 4,
+    "replyCount": 1,
+    "posts": [
+      {
+        "id": "post-1750186637115",
+        "topicId": "topic-1750186452108",
+        "content": "What do you mean? He's my bro !!\r\n",
+        "createdByUserId": "user-1749918806145",
+        "authorName": "Test",
+        "authorAvatarUrl": "/avatars/user-user-1749918806145-1750016321098.jpeg",
+        "authorIsVerified": true,
+        "createdAt": "2025-06-17T18:57:17.116Z"
+      }
+    ]
+  }
+]

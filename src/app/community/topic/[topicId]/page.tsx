@@ -14,7 +14,7 @@ import SealCheckIcon from '@/components/icons/SealCheckIcon';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 import { useParams, useSearchParams } from 'next/navigation';
-import React, { useEffect, useState, useCallback, useMemo } from 'react'; // Import React
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import CreatePostForm from '@/components/forum/CreatePostForm';
 import { useToast } from '@/hooks/use-toast';
@@ -112,7 +112,7 @@ export default function TopicPage() {
       });
     }
     
-    setIsDeleteAlertOpen(false); // This will trigger onOpenChange, which clears postForDialogData
+    setIsDeleteAlertOpen(false); // This will trigger onOpenChange
 
     toast({
       title: result.success ? "Success" : "Error",
@@ -133,6 +133,13 @@ export default function TopicPage() {
       return true;
     });
   }, [posts]);
+
+  const onAlertDialogOpenChange = useCallback((isOpen: boolean) => {
+    setIsDeleteAlertOpen(isOpen);
+    if (!isOpen) {
+      setPostForDialogData(null); // Clear data when dialog closes
+    }
+  }, []); // setIsDeleteAlertOpen and setPostForDialogData are stable
 
 
   if (isLoading || authIsLoading) {
@@ -319,12 +326,7 @@ export default function TopicPage() {
 
       <AlertDialog
         open={isDeleteAlertOpen}
-        onOpenChange={(isOpen) => {
-          setIsDeleteAlertOpen(isOpen);
-          if (!isOpen) {
-            setPostForDialogData(null); 
-          }
-        }}
+        onOpenChange={onAlertDialogOpenChange}
       >
         {postForDialogData && (
           <AlertDialogContent>

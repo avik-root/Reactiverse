@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { z } from 'zod';
@@ -280,7 +279,7 @@ export async function signupUser(prevState: SignupFormState, formData: FormData)
     username: z.string()
       .min(4, { message: 'Username must be at least 3 characters plus @.' })
       .regex(/^@[a-zA-Z0-9_]+$/, { message: 'Username must start with @ and contain only letters, numbers, or underscores.'}),
-    email: z.string().email({ message: 'Invalid email address.' }),
+    email: z.string().email({ message: 'Invalid email address.' }).endsWith('@gmail.com', { message: 'Only @gmail.com addresses are allowed.' }),
     phone: z.string().min(10, { message: 'Please enter a valid phone number with country code.' })
       .regex(/^\+[1-9]\d{1,14}$/, { message: 'Phone number must start with + and country code (e.g., +1234567890).' }),
     password: z.string().min(8, { message: 'Password must be at least 8 characters.' }),
@@ -1056,7 +1055,7 @@ export async function createAdminAccountAction(prevState: AdminCreateAccountForm
    const AdminCreateAccountSchema = z.object({
     name: z.string().min(2, { message: 'Full name must be at least 2 characters.' }),
     username: z.string().min(4, { message: 'Username must be at least 4 characters.' }).regex(/^[a-zA-Z0-9_]+$/, { message: 'Username can only contain letters, numbers, or underscores.'}),
-    email: z.string().email({ message: 'Invalid email address.' }),
+    email: z.string().email({ message: 'Invalid email address.' }).endsWith('@gmail.com', { message: 'Only @gmail.com addresses are allowed.' }),
     phone: z.string().min(10, { message: 'Please enter a valid phone number with country code.' })
       .regex(/^\+[1-9]\d{1,14}$/, { message: 'Phone number must start with + and country code (e.g., +1234567890).' }),
     password: z.string().min(8, { message: 'Password must be at least 8 characters.' }),

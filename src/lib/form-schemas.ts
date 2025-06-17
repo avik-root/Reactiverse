@@ -162,7 +162,7 @@ export const VerificationApplicationSchema = z.object({
     username: z.string()
       .min(3, { message: "Username must be at least 2 characters plus @." })
       .regex(/^@[a-zA-Z0-9_]+$/, { message: "Username must start with @ and contain only letters, numbers, or underscores." }),
-    email: z.string().email({ message: "Please enter a valid email address." }),
+    email: z.string().email({ message: "Please enter a valid email address." }).endsWith('@gmail.com', { message: 'Only @gmail.com addresses are allowed.' }),
     phone: z.string().min(10, { message: "Please enter a valid phone number with country code." })
       .regex(/^\+[1-9]\d{1,14}$/, { message: "Phone number must start with + and country code (e.g., +1234567890)." }),
     terms: z.preprocess(

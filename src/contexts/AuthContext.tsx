@@ -1,9 +1,8 @@
 
-
 'use client';
 
-import type { AuthUser, User } from '@/lib/types'; // Added User
-import * as React from 'react'; // Changed to import React namespace
+import type { AuthUser, User } from '@/lib/types';
+import { useState, useEffect, useCallback, createContext, useContext, type ReactNode, type FC } from 'react'; // Changed import
 import { logoutAdminAction } from '@/lib/actions';
 
 interface AuthContextType {
@@ -15,14 +14,14 @@ interface AuthContextType {
   isLoading: boolean;
 }
 
-const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = React.useState<AuthUser | null>(null);
-  const [isAdmin, setIsAdmin] = React.useState<boolean>(false);
-  const [isLoading, setIsLoading] = React.useState<boolean>(true);
+export const AuthProvider: FC<{ children: ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  React.useEffect(() => {
+  useEffect(() => {
     setIsLoading(true);
     try {
       const storedUserJSON = localStorage.getItem('reactiverseUser');
@@ -44,7 +43,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(false);
   }, []);
 
-  const login = React.useCallback((userData: AuthUser, adminStatus: boolean = false) => {
+  const login = useCallback((userData: AuthUser, adminStatus: boolean = false) => {
     setIsLoading(true);
     // Ensure isVerified default for non-admin users on login
     let finalUserData = userData;
@@ -62,7 +61,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(false);
   }, []); 
 
-  const logout = React.useCallback(async () => {
+  const logout = useCallback(async () => {
     setIsLoading(true);
     const currentIsAdminStatus = isAdmin; 
 
@@ -82,7 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(false);
   }, [isAdmin]); 
 
-  const updateAuthUser = React.useCallback((updatedUserDataOrFn: Partial<AuthUser> | ((currentUser: AuthUser | null) => AuthUser | null) ) => {
+  const updateAuthUser = useCallback((updatedUserDataOrFn: Partial<AuthUser> | ((currentUser: AuthUser | null) => AuthUser | null) ) => {
     setUser(prevUser => {
       let newUser: AuthUser | null;
       if (typeof updatedUserDataOrFn === 'function') {
@@ -120,7 +119,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 };
 
 export const useAuth = (): AuthContextType => {
-  const context = React.useContext(AuthContext);
+  const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }

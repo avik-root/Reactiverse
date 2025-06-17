@@ -358,13 +358,13 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
   const adminUsers = await getAdminUsers();
   let targetAdmin: StoredAdminUser | undefined;
 
-  if (adminIdForPin && pin) {
+  if (adminIdForPin && pin) { // PIN Verification Stage
     targetAdmin = adminUsers.find(admin => admin.id === adminIdForPin);
     if (!targetAdmin) {
-      return { message: 'Admin user not found for PIN verification.', errors: { general: ['An error occurred. Please try logging in again.'] } };
+      return { message: 'Admin user not found for PIN verification.', errors: { general: ['An error occurred. Please try logging in again.'] }, requiresPin: true, adminIdForPin };
     }
     if (!targetAdmin.twoFactorEnabled || !targetAdmin.twoFactorPinHash) {
-      return { message: '2FA is not enabled for this admin or PIN not set up.', errors: { general: ['Admin 2FA error. Please try logging in again.'] } };
+      return { message: '2FA is not enabled for this admin or PIN not set up.', errors: { general: ['Admin 2FA error.'] }, requiresPin: true, adminIdForPin };
     }
     const pinMatches = await comparePin(pin, targetAdmin.twoFactorPinHash);
     if (!pinMatches) {
@@ -372,10 +372,11 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
         message: 'Invalid PIN.',
         errors: { pin: ['Incorrect PIN.'] },
         requiresPin: true,
-        adminIdForPin: targetAdmin.id,
+        adminIdForPin: targetAdmin.id, // Pass back for retry
       };
     }
-  } else if (username && password) {
+    // PIN is correct, targetAdmin is set, flow will continue to cookie setting.
+  } else if (username && password) { // Initial Username/Password Stage
     targetAdmin = adminUsers.find(admin => admin.username === username);
     if (!targetAdmin || !targetAdmin.passwordHash) {
       return { message: 'Invalid username or password.', errors: { general: ['Invalid username or password.'] } };
@@ -386,25 +387,31 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
     }
 
     if (targetAdmin.twoFactorEnabled) {
+      // Password correct, but 2FA enabled, so return to client to ask for PIN
       return {
         message: 'Please enter your 2FA PIN.',
         requiresPin: true,
         adminIdForPin: targetAdmin.id,
       };
     }
+    // Password is correct, 2FA not enabled, targetAdmin is set, flow will continue to cookie setting.
   } else {
-    return { message: 'Invalid login attempt.', errors: { general: ['Invalid login state.'] } };
+    // Neither PIN stage nor initial login stage criteria met (e.g., form submitted without necessary fields for either stage)
+    return { message: 'Invalid login attempt. Please provide credentials or PIN.', errors: { general: ['Invalid login state.'] } };
   }
 
+  // If we reach here, targetAdmin should be defined and authentication (either password or PIN) was successful
   if (!targetAdmin) {
-    return { message: 'Admin user not found.', errors: { general: ['Admin user not found.'] } };
+    // This should ideally not be reached if logic above is correct, but as a safeguard:
+    return { message: 'Admin authentication failed. Please try again.', errors: { general: ['Authentication error.'] } };
   }
 
+  // Authentication successful (either password or PIN), set cookie and return success
   cookies().set(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS, targetAdmin.id, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     path: '/admin',
-    maxAge: 0, // Session cookie
+    maxAge: 60 * 60 * 24, // 1 day
     sameSite: 'lax',
   });
 
@@ -2692,3 +2699,4 @@ export async function adminRejectVerificationAction(
     return { message: 'Failed to reject request.', success: false, errors: { general: ['Server error.'] } };
   }
 }
+

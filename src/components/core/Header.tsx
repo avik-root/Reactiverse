@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import Logo from './Logo';
 import { useAuth } from '@/contexts/AuthContext';
-import { UserCircle, LogOut, ShieldCheck, UserPlus, LogIn, LayoutDashboard, Home, Users, LifeBuoy, Info, Palette } from 'lucide-react';
+import { UserCircle, LogOut, ShieldCheck, UserPlus, LogIn, LayoutDashboard, Home, Users, LifeBuoy, Info, Palette, MessagesSquare } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useRouter, usePathname } from 'next/navigation'; // Import usePathname
 import {
@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils'; // Import cn utility
 const navLinks = [
   { href: "/", label: "Home", icon: Home },
   { href: "/designers", label: "Designers", icon: Users },
+  { href: "/community", label: "Community", icon: MessagesSquare },
   { href: "/about", label: "About Us", icon: Info },
   { href: "/support", label: "Support", icon: LifeBuoy },
 ];
@@ -47,16 +48,16 @@ const Header = () => {
   return (
     <header className="bg-card border-b border-border shadow-sm sticky top-0 z-50">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-2 sm:gap-6">
           <Logo />
-          <nav className="hidden md:flex items-center gap-2">
+          <nav className="hidden md:flex items-center gap-1 lg:gap-2">
             {navLinks.map(link => (
               <Button
                 variant="ghost"
                 asChild
                 key={link.href}
                 className={cn(
-                  "flex items-center text-sm",
+                  "flex items-center text-sm px-2 lg:px-3 py-1.5 h-auto", // Adjusted padding for smaller screens
                   pathname === link.href ? "border-b-2 border-primary rounded-none" : "" // Conditional border
                 )}
               >

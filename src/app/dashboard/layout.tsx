@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, type ReactNode } from 'react';
@@ -33,7 +34,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   if (isLoading || !user || isAdmin) {
     return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-theme(spacing.32))]">
+      <div className="flex items-center justify-center min-h-[calc(100vh-theme(spacing.16)-theme(spacing.12))]">
         <LayoutDashboard className="h-12 w-12 animate-spin text-primary" />
         <p className="ml-4 text-lg">Loading Dashboard...</p>
       </div>
@@ -41,17 +42,17 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }
 
   return (
-    <div className="flex flex-col md:flex-row min-h-[calc(100vh-theme(spacing.16)-theme(spacing.12))] gap-6 py-8">
-      <aside className="md:w-64">
+    <div className="flex flex-col md:flex-row min-h-[calc(100vh-theme(spacing.16)-theme(spacing.12))] gap-6 py-4 md:py-8">
+      <aside className="w-full md:w-64 shrink-0">
         <Card className="shadow-md">
-          <CardContent className="p-4">
-            <nav className="space-y-2">
+          <CardContent className="p-2 md:p-4">
+            <nav className="space-y-1 md:space-y-2">
               {navItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-muted",
+                    "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm text-muted-foreground transition-all hover:text-primary hover:bg-muted",
                     pathname === item.href && "bg-muted text-primary font-semibold"
                   )}
                 >
@@ -63,7 +64,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </CardContent>
         </Card>
       </aside>
-      <main className="flex-1">
+      <main className="flex-1 min-w-0"> {/* Added min-w-0 for flex child squashing */}
         {children}
       </main>
     </div>

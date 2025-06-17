@@ -13,6 +13,7 @@ import ClientSplashCursor from '@/components/core/ClientSplashCursor'; // Import
 export const metadata: Metadata = {
   title: 'Reactiverse - Showcase Your Designs',
   description: 'A platform for designers to showcase their React components and designs.',
+  viewport: 'width=device-width, initial-scale=1', // Ensure proper viewport scaling
 };
 
 export default function RootLayout({
@@ -48,7 +49,7 @@ export default function RootLayout({
           <AuthProvider>
             <AutoRefresher /> 
             <Header />
-            <main className="flex-grow container mx-auto px-4 py-8">
+            <main className="flex-grow container mx-auto px-4 py-6 md:py-8"> {/* Adjusted padding for mobile */}
               {children}
             </main>
             <Footer />

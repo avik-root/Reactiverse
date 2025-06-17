@@ -26,8 +26,8 @@
     "joinContent": "Reactiverse is more than just a platform; it's a community. We invite you to join us, share your work, learn from others, and help build the future of UI design.",
     "image2Alt": "Abstract representation of a digital community network",
     "image2DataAiHint": "community digital",
-    "image1Url": "/content_images/about/mission_image-1750161551720.jpg",
-    "image2Url": "/content_images/about/join_image-1750161551724.jpg"
+    "image1Url": "/content_images/about/mission_image-1750057020985.png",
+    "image2Url": "/content_images/about/join_image-1750057020986.png"
   },
   "support": {
     "title": "Support Center",
@@ -63,7 +63,7 @@
       },
       {
         "question": "Who can I contact for support?",
-        "answer": "If you have questions or need assistance, you can reach out to us via email at mintfire.official@gmail.com or visit our community forum (coming soon) to connect with other users and our team."
+        "answer": "If you have questions or need assistance, you can reach out to us via email at mintfire.official@gmail.com or visit our community forum to connect with other users and our team."
       }
     ]
   },
@@ -116,5 +116,44 @@
       "linkedinUrl": "https://www.linkedin.com/in/anusha-gupta-ofc/",
       "emailAddress": "anusha73gupta@gmail.com"
     }
+  },
+  "privacyPolicy": {
+    "title": "Privacy Policy for Reactiverse",
+    "description": "Your privacy is important to us. This policy outlines how we collect, use, and protect your information.",
+    "lastUpdated": "June 17, 2025",
+    "sections": [
+      {
+        "heading": "Information We Collect",
+        "content": "We collect information you provide directly to us, such as when you create an account, submit designs, or communicate with us. This may include:\n- Account Information: Name, username, email address, phone number, password.\n- User Content: Designs, code snippets, descriptions, tags, and any other content you submit.\n- Communications: Information you provide when you contact us for support or other inquiries."
+      },
+      {
+        "heading": "How We Use Your Information",
+        "content": "We use the information we collect to:\n- Provide, maintain, and improve our services.\n- Allow you to create and manage your account and designs.\n- Enable communication between users (where applicable and with consent).\n- Respond to your comments, questions, and requests.\n- Send you technical notices, updates, security alerts, and support messages.\n- Monitor and analyze trends, usage, and activities in connection with our services.\n- Personalize and improve the services and provide content or features that match user profiles or interests.\n- Comply with legal obligations."
+      },
+      {
+        "heading": "Sharing of Information",
+        "content": "We do not share your personal information with third parties except in the following circumstances or as otherwise described in this Privacy Policy:\n- With your consent or at your direction.\n- For legal reasons, such as to comply with a subpoena, or if we believe in good faith that disclosure is necessary to protect our rights, protect your safety or the safety of others, investigate fraud, or respond to a government request.\n- In connection with, or during negotiations of, any merger, sale of company assets, financing or acquisition of all or a portion of our business by another company."
+      },
+      {
+        "heading": "Your Choices",
+        "content": "Account Information: You may update, correct, or delete information about you at any time by logging into your online account or emailing us at mintfire.official@gmail.com.\nPublic Information: Your username and submitted designs are public. You can control the visibility of your email and phone number in your profile settings.\nCookies: Most web browsers are set to accept cookies by default. If you prefer, you can usually choose to set your browser to remove or reject browser cookies."
+      },
+      {
+        "heading": "Data Security",
+        "content": "We take reasonable measures to help protect information about you from loss, theft, misuse, and unauthorized access, disclosure, alteration, and destruction."
+      },
+      {
+        "heading": "Children's Privacy",
+        "content": "Reactiverse is not intended for children under the age of 13. We do not knowingly collect personal information from children under 13. If we learn that we have collected personal information from a child under 13, we will take steps to delete the information as soon as possible."
+      },
+      {
+        "heading": "Changes to This Policy",
+        "content": "We may change this Privacy Policy from time to time. If we make changes, we will notify you by revising the date at the top of the policy and, in some cases, we may provide you with additional notice (such as adding a statement to our homepage or sending you a notification)."
+      },
+      {
+        "heading": "Contact Us",
+        "content": "If you have any questions about this Privacy Policy, please contact us at: mintfire.official@gmail.com"
+      }
+    ]
   }
 }

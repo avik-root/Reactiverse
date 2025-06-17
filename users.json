@@ -36,5 +36,24 @@
     "isEmailPublic": true,
     "isPhonePublic": false,
     "isVerified": false
+  },
+  {
+    "id": "user-1750185208418",
+    "name": "AG",
+    "username": "@agtg",
+    "email": "iamgreat@gmail.com",
+    "phone": "+1234567890",
+    "passwordHash": "$2a$10$2GKT1/7Y.nTCIpJ4N3KipeH20hZj0yAaJZjw2DLd.FumdeRFrWTCK",
+    "avatarUrl": "https://placehold.co/100x100.png?text=A",
+    "twoFactorEnabled": false,
+    "failedPinAttempts": 0,
+    "isLocked": false,
+    "canSetPrice": false,
+    "githubUrl": "",
+    "linkedinUrl": "",
+    "figmaUrl": "",
+    "isEmailPublic": false,
+    "isPhonePublic": false,
+    "isVerified": false
   }
 ]

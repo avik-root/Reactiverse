@@ -38,7 +38,7 @@
     ],
     "price": 0,
     "submittedByUserId": "user-1749918806145",
-    "copyCount": 0,
+    "copyCount": 2,
     "likedBy": [
       "user-1749999187706"
     ]
@@ -89,8 +89,6 @@
     "price": 0,
     "submittedByUserId": "user-1749999187706",
     "copyCount": 3,
-    "likedBy": [
-      "user-1749918806145"
-    ]
+    "likedBy": []
   }
 ]

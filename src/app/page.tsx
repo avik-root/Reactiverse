@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Card } from '@/components/ui/card'; 
+import { Card } from '@/components/ui/card';
 import { Search, ListFilter, Palette, Loader2, Sparkles, Wand2, MousePointerClick, ToggleLeft, CheckSquare, Navigation, CreditCard, LayoutGrid, XCircle } from 'lucide-react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -36,6 +36,31 @@ const popularCategories = [
   { name: "Toggles & Switches", icon: ToggleLeft, hint: "interactive control" },
   { name: "Interactive Elements", icon: CreditCard, hint: "user interaction" },
 ];
+
+// Helper function for more flexible matching
+const isFuzzyMatch = (term: string, value: string): boolean => {
+  const lowerTerm = term.toLowerCase();
+  const lowerValue = value.toLowerCase();
+
+  if (lowerValue.includes(lowerTerm)) {
+    return true;
+  }
+
+  // Simple plural/singular check
+  if (lowerTerm.endsWith('s') && lowerValue === lowerTerm.slice(0, -1)) {
+    return true; // Search: "buttons", Value: "button"
+  }
+  if (!lowerTerm.endsWith('s') && lowerValue === `${lowerTerm}s`) {
+    return true; // Search: "button", Value: "buttons"
+  }
+  
+  // Check if value starts with term or term starts with value (for partials)
+  if (lowerValue.startsWith(lowerTerm) || lowerTerm.startsWith(lowerValue)) {
+    return true;
+  }
+
+  return false;
+};
 
 
 export default function HomePage() {
@@ -101,13 +126,13 @@ export default function HomePage() {
     }
 
     if (searchTerm) {
-      const lowerSearchTerm = searchTerm.toLowerCase();
+      const lowerSearchTerm = searchTerm.toLowerCase(); // For direct includes check
       result = result.filter(design =>
         design.title.toLowerCase().includes(lowerSearchTerm) ||
         design.description.toLowerCase().includes(lowerSearchTerm) ||
-        design.filterCategory.toLowerCase().includes(lowerSearchTerm) ||
+        isFuzzyMatch(searchTerm, design.filterCategory) || // Use fuzzy match for category
         (!designerIdParam && design.designer.name.toLowerCase().includes(lowerSearchTerm)) ||
-        design.tags.some(tag => tag.toLowerCase().includes(lowerSearchTerm))
+        design.tags.some(tag => isFuzzyMatch(searchTerm, tag)) // Use fuzzy match for tags
       );
     }
 
@@ -308,5 +333,4 @@ export default function HomePage() {
       )}
     </div>
   );
-}
 

@@ -71,18 +71,19 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ codeSnippet, language, isLocked =
             <Code2 className="h-5 w-5 text-primary"/>
             <span className="font-semibold text-primary">{language}</span> Code Snippet:
         </div>
-        <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleCopy}
-            className="opacity-0 group-hover:opacity-100 transition-opacity absolute top-0 right-0 m-1 px-2 py-1 h-auto"
-            aria-label={isCopied ? "Copied" : `Copy ${language} code`}
-        >
-            {isCopied ? <CheckIcon className="h-4 w-4 text-green-500" /> : <CopyIcon className="h-4 w-4" />}
-            <span className="ml-1 text-xs">{isCopied ? "Copied!" : "Copy"}</span>
-        </Button>
-       </div>
-      <pre className="bg-muted text-muted-foreground p-4 rounded-md overflow-x-auto font-code text-sm">
+      </div>
+      {/* Button is now a direct child of 'relative group' for better positioning control if needed, but was fine as is */}
+      <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleCopy}
+          className="absolute top-1 right-1 m-1 px-2 py-1 h-auto z-10" // Removed opacity classes, adjusted top/right slightly, added z-index
+          aria-label={isCopied ? "Copied" : `Copy ${language} code`}
+      >
+          {isCopied ? <CheckIcon className="h-4 w-4 text-green-500" /> : <CopyIcon className="h-4 w-4" />}
+          <span className="ml-1 text-xs">{isCopied ? "Copied!" : "Copy"}</span>
+      </Button>
+      <pre className="bg-muted text-muted-foreground p-4 rounded-md overflow-x-auto font-code text-sm relative pt-8"> {/* Added padding-top to pre to make space for the button */}
         <code>{codeSnippet}</code>
       </pre>
     </div>
@@ -90,3 +91,4 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ codeSnippet, language, isLocked =
 };
 
 export default CodeBlock;
+

@@ -21,10 +21,11 @@ const NEWSLETTER_SUBSCRIBERS_FILE_PATH = path.join(process.cwd(), 'newsletter_su
 const VERIFICATION_REQUESTS_FILE_PATH = path.join(process.cwd(), 'verification_requests.json');
 
 
-// New Forum Data Files
-const USERS_FORUM_FILE_PATH = path.join(process.cwd(), 'users_forum.json'); // For "General Discussion"
-const ANNOUNCEMENT_FILE_PATH = path.join(process.cwd(), 'announcement.json'); // For "Announcements"
-const SUPPORT_FORUM_FILE_PATH = path.join(process.cwd(), 'support.json'); // For "Support & Q/A"
+// New Forum Data Files with consistent naming
+const FORUM_GENERAL_DISCUSSION_FILE_PATH = path.join(process.cwd(), 'forum_general_discussion.json');
+const FORUM_ANNOUNCEMENTS_FILE_PATH = path.join(process.cwd(), 'forum_announcements.json');
+const FORUM_SUPPORT_QA_FILE_PATH = path.join(process.cwd(), 'forum_support_qa.json');
+
 
 // Old files to be deprecated or re-purposed if necessary - for now, we'll mostly ignore them for new operations.
 const DEPRECATED_FORUM_TOPICS_FILE_PATH = path.join(process.cwd(), 'forum_topics.json');
@@ -98,7 +99,7 @@ const DEFAULT_PAGE_CONTENT: PageContentData = {
     description: "Need help? We're here for you. Find answers or get in touch with our support team.",
     emailSupportTitle: "Email Support",
     emailSupportDescription: "Get in touch via email for any inquiries.",
-    emailAddress: "support@reactiverse.com",
+    emailAddress: "mintfire.official@gmail.com",
     forumTitle: "Community Forum",
     forumDescription: "Ask questions and find answers in our community.",
     forumLinkText: "Visit Support & Q/A Forum",
@@ -123,11 +124,11 @@ const DEFAULT_PAGE_CONTENT: PageContentData = {
       },
       {
         "question": "How is my personal information handled?",
-        "answer": "We take your privacy seriously. You can manage the visibility of your email and phone number in your profile settings. Please review our Privacy Policy for more details on how we collect and use your data."
+        "answer": "We take your privacy seriously. You can manage the visibility of your email and phone number in your profile settings. Please review our Privacy Policy page for comprehensive details on how we collect, use, and protect your data."
       },
       {
         "question": "Who can I contact for support?",
-        "answer": "If you have questions or need assistance, you can reach out to us via email at support@reactiverse.com or visit our community forum (coming soon) to connect with other users and our team."
+        "answer": "If you have questions or need assistance, you can reach out to us via email at mintfire.official@gmail.com or visit our community forum to connect with other users and our team."
       }
     ]
   },
@@ -180,6 +181,45 @@ const DEFAULT_PAGE_CONTENT: PageContentData = {
         linkedinUrl: "https://www.linkedin.com/in/anusha-gupta-ofc/",
         emailAddress: "anusha73gupta@gmail.com"
       }
+    },
+    privacyPolicy: {
+      title: "Privacy Policy for Reactiverse",
+      description: "Your privacy is important to us. This policy outlines how we collect, use, and protect your information.",
+      lastUpdated: "June 17, 2025",
+      sections: [
+        {
+          "heading": "Information We Collect",
+          "content": "We collect information you provide directly to us, such as when you create an account, submit designs, or communicate with us. This may include:\n- Account Information: Name, username, email address, phone number, password.\n- User Content: Designs, code snippets, descriptions, tags, and any other content you submit.\n- Communications: Information you provide when you contact us for support or other inquiries."
+        },
+        {
+          "heading": "How We Use Your Information",
+          "content": "We use the information we collect to:\n- Provide, maintain, and improve our services.\n- Allow you to create and manage your account and designs.\n- Enable communication between users (where applicable and with consent).\n- Respond to your comments, questions, and requests.\n- Send you technical notices, updates, security alerts, and support messages.\n- Monitor and analyze trends, usage, and activities in connection with our services.\n- Personalize and improve the services and provide content or features that match user profiles or interests.\n- Comply with legal obligations."
+        },
+        {
+          "heading": "Sharing of Information",
+          "content": "We do not share your personal information with third parties except in the following circumstances or as otherwise described in this Privacy Policy:\n- With your consent or at your direction.\n- For legal reasons, such as to comply with a subpoena, or if we believe in good faith that disclosure is necessary to protect our rights, protect your safety or the safety of others, investigate fraud, or respond to a government request.\n- In connection with, or during negotiations of, any merger, sale of company assets, financing or acquisition of all or a portion of our business by another company."
+        },
+        {
+          "heading": "Your Choices",
+          "content": "Account Information: You may update, correct, or delete information about you at any time by logging into your online account or emailing us at mintfire.official@gmail.com.\nPublic Information: Your username and submitted designs are public. You can control the visibility of your email and phone number in your profile settings.\nCookies: Most web browsers are set to accept cookies by default. If you prefer, you can usually choose to set your browser to remove or reject browser cookies."
+        },
+        {
+          "heading": "Data Security",
+          "content": "We take reasonable measures to help protect information about you from loss, theft, misuse, and unauthorized access, disclosure, alteration, and destruction."
+        },
+        {
+          "heading": "Children's Privacy",
+          "content": "Reactiverse is not intended for children under the age of 13. We do not knowingly collect personal information from children under 13. If we learn that we have collected personal information from a child under 13, we will take steps to delete the information as soon as possible."
+        },
+        {
+          "heading": "Changes to This Policy",
+          "content": "We may change this Privacy Policy from time to time. If we make changes, we will notify you by revising the date at the top of the policy and, in some cases, we may provide you with additional notice (such as adding a statement to our homepage or sending you a notification)."
+        },
+        {
+          "heading": "Contact Us",
+          "content": "If you have any questions about this Privacy Policy, please contact us at: mintfire.official@gmail.com"
+        }
+      ]
     }
 };
 
@@ -515,7 +555,12 @@ export async function getPageContent(): Promise<PageContentData> {
           ...DEFAULT_PAGE_CONTENT.teamMembers.coFounder,
           ...(parsedContent.teamMembers?.coFounder || {}),
         }
-      }
+      },
+      privacyPolicy: { // Ensure privacyPolicy is merged or defaulted
+        ...DEFAULT_PAGE_CONTENT.privacyPolicy,
+        ...(parsedContent.privacyPolicy || {}),
+        sections: parsedContent.privacyPolicy?.sections || DEFAULT_PAGE_CONTENT.privacyPolicy.sections,
+      },
     };
     return mergedContent;
   } catch (error) {
@@ -645,24 +690,24 @@ async function saveTopicsToFile(filePath: string, topics: ForumTopic[]): Promise
 }
 
 export async function getUsersForumData(): Promise<ForumTopic[]> {
-  return getTopicsFromFile(USERS_FORUM_FILE_PATH);
+  return getTopicsFromFile(FORUM_GENERAL_DISCUSSION_FILE_PATH);
 }
 export async function saveUsersForumData(topics: ForumTopic[]): Promise<void> {
-  await saveTopicsToFile(USERS_FORUM_FILE_PATH, topics);
+  await saveTopicsToFile(FORUM_GENERAL_DISCUSSION_FILE_PATH, topics);
 }
 
 export async function getAnnouncementsData(): Promise<ForumTopic[]> {
-  return getTopicsFromFile(ANNOUNCEMENT_FILE_PATH);
+  return getTopicsFromFile(FORUM_ANNOUNCEMENTS_FILE_PATH);
 }
 export async function saveAnnouncementsData(topics: ForumTopic[]): Promise<void> {
-  await saveTopicsToFile(ANNOUNCEMENT_FILE_PATH, topics);
+  await saveTopicsToFile(FORUM_ANNOUNCEMENTS_FILE_PATH, topics);
 }
 
 export async function getSupportForumData(): Promise<ForumTopic[]> {
-  return getTopicsFromFile(SUPPORT_FORUM_FILE_PATH);
+  return getTopicsFromFile(FORUM_SUPPORT_QA_FILE_PATH);
 }
 export async function saveSupportForumData(topics: ForumTopic[]): Promise<void> {
-  await saveTopicsToFile(SUPPORT_FORUM_FILE_PATH, topics);
+  await saveTopicsToFile(FORUM_SUPPORT_QA_FILE_PATH, topics);
 }
 
 // Deprecate old topic/post functions or adapt them if they have other uses.
@@ -713,17 +758,17 @@ export async function addPostToTopic(
 
   switch (categorySlug) {
     case 'general-discussion':
-      filePath = USERS_FORUM_FILE_PATH;
+      filePath = FORUM_GENERAL_DISCUSSION_FILE_PATH;
       topics = await getUsersForumData();
       saveFunction = saveUsersForumData;
       break;
     case 'announcements':
-      filePath = ANNOUNCEMENT_FILE_PATH;
+      filePath = FORUM_ANNOUNCEMENTS_FILE_PATH;
       topics = await getAnnouncementsData();
       saveFunction = saveAnnouncementsData;
       break;
     case 'support-qa':
-      filePath = SUPPORT_FORUM_FILE_PATH;
+      filePath = FORUM_SUPPORT_QA_FILE_PATH;
       topics = await getSupportForumData();
       saveFunction = saveSupportForumData;
       break;
@@ -779,17 +824,17 @@ export async function deleteTopic(topicId: string, categorySlug: string): Promis
 
   switch (categorySlug) {
     case 'general-discussion':
-      filePath = USERS_FORUM_FILE_PATH;
+      filePath = FORUM_GENERAL_DISCUSSION_FILE_PATH;
       topics = await getUsersForumData();
       saveFunction = saveUsersForumData;
       break;
     case 'announcements':
-      filePath = ANNOUNCEMENT_FILE_PATH;
+      filePath = FORUM_ANNOUNCEMENTS_FILE_PATH;
       topics = await getAnnouncementsData();
       saveFunction = saveAnnouncementsData;
       break;
     case 'support-qa':
-      filePath = SUPPORT_FORUM_FILE_PATH;
+      filePath = FORUM_SUPPORT_QA_FILE_PATH;
       topics = await getSupportForumData();
       saveFunction = saveSupportForumData;
       break;
@@ -961,3 +1006,4 @@ export async function updateVerificationRequestInFile(updatedRequest: Verificati
     throw error;
   }
 }
+

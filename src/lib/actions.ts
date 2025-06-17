@@ -372,10 +372,10 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
         message: 'Invalid PIN.',
         errors: { pin: ['Incorrect PIN.'] },
         requiresPin: true,
-        adminIdForPin: targetAdmin.id, // Pass back for retry
+        adminIdForPin: targetAdmin.id,
       };
     }
-    // PIN is correct, targetAdmin is set, flow will continue to cookie setting.
+    // PIN is correct, targetAdmin is set
   } else if (username && password) { // Initial Username/Password Stage
     targetAdmin = adminUsers.find(admin => admin.username === username);
     if (!targetAdmin || !targetAdmin.passwordHash) {
@@ -387,27 +387,24 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
     }
 
     if (targetAdmin.twoFactorEnabled) {
-      // Password correct, but 2FA enabled, so return to client to ask for PIN
       return {
         message: 'Please enter your 2FA PIN.',
         requiresPin: true,
         adminIdForPin: targetAdmin.id,
       };
     }
-    // Password is correct, 2FA not enabled, targetAdmin is set, flow will continue to cookie setting.
+    // Password is correct, 2FA not enabled, targetAdmin is set
   } else {
-    // Neither PIN stage nor initial login stage criteria met (e.g., form submitted without necessary fields for either stage)
     return { message: 'Invalid login attempt. Please provide credentials or PIN.', errors: { general: ['Invalid login state.'] } };
   }
 
-  // If we reach here, targetAdmin should be defined and authentication (either password or PIN) was successful
   if (!targetAdmin) {
-    // This should ideally not be reached if logic above is correct, but as a safeguard:
     return { message: 'Admin authentication failed. Please try again.', errors: { general: ['Authentication error.'] } };
   }
 
   // Authentication successful (either password or PIN), set cookie and return success
-  cookies().set(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS, targetAdmin.id, {
+  const cookieStore = await cookies(); // Added await based on error message
+  cookieStore.set(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS, targetAdmin.id, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     path: '/admin',
@@ -415,7 +412,7 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
     sameSite: 'lax',
   });
 
-  const { passwordHash, twoFactorPinHash, ...adminUserToReturn } = targetAdmin;
+  const { passwordHash: removedPasswordHash, twoFactorPinHash: removedPinHash, ...adminUserToReturn } = targetAdmin;
   return { message: 'Admin login successful!', adminUser: { ...adminUserToReturn, isAdmin: true } };
 }
 

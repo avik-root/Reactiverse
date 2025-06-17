@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEffect, useState, useMemo, useActionState, startTransition } from 'react';
@@ -59,7 +58,7 @@ export default function AdminVerificationsPage() {
 
   useEffect(() => {
     fetchRequests();
-  }, [isAdmin, toast]);
+  }, [isAdmin]);
 
   useEffect(() => {
     if (approveFormState?.message) {
@@ -326,7 +325,7 @@ export default function AdminVerificationsPage() {
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setRequestToProcess(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogCancel onClick={() => { setIsApproveDialogOpen(false); setRequestToProcess(null); }}>Cancel</AlertDialogCancel>
                 <AlertDialogAction onClick={confirmApprove} className="bg-green-600 hover:bg-green-700">
                   Approve
                 </AlertDialogAction>
@@ -343,7 +342,7 @@ export default function AdminVerificationsPage() {
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setRequestToProcess(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogCancel onClick={() => { setIsRejectDialogOpen(false); setRequestToProcess(null); }}>Cancel</AlertDialogCancel>
                 <AlertDialogAction onClick={confirmReject} className="bg-destructive hover:bg-destructive/90">
                   Reject
                 </AlertDialogAction>

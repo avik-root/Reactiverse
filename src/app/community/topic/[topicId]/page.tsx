@@ -117,17 +117,10 @@ export default function TopicPage() {
           replyCount: Math.max(0, (prevTopic.replyCount || 1) - 1),
         };
       });
+      setPostToDelete(null); // Clear content first
     }
-    // Close the dialog. The useEffect below will handle setting postToDelete to null.
-    setIsDeleteAlertOpen(false);
+    setIsDeleteAlertOpen(false); // Then close dialog
   };
-
-  // Effect to nullify postToDelete after the dialog is closed
-  useEffect(() => {
-    if (!isDeleteAlertOpen && postToDelete) {
-      setPostToDelete(null);
-    }
-  }, [isDeleteAlertOpen, postToDelete]);
 
 
   // De-duplicate posts before rendering
@@ -336,9 +329,9 @@ export default function TopicPage() {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => {
-                setIsDeleteAlertOpen(false);
-                // Do not setPostToDelete(null) here; let the useEffect handle it
+              <AlertDialogCancel onClick={() => { 
+                  setIsDeleteAlertOpen(false); 
+                  setPostToDelete(null); 
               }}>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleConfirmDeletePost}

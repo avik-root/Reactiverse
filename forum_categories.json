@@ -6,7 +6,7 @@
     "iconName": "MessagesSquare",
     "slug": "general-discussion",
     "topicCount": 1,
-    "postCount": 2
+    "postCount": 3
   },
   {
     "id": "cat-005",
@@ -24,6 +24,6 @@
     "iconName": "HelpCircle",
     "slug": "support-qa",
     "topicCount": 2,
-    "postCount": 6
+    "postCount": 7
   }
 ]

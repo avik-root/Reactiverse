@@ -43,9 +43,9 @@
     "authorAvatarUrl": "https://placehold.co/100x100.png?text=A",
     "authorIsVerified": false,
     "createdAt": "2025-06-17T18:35:10.533Z",
-    "lastRepliedAt": "2025-06-17T18:56:26.709Z",
+    "lastRepliedAt": "2025-06-17T19:09:41.517Z",
     "viewCount": 17,
-    "replyCount": 4,
+    "replyCount": 5,
     "posts": [
       {
         "id": "post-1750185706088",
@@ -86,6 +86,16 @@
         "authorAvatarUrl": "https://placehold.co/100x100.png?text=A",
         "authorIsVerified": true,
         "createdAt": "2025-06-17T18:56:26.709Z"
+      },
+      {
+        "id": "post-1750187381517",
+        "topicId": "topic-1750185310533",
+        "content": "how ?\r\n",
+        "createdByUserId": "admin-1749930797589",
+        "authorName": "Admin",
+        "authorAvatarUrl": "/avatars/admin-admin-1749930797589-1750160218253.png",
+        "authorIsVerified": true,
+        "createdAt": "2025-06-17T19:09:41.517Z"
       }
     ]
   }

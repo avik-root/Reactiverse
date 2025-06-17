@@ -60,6 +60,7 @@ const Footer = () => {
               <FooterLink href="/about">About Us</FooterLink>
               <FooterLink href="/community">Community Forum</FooterLink>
               <FooterLink href="/support">Contact Support</FooterLink>
+              <FooterLink href="/privacy-policy">Privacy Policy</FooterLink>
               <FooterLink href="/admin">Admin Access</FooterLink>
             </ul>
           </div>

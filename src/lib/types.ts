@@ -223,12 +223,25 @@ export interface TopDesignersPageContent {
   mainPlaceholderContent: string;
 }
 
+export interface PrivacyPolicySection {
+  heading: string;
+  content: string;
+}
+
+export interface PrivacyPolicyContent {
+  title: string;
+  description: string;
+  lastUpdated: string;
+  sections: PrivacyPolicySection[];
+}
+
 export type PageContentData = {
   aboutUs: AboutUsContent;
   support: SupportPageContent;
   guidelines: GuidelinesPageContent;
   topDesigners: TopDesignersPageContent;
   teamMembers: TeamMembersContent;
+  privacyPolicy: PrivacyPolicyContent;
 };
 
 export type PageContentKeys = keyof PageContentData;

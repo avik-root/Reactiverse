@@ -4,7 +4,7 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { MessagesSquare, Search, Lightbulb, Users, Palette, HelpCircle, Megaphone, Code2, Mail, Info, Filter, LayoutList, Loader2, FileText, CalendarDays, Eye, Tag, ShieldAlert, XCircle, AlertTriangle, BadgeCheck, CheckSquare as CheckboxIcon, UserSquare2, AtSign, Phone, SendHorizonal } from 'lucide-react';
+import { MessagesSquare, Search, Lightbulb, Users, Palette, HelpCircle, Megaphone, Code2, Mail, Info, Filter, LayoutList, Loader2, FileText, CalendarDays, Eye, Tag, ShieldAlert, XCircle, AlertTriangle, BadgeCheck, CheckSquare as CheckboxIcon, UserSquare2, AtSign, Phone, SendHorizonal, IndianRupee, HandHeart } from 'lucide-react';
 import Link from 'next/link';
 import { getForumCategoriesAction, subscribeToNewsletterAction, searchAllForumTopicsAction, type SubscribeToNewsletterFormState, applyForVerificationAction, type ApplyForVerificationFormState } from '@/lib/actions';
 import type { ForumCategory, ForumTopic } from '@/lib/types';
@@ -377,71 +377,80 @@ export default function CommunityForumPage() {
                 )}
               </section>
 
-               <section className="py-8 bg-card border border-border rounded-lg shadow-md">
+              <section className="py-8 bg-card border border-border rounded-lg shadow-md">
                 <CardHeader className="text-center pb-4">
                     <CardTitle className="flex items-center justify-center text-2xl font-headline text-primary">
                         <SealCheckIcon className="mr-3 h-8 w-8 text-blue-500" /> Apply for Verified User Badge
                     </CardTitle>
                     <CardDescription className="max-w-xl mx-auto">
-                        Submit your details for verification. A small processing fee helps support street animal welfare.
+                        Support a noble cause and get your profile verified. A one-time fee of <strong className="text-foreground">₹249 (INR) for 1 year</strong> helps us care for street animals.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <form id="verificationForm" action={verificationFormAction} className="space-y-4 max-w-lg mx-auto">
-                         {currentUser && 'id' in currentUser && <input type="hidden" name="userId" value={currentUser.id} />}
-                        <div className="space-y-2">
-                            <Label htmlFor="fullName">Full Name</Label>
-                             <div className="relative">
-                                <UserSquare2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input id="fullName" name="fullName" value={verificationFullName} onChange={(e) => setVerificationFullName(e.target.value)} placeholder="Your Full Name" required className="pl-10"/>
+                    <div className="max-w-lg mx-auto space-y-6">
+                        <Alert variant="default" className="bg-primary/5 border-primary/20">
+                          <HandHeart className="h-5 w-5 text-primary" />
+                          <AlertTitle className="font-semibold text-primary">Your Contribution Matters!</AlertTitle>
+                          <AlertDescription className="text-primary/80">
+                            100% of your verification fee goes directly towards street animal welfare initiatives, including food, medical care, and shelter, managed by MintFire Tech. Upon successful verification, you will also receive a digital certificate acknowledging your valuable contribution.
+                          </AlertDescription>
+                        </Alert>
+
+                        <form id="verificationForm" action={verificationFormAction} className="space-y-4">
+                            {currentUser && 'id' in currentUser && <input type="hidden" name="userId" value={currentUser.id} />}
+                            <div className="space-y-2">
+                                <Label htmlFor="fullName">Full Name</Label>
+                                <div className="relative">
+                                    <UserSquare2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input id="fullName" name="fullName" value={verificationFullName} onChange={(e) => setVerificationFullName(e.target.value)} placeholder="Your Full Name" required className="pl-10"/>
+                                </div>
+                                {verificationFormState?.errors?.fullName && <p className="text-sm text-destructive">{verificationFormState.errors.fullName.join(', ')}</p>}
                             </div>
-                            {verificationFormState?.errors?.fullName && <p className="text-sm text-destructive">{verificationFormState.errors.fullName.join(', ')}</p>}
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="username">Username (must start with @)</Label>
-                            <div className="relative">
-                                <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input id="username" name="username" value={verificationUsername} onChange={(e) => setVerificationUsername(e.target.value)} placeholder="@yourusername" required className="pl-10"/>
+                            <div className="space-y-2">
+                                <Label htmlFor="username">Username (must start with @)</Label>
+                                <div className="relative">
+                                    <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input id="username" name="username" value={verificationUsername} onChange={(e) => setVerificationUsername(e.target.value)} placeholder="@yourusername" required className="pl-10"/>
+                                </div>
+                                {verificationFormState?.errors?.username && <p className="text-sm text-destructive">{verificationFormState.errors.username.join(', ')}</p>}
                             </div>
-                            {verificationFormState?.errors?.username && <p className="text-sm text-destructive">{verificationFormState.errors.username.join(', ')}</p>}
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="email">Email Address</Label>
-                             <div className="relative">
-                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input id="email" name="email" type="email" value={verificationEmail} onChange={(e) => setVerificationEmail(e.target.value)} placeholder="you@example.com" required className="pl-10"/>
+                            <div className="space-y-2">
+                                <Label htmlFor="email">Email Address</Label>
+                                <div className="relative">
+                                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input id="email" name="email" type="email" value={verificationEmail} onChange={(e) => setVerificationEmail(e.target.value)} placeholder="you@example.com" required className="pl-10"/>
+                                </div>
+                                {verificationFormState?.errors?.email && <p className="text-sm text-destructive">{verificationFormState.errors.email.join(', ')}</p>}
                             </div>
-                            {verificationFormState?.errors?.email && <p className="text-sm text-destructive">{verificationFormState.errors.email.join(', ')}</p>}
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="phone">Phone Number (with country code)</Label>
-                            <div className="relative">
-                                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input id="phone" name="phone" type="tel" value={verificationPhone} onChange={(e) => setVerificationPhone(e.target.value)} placeholder="+1234567890" required className="pl-10"/>
+                            <div className="space-y-2">
+                                <Label htmlFor="phone">Phone Number (with country code)</Label>
+                                <div className="relative">
+                                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input id="phone" name="phone" type="tel" value={verificationPhone} onChange={(e) => setVerificationPhone(e.target.value)} placeholder="+1234567890" required className="pl-10"/>
+                                </div>
+                                {verificationFormState?.errors?.phone && <p className="text-sm text-destructive">{verificationFormState.errors.phone.join(', ')}</p>}
                             </div>
-                            {verificationFormState?.errors?.phone && <p className="text-sm text-destructive">{verificationFormState.errors.phone.join(', ')}</p>}
-                        </div>
-                         <div className="items-top flex space-x-2 pt-2">
-                            <Checkbox id="terms" name="terms" required />
-                            <div className="grid gap-1.5 leading-none">
-                                <Label htmlFor="terms" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                                    I agree to the terms and conditions.
-                                </Label>
-                                <p className="text-xs text-muted-foreground">
-                                    Verification may take 2-3 business days. A nominal fee is charged, and these contributions support street animal welfare initiatives by MintFire Tech.
-                                </p>
+                            <div className="items-top flex space-x-2 pt-2">
+                                <Checkbox id="terms" name="terms" required />
+                                <div className="grid gap-1.5 leading-none">
+                                    <Label htmlFor="terms" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                                        I agree to the terms and conditions.
+                                    </Label>
+                                    <p className="text-xs text-muted-foreground">
+                                        Verification processing takes approximately 2-3 business days. The verification fee is ₹249 for a 1-year period. This contribution supports street animal welfare.
+                                    </p>
+                                </div>
                             </div>
-                        </div>
-                        {verificationFormState?.errors?.terms && <p className="text-sm text-destructive">{verificationFormState.errors.terms.join(', ')}</p>}
-                        {verificationFormState?.errors?.general && <p className="text-sm text-destructive text-center">{verificationFormState.errors.general.join(', ')}</p>}
-                        <CardFooter className="px-0 pt-4">
-                           <VerificationSubmitButton />
-                        </CardFooter>
-                    </form>
-                    <p className="text-xs text-muted-foreground text-center mt-4 max-w-prose mx-auto">
-                        Reactiverse and the MintFire family deeply appreciate your contribution towards our initiative for street animal health and food care.
-                        Your support helps us make a difference.
-                    </p>
+                            {verificationFormState?.errors?.terms && <p className="text-sm text-destructive">{verificationFormState.errors.terms.join(', ')}</p>}
+                            {verificationFormState?.errors?.general && <p className="text-sm text-destructive text-center">{verificationFormState.errors.general.join(', ')}</p>}
+                            <CardFooter className="px-0 pt-4">
+                              <VerificationSubmitButton />
+                            </CardFooter>
+                        </form>
+                        <p className="text-xs text-muted-foreground text-center mt-4 max-w-prose mx-auto">
+                          Reactiverse and the MintFire Tech family deeply appreciate your contribution towards our initiative for street animal health and food care. Your support helps us make a difference.
+                        </p>
+                    </div>
                 </CardContent>
               </section>
 

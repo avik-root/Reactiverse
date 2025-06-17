@@ -100,6 +100,7 @@ import type {
   ApplyForVerificationFormState,
   AdminApproveVerificationFormState,
   AdminRejectVerificationFormState,
+  FAQItem, // Added FAQItem import
 } from './types';
 import { revalidatePath } from 'next/cache';
 import { hashPassword, comparePassword, hashPin, comparePin } from './auth-utils';
@@ -403,11 +404,11 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
   }
 
   // Authentication successful (either password or PIN), set cookie and return success
-  const cookieStore = await cookies();
+  const cookieStore = cookies(); // No await here based on current understanding
   cookieStore.set(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS, targetAdmin.id, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    path: '/admin', // Important: Scope cookie to /admin path
+    path: '/admin',
     maxAge: 60 * 60 * 24, // 1 day
     sameSite: 'lax',
   });
@@ -1423,31 +1424,70 @@ export async function disableAdminTwoFactorAction(
   }
 }
 
+const defaultAboutUs: AboutUsContent = {
+  title: "Default About Us", description: "Default description.",
+  missionTitle: "Our Mission", missionContentP1: "Default P1", missionContentP2: "Default P2",
+  offerTitle: "What We Offer", offerItems: [{ title: "Item1", description: "Desc1"}],
+  joinTitle: "Join Us", joinContent: "Default join content."
+};
+
+const defaultSupport: SupportPageContent = {
+  title: "Support", description: "Support description.", emailSupportTitle: "Email Support",
+  emailSupportDescription: "Email desc.", emailAddress: "support@example.com",
+  forumTitle: "Forum", forumDescription: "Forum desc.", forumLinkText: "Visit Forum", forumLinkUrl: "#",
+  faqTitle: "FAQs", faqs: []
+};
+
+const defaultGuidelines: GuidelinesPageContent = {
+  title: "Guidelines", description: "Guidelines description.", mainPlaceholderTitle: "Placeholder Title",
+  mainPlaceholderContent: "Placeholder content.", keyAreasTitle: "Key Areas", keyAreas: ["Area 1"]
+};
+
+const defaultTopDesigners: TopDesignersPageContent = {
+  title: "Top Designers", description: "Top designers description.",
+  mainPlaceholderTitle: "Placeholder", mainPlaceholderContent: "Placeholder content."
+};
+
+const defaultTeamMember: TeamMember = {
+    name: "Team Member", title: "Role", bio: "Bio", imageUrl: "", imageAlt: "",
+    imageDataAiHint: "professional", githubUrl: "", linkedinUrl: "", emailAddress: ""
+};
+
+const defaultTeamMembers: TeamMembersContent = {
+    title: "Our Team", founder: defaultTeamMember, coFounder: defaultTeamMember
+};
+
+const defaultPrivacyPolicy: PrivacyPolicyContent = {
+    title: "Privacy Policy", description: "Privacy description.", lastUpdated: new Date().toISOString(),
+    sections: [{heading: "Section 1", content: "Content 1"}]
+};
+
+
 export async function getPageContentAction(pageKey: PageContentKeys): Promise<any> {
   try {
     const allContent = await getPageContentFromFile();
     if (allContent.hasOwnProperty(pageKey)) {
       return allContent[pageKey];
     }
-    console.warn(`Content for key "${pageKey}" not found in getPageContentAction.`);
+    console.warn(`Content for key "${pageKey}" not found in getPageContentAction. Returning default.`);
     switch (pageKey) {
-      case 'aboutUs': return {} as AboutUsContent;
-      case 'support': return { faqs: [] } as SupportPageContent;
-      case 'guidelines': return { keyAreas: [] } as GuidelinesPageContent;
-      case 'topDesigners': return {} as TopDesignersPageContent;
-      case 'teamMembers': return { founder: {}, coFounder: {} } as TeamMembersContent;
-      case 'privacyPolicy': return { sections: [] } as PageContentData['privacyPolicy'];
+      case 'aboutUs': return defaultAboutUs;
+      case 'support': return defaultSupport;
+      case 'guidelines': return defaultGuidelines;
+      case 'topDesigners': return defaultTopDesigners;
+      case 'teamMembers': return defaultTeamMembers;
+      case 'privacyPolicy': return defaultPrivacyPolicy;
       default: return null;
     }
   } catch (error) {
     console.error(`Error in getPageContentAction for key "${pageKey}":`, error);
     switch (pageKey) {
-      case 'aboutUs': return {} as AboutUsContent;
-      case 'support': return { faqs: [] } as SupportPageContent;
-      case 'guidelines': return { keyAreas: [] } as GuidelinesPageContent;
-      case 'topDesigners': return {} as TopDesignersPageContent;
-      case 'teamMembers': return { founder: {}, coFounder: {} } as TeamMembersContent;
-      case 'privacyPolicy': return { sections: [] } as PageContentData['privacyPolicy'];
+      case 'aboutUs': return defaultAboutUs;
+      case 'support': return defaultSupport;
+      case 'guidelines': return defaultGuidelines;
+      case 'topDesigners': return defaultTopDesigners;
+      case 'teamMembers': return defaultTeamMembers;
+      case 'privacyPolicy': return defaultPrivacyPolicy;
       default: return null;
     }
   }
@@ -1459,35 +1499,35 @@ export async function updatePageContentAction<T extends PageContentKeys>(
 ): Promise<UpdatePageContentFormState<PageContentData[T]>> {
   const schema = pageContentSchemasMap[pageKey];
   if (!schema) {
-    return { message: `No validation schema found for page: ${pageKey}`, success: false, errors: { general: ["Configuration error."] } };
+    return { message: `No validation schema found for page: ${pageKey}`, success: false, errors: { general: ["Configuration error."] } as any };
   }
 
   let rawData = Object.fromEntries(formData.entries());
-  let dataToValidate = { ...rawData };
+  let dataToValidate: Record<string, any> = { ...rawData };
 
   if (pageKey === 'aboutUs') {
     const offerItems: { title: string; description: string }[] = [];
     let i = 0;
-    while(dataToValidate[`offerItems[${i}].title`] !== undefined || dataToValidate[`offerItems[${i}].description`] !== undefined) {
-      offerItems.push({
-        title: (dataToValidate[`offerItems[${i}].title`] as string) || '',
-        description: (dataToValidate[`offerItems[${i}].description`] as string) || ''
+    while(rawData[`offerItems[${i}].title`] !== undefined || rawData[`offerItems[${i}].description`] !== undefined) {
+      items.push({
+        title: String(rawData[`offerItems[${i}].title`] || ''),
+        description: String(rawData[`offerItems[${i}].description`] || '')
       });
       delete dataToValidate[`offerItems[${i}].title`];
       delete dataToValidate[`offerItems[${i}].description`];
       i++;
     }
-    if (offerItems.length > 0) {
-      dataToValidate.offerItems = offerItems;
+    if (items.length > 0) {
+      dataToValidate.offerItems = items;
     } else if (!dataToValidate.offerItems) {
       dataToValidate.offerItems = [];
     }
   }
 
-  if (pageKey === 'guidelines' && dataToValidate.keyAreasJSON && typeof dataToValidate.keyAreasJSON === 'string') {
+  if (pageKey === 'guidelines' && typeof rawData.keyAreasJSON === 'string') {
       try {
-          const parsedKeyAreas = JSON.parse(dataToValidate.keyAreasJSON as string);
-          if (Array.isArray(parsedKeyAreas)) {
+          const parsedKeyAreas = JSON.parse(rawData.keyAreasJSON);
+          if (Array.isArray(parsedKeyAreas) && parsedKeyAreas.every(item => typeof item === 'string')) {
             dataToValidate.keyAreas = parsedKeyAreas;
           } else {
              dataToValidate.keyAreas = [];
@@ -1495,9 +1535,11 @@ export async function updatePageContentAction<T extends PageContentKeys>(
       } catch (e) {
           if(!dataToValidate.keyAreas) dataToValidate.keyAreas = [];
       }
+      delete dataToValidate.keyAreasJSON;
   } else if (pageKey === 'guidelines' && !dataToValidate.keyAreas) {
     dataToValidate.keyAreas = [];
   }
+
 
   const imageFields: { formKey: string; contentKey: string; subfolder: string, baseName?: string, memberType?: 'founder' | 'coFounder' }[] = [];
   if (pageKey === 'aboutUs') {
@@ -1511,24 +1553,24 @@ export async function updatePageContentAction<T extends PageContentKeys>(
   for (const imgField of imageFields) {
     const file = formData.get(imgField.formKey) as File | null;
     if (file && file.size > 0) {
-      (dataToValidate as any)[imgField.formKey] = file;
+      dataToValidate[imgField.formKey] = file;
     } else {
-      delete (dataToValidate as any)[imgField.formKey];
+      delete dataToValidate[imgField.formKey];
     }
   }
 
   if (pageKey === 'teamMembers') {
     dataToValidate.founder = {
-      name: rawData['founder.name'], title: rawData['founder.title'], bio: rawData['founder.bio'],
-      imageUrl: rawData['founder.existingImageUrl'],
-      imageAlt: rawData['founder.imageAlt'], imageDataAiHint: rawData['founder.imageDataAiHint'],
-      githubUrl: rawData['founder.githubUrl'], linkedinUrl: rawData['founder.linkedinUrl'], emailAddress: rawData['founder.emailAddress'],
+      name: String(rawData['founder.name'] || ''), title: String(rawData['founder.title'] || ''), bio: String(rawData['founder.bio'] || ''),
+      imageUrl: String(rawData['founder.existingImageUrl'] || ''),
+      imageAlt: String(rawData['founder.imageAlt'] || ''), imageDataAiHint: String(rawData['founder.imageDataAiHint'] || ''),
+      githubUrl: String(rawData['founder.githubUrl'] || ''), linkedinUrl: String(rawData['founder.linkedinUrl'] || ''), emailAddress: String(rawData['founder.emailAddress'] || ''),
     };
     dataToValidate.coFounder = {
-      name: rawData['coFounder.name'], title: rawData['coFounder.title'], bio: rawData['coFounder.bio'],
-      imageUrl: rawData['coFounder.existingImageUrl'],
-      imageAlt: rawData['coFounder.imageAlt'], imageDataAiHint: rawData['coFounder.imageDataAiHint'],
-      githubUrl: rawData['coFounder.githubUrl'], linkedinUrl: rawData['coFounder.linkedinUrl'], emailAddress: rawData['coFounder.emailAddress'],
+      name: String(rawData['coFounder.name'] || ''), title: String(rawData['coFounder.title'] || ''), bio: String(rawData['coFounder.bio'] || ''),
+      imageUrl: String(rawData['coFounder.existingImageUrl'] || ''),
+      imageAlt: String(rawData['coFounder.imageAlt'] || ''), imageDataAiHint: String(rawData['coFounder.imageDataAiHint'] || ''),
+      githubUrl: String(rawData['coFounder.githubUrl'] || ''), linkedinUrl: String(rawData['coFounder.linkedinUrl'] || ''), emailAddress: String(rawData['coFounder.emailAddress'] || ''),
     };
   }
 
@@ -1537,7 +1579,7 @@ export async function updatePageContentAction<T extends PageContentKeys>(
 
   if (!validatedFields.success) {
     return {
-      errors: validatedFields.error.flatten().fieldErrors as any,
+      errors: validatedFields.error.flatten().fieldErrors as any, // Cast to any to simplify error type handling for now
       message: 'Invalid fields. Please check your input.',
       success: false,
     };
@@ -1551,14 +1593,14 @@ export async function updatePageContentAction<T extends PageContentKeys>(
         const existingUrlKey = pageKey === 'teamMembers' && imgField.memberType
                                 ? `${imgField.memberType}.existingImageUrl`
                                 : `existing${imgField.contentKey.charAt(0).toUpperCase() + imgField.contentKey.slice(1)}`;
-        const existingUrl = formData.get(existingUrlKey) as string | null;
+        const existingUrl = String(formData.get(existingUrlKey) || '');
 
 
         let finalImageUrl = existingUrl || '';
         if (pageKey === 'teamMembers' && imgField.memberType) {
             finalImageUrl = existingUrl || (contentToSave as any)[imgField.memberType]?.imageUrl || '';
         } else if (pageKey === 'aboutUs') {
-            finalImageUrl = existingUrl || (contentToSave as any)[imgField.contentKey] || '';
+             finalImageUrl = existingUrl || (contentToSave as any)[imgField.contentKey] || '';
         }
 
 
@@ -1574,11 +1616,9 @@ export async function updatePageContentAction<T extends PageContentKeys>(
         } else {
             (contentToSave as any)[imgField.contentKey] = finalImageUrl;
         }
-        // Remove the file object from contentToSave as we store the URL path
         delete (contentToSave as any)[imgField.formKey];
     }
 
-    // Clean up helper fields from contentToSave before saving to JSON
     if (pageKey === 'aboutUs') {
       delete contentToSave.existingImage1Url;
       delete contentToSave.existingImage2Url;
@@ -1589,15 +1629,15 @@ export async function updatePageContentAction<T extends PageContentKeys>(
 
   } catch(error) {
      console.error(`Error saving image for ${pageKey}:`, error);
-     return { message: `Failed to save image. Please try again.`, success: false, errors: { general: ['Image saving error.'] } };
+     return { message: `Failed to save image. Please try again.`, success: false, errors: { general: ['Image saving error.'] } as any };
   }
 
-  if (pageKey === 'support' && contentToSave.faqsJSON) {
+  if (pageKey === 'support' && (contentToSave as SupportPageContent).faqsJSON) {
     try {
-      contentToSave.faqs = JSON.parse(contentToSave.faqsJSON) as FAQItem[];
-      delete contentToSave.faqsJSON;
+      (contentToSave as SupportPageContent).faqs = JSON.parse((contentToSave as SupportPageContent).faqsJSON as string) as FAQItem[];
+      delete (contentToSave as SupportPageContent & {faqsJSON?: string}).faqsJSON;
     } catch (e) {
-      return { message: 'Invalid JSON format for FAQs.', success: false, errors: { faqsJSON: ['Invalid JSON.'] } };
+      return { message: 'Invalid JSON format for FAQs.', success: false, errors: { faqsJSON: ['Invalid JSON.'] } as any };
     }
   }
 
@@ -1613,9 +1653,9 @@ export async function updatePageContentAction<T extends PageContentKeys>(
     console.error(`Error updating page content for ${pageKey}:`, error);
     const typedError = error as {code?: string};
     if (typedError.code === 'ENOENT') {
-       return { message: `Failed to save image. Please ensure storage is available and try again.`, success: false, errors: { general: ['File system error.'] } };
+       return { message: `Failed to save image. Please ensure storage is available and try again.`, success: false, errors: { general: ['File system error.'] } as any };
     }
-    return { message: `Failed to update ${pageKey} content. Please try again.`, success: false, errors: { general: ['Server error.'] } };
+    return { message: `Failed to update ${pageKey} content. Please try again.`, success: false, errors: { general: ['Server error.'] } as any };
   }
 }
 
@@ -2060,7 +2100,7 @@ export async function getTopicDetailsAction(topicId: string, categorySlug?: stri
   if (topicIndex === -1) return undefined;
 
   let topic = topics[topicIndex];
-  
+
   // Increment view count
   topic.viewCount = (topic.viewCount || 0) + 1;
   if (saveFunction) {
@@ -2579,7 +2619,7 @@ export async function applyForVerificationAction(
   try {
     await addVerificationRequestToFile(newRequest);
     revalidatePath('/admin/verifications');
-    revalidatePath('/community'); 
+    revalidatePath('/community');
     return {
       message: 'Verification application submitted successfully! We will review it shortly.',
       success: true,
@@ -2701,5 +2741,3 @@ export async function adminRejectVerificationAction(
     return { message: 'Failed to reject request.', success: false, errors: { general: ['Server error.'] } };
   }
 }
-
-

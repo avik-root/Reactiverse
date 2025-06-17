@@ -1,5 +1,4 @@
 
-
 // This file is only imported by server-side code (e.g., server actions, API routes)
 import type { StoredAdminUser, StoredUser, Design, SiteSettings, PageContentData, PageContentKeys, TeamMembersContent, TeamMember, ForumCategory, NewsletterSubscriber, ForumTopic, ForumPost, VerificationRequest } from './types';
 import fs from 'fs/promises';
@@ -42,7 +41,10 @@ const DEFAULT_SITE_SETTINGS: SiteSettings = {
   logoPath: "/default-logo.png"
 };
 
-const DEFAULT_TEAM_MEMBER_DATA: Omit<TeamMember, 'name' | 'title' | 'bio'> = {
+const DEFAULT_TEAM_MEMBER_DATA: TeamMember = {
+  name: "Default Name",
+  title: "Default Title",
+  bio: "Default bio.",
   imageUrl: "",
   imageAlt: "",
   imageDataAiHint: "professional portrait",
@@ -54,20 +56,20 @@ const DEFAULT_TEAM_MEMBER_DATA: Omit<TeamMember, 'name' | 'title' | 'bio'> = {
 const DEFAULT_TEAM_MEMBERS_CONTENT: TeamMembersContent = {
   title: "Meet Our Team",
   founder: {
-    name: "Alex Johnson",
-    title: "Founder & CEO",
-    bio: "Visionary leader with a passion for innovative design and community building. Alex drives the strategic direction of Reactiverse, ensuring it remains a leading platform for UI/UX enthusiasts worldwide.",
     ...DEFAULT_TEAM_MEMBER_DATA,
-    imageUrl: "/team_images/founder_image.png",
-    imageAlt: "Founder Alex Johnson",
+    name: "Avik Samanta",
+    title: "Founder & CEO",
+    bio: "Cybersecurity Engineer | Blockchain Specialist | Bug Bounty Hunter.\r\nSkilled in vulnerability research, ethical hacking, and securing digital infrastructures. Passionate about advancing blockchain security, identifying threats, and building innovative security solutions.",
+    imageUrl: "/content_images/team/founder_image-1750057132178.jpg",
+    imageAlt: "Avik Samanta, Founder of Reactiverse",
   },
   coFounder: {
-    name: "Maria Garcia",
-    title: "Co-Founder & CTO",
-    bio: "Expert technologist driving the platform's architecture and development. Maria focuses on creating a seamless and powerful experience for all Reactiverse users.",
     ...DEFAULT_TEAM_MEMBER_DATA,
-    imageUrl: "/team_images/cofounder_image.png",
-    imageAlt: "Co-Founder Maria Garcia",
+    name: "Anusha Gupta",
+    title: "Co-Founder & CTO",
+    bio: "Software Developer | AI Web Developer | Cybersecurity Enthusiast.\r\nSkilled in software and web development, AI integration, Python automation, and secure application design. Focused on leveraging machine learning and vulnerability research to create innovative, secure solutions.",
+    imageUrl: "/content_images/team/cofounder_image-1750057132178.jpg",
+    imageAlt: "Anusha Gupta, Co-Founder of Reactiverse",
   }
 };
 
@@ -157,32 +159,8 @@ const DEFAULT_PAGE_CONTENT: PageContentData = {
     mainPlaceholderTitle: "Coming Soon!",
     mainPlaceholderContent: "We're currently curating our list of top designers. Check back soon to see who's leading the pack in creativity and innovation!"
   },
-  teamMembers: {
-      title: "Meet Our Team",
-      founder: {
-        name: "Avik Samanta",
-        title: "Founder & CEO",
-        bio: "Cybersecurity Engineer | Blockchain Specialist | Bug Bounty Hunter.\r\nSkilled in vulnerability research, ethical hacking, and securing digital infrastructures. Passionate about advancing blockchain security, identifying threats, and building innovative security solutions.",
-        imageUrl: "/content_images/team/founder_image-1750057132178.jpg",
-        imageAlt: "Avik Samanta, Founder of Reactiverse",
-        imageDataAiHint: "professional portrait",
-        githubUrl: "https://github.com/avik-root",
-        linkedinUrl: "https://www.linkedin.com/in/avik-samanta-root/",
-        emailAddress: "aviksamantaofficial@gmail.com"
-      },
-      coFounder: {
-        name: "Anusha Gupta",
-        title: "Co-Founder & CTO",
-        bio: "Software Developer | AI Web Developer | Cybersecurity Enthusiast.\r\nSkilled in software and web development, AI integration, Python automation, and secure application design. Focused on leveraging machine learning and vulnerability research to create innovative, secure solutions.",
-        imageUrl: "/content_images/team/cofounder_image-1750057132178.jpg",
-        imageAlt: "Anusha Gupta, Co-Founder of Reactiverse",
-        imageDataAiHint: "professional tech",
-        githubUrl: "https://github.com/anushagupta11",
-        linkedinUrl: "https://www.linkedin.com/in/anusha-gupta-ofc/",
-        emailAddress: "anusha73gupta@gmail.com"
-      }
-    },
-    privacyPolicy: {
+  teamMembers: DEFAULT_TEAM_MEMBERS_CONTENT,
+  privacyPolicy: {
       title: "Privacy Policy for Reactiverse",
       description: "Your privacy is important to us. This policy outlines how we collect, use, and protect your information.",
       lastUpdated: "June 17, 2025",
@@ -542,7 +520,7 @@ export async function getPageContent(): Promise<PageContentData> {
     const mergedContent: PageContentData = {
       aboutUs: { ...DEFAULT_PAGE_CONTENT.aboutUs, ...parsedContent.aboutUs },
       support: { ...DEFAULT_PAGE_CONTENT.support, ...parsedContent.support, faqs: parsedContent.support?.faqs || [] },
-      guidelines: { ...DEFAULT_PAGE_CONTENT.guidelines, ...parsedContent.guidelines },
+      guidelines: { ...DEFAULT_PAGE_CONTENT.guidelines, ...parsedContent.guidelines, keyAreas: parsedContent.guidelines?.keyAreas || [] },
       topDesigners: { ...DEFAULT_PAGE_CONTENT.topDesigners, ...parsedContent.topDesigners },
       teamMembers: {
         ...DEFAULT_PAGE_CONTENT.teamMembers,
@@ -1006,4 +984,3 @@ export async function updateVerificationRequestInFile(updatedRequest: Verificati
     throw error;
   }
 }
-

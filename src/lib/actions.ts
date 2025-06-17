@@ -931,7 +931,7 @@ export async function getAllDesignsAction(): Promise<Design[]> {
         const storedDesigner = usersMap.get(designerId);
         if (storedDesigner) {
           const { passwordHash, twoFactorPinHash, ...rest } = storedDesigner;
-          finalDesigner = {
+           finalDesigner = {
               ...rest,
               failedPinAttempts: rest.failedPinAttempts || 0,
               isLocked: rest.isLocked || false,
@@ -1427,6 +1427,7 @@ export async function getPageContentAction(pageKey: PageContentKeys): Promise<an
       case 'guidelines': return { keyAreas: [] } as GuidelinesPageContent;
       case 'topDesigners': return {} as TopDesignersPageContent;
       case 'teamMembers': return { founder: {}, coFounder: {} } as TeamMembersContent;
+      case 'privacyPolicy': return { sections: [] } as PageContentData['privacyPolicy'];
       default: return null;
     }
   } catch (error) {
@@ -1437,6 +1438,7 @@ export async function getPageContentAction(pageKey: PageContentKeys): Promise<an
       case 'guidelines': return { keyAreas: [] } as GuidelinesPageContent;
       case 'topDesigners': return {} as TopDesignersPageContent;
       case 'teamMembers': return { founder: {}, coFounder: {} } as TeamMembersContent;
+      case 'privacyPolicy': return { sections: [] } as PageContentData['privacyPolicy'];
       default: return null;
     }
   }
@@ -1560,15 +1562,20 @@ export async function updatePageContentAction<T extends PageContentKeys>(
         if (pageKey === 'teamMembers' && imgField.memberType) {
             if (!(contentToSave as any)[imgField.memberType]) (contentToSave as any)[imgField.memberType] = {};
             (contentToSave as any)[imgField.memberType].imageUrl = finalImageUrl;
-            delete (contentToSave as any)[imgField.formKey];
         } else {
             (contentToSave as any)[imgField.contentKey] = finalImageUrl;
-            delete (contentToSave as any)[imgField.formKey];
         }
+        // Remove the file object from contentToSave as we store the URL path
+        delete (contentToSave as any)[imgField.formKey];
     }
-     if (pageKey === 'teamMembers') {
-        delete (contentToSave as any)['founder.existingImageUrl'];
-        delete (contentToSave as any)['coFounder.existingImageUrl'];
+
+    // Clean up helper fields from contentToSave before saving to JSON
+    if (pageKey === 'aboutUs') {
+      delete contentToSave.existingImage1Url;
+      delete contentToSave.existingImage2Url;
+    } else if (pageKey === 'teamMembers') {
+      delete contentToSave['founder.existingImageUrl'];
+      delete contentToSave['coFounder.existingImageUrl'];
     }
 
   } catch(error) {
@@ -2685,4 +2692,3 @@ export async function adminRejectVerificationAction(
     return { message: 'Failed to reject request.', success: false, errors: { general: ['Server error.'] } };
   }
 }
-

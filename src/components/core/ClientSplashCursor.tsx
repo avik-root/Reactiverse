@@ -9,7 +9,8 @@ const DynamicSplashCursor = dynamic(() => import('@/components/effects/SplashCur
 });
 
 const ClientSplashCursor: React.FC = () => {
-  return <DynamicSplashCursor />;
+  // return <DynamicSplashCursor />; // Temporarily commented out for diagnosis
+  return null; 
 };
 
 export default ClientSplashCursor;

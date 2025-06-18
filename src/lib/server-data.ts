@@ -228,10 +228,15 @@ async function readJsonFile<T>(filePath: string, defaultValue: T): Promise<T> {
       return defaultValue;
     }
     const jsonData = await fs.readFile(filePath, 'utf-8');
-    // Ensure all top-level keys from defaultValue exist in the parsed data, merging deeply for known structures
-    const parsedData = JSON.parse(jsonData) as Partial<T>;
-    if (filePath === PAGE_CONTENT_FILE_PATH) {
-      return { // Deep merge for PageContentData
+    const parsedData = JSON.parse(jsonData);
+
+    if (Array.isArray(defaultValue)) {
+      return Array.isArray(parsedData) ? parsedData as T : defaultValue;
+    }
+    
+    if (filePath === PAGE_CONTENT_FILE_PATH && typeof defaultValue === 'object' && defaultValue !== null && typeof parsedData === 'object' && parsedData !== null) {
+      // Specific deep merge for PageContentData
+      return {
         ...defaultValue as PageContentData,
         ...parsedData as Partial<PageContentData>,
         aboutUs: { ...(defaultValue as PageContentData).aboutUs, ...(parsedData.aboutUs || {}) },
@@ -251,7 +256,15 @@ async function readJsonFile<T>(filePath: string, defaultValue: T): Promise<T> {
         }
       } as T;
     }
-    return { ...defaultValue, ...parsedData };
+    
+    // General object merge
+    if (typeof defaultValue === 'object' && defaultValue !== null && typeof parsedData === 'object' && parsedData !== null) {
+      return { ...defaultValue, ...parsedData as Partial<T> };
+    }
+
+    // Fallback if types are unexpected or basic types
+    return parsedData as T;
+
   } catch (error) {
     console.error(`Failed to read or initialize ${filePath}:`, error);
     try {
@@ -264,6 +277,7 @@ async function readJsonFile<T>(filePath: string, defaultValue: T): Promise<T> {
   }
 }
 
+
 async function writeJsonFile<T>(filePath: string, data: T): Promise<void> {
   try {
     await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf-8');
@@ -275,22 +289,11 @@ async function writeJsonFile<T>(filePath: string, data: T): Promise<void> {
 
 
 export async function getAdminUsers(): Promise<StoredAdminUser[]> {
-  try {
-    if (!(await fileExists(ADMIN_USERS_FILE_PATH))) {
-      await fs.writeFile(ADMIN_USERS_FILE_PATH, JSON.stringify([], null, 2));
-      return [];
-    }
-    const jsonData = await fs.readFile(ADMIN_USERS_FILE_PATH, 'utf-8');
-    let admins = JSON.parse(jsonData) as StoredAdminUser[];
-    admins = admins.map(admin => ({
-      ...admin,
-      twoFactorEnabled: admin.twoFactorEnabled === undefined ? false : admin.twoFactorEnabled,
-    }));
-    return admins;
-  } catch (error) {
-    console.error('Failed to read admin.json:', error);
-    return [];
-  }
+  const admins = await readJsonFile<StoredAdminUser[]>(ADMIN_USERS_FILE_PATH, []);
+  return admins.map(admin => ({
+    ...admin,
+    twoFactorEnabled: admin.twoFactorEnabled === undefined ? false : admin.twoFactorEnabled,
+  }));
 }
 
 export async function saveFirstAdminUser(newAdmin: StoredAdminUser): Promise<void> {
@@ -321,30 +324,20 @@ export async function updateAdminInFile(updatedAdmin: StoredAdminUser): Promise<
 
 
 export async function getUsersFromFile(): Promise<StoredUser[]> {
-  try {
-    if (!(await fileExists(USERS_FILE_PATH))) {
-      await fs.writeFile(USERS_FILE_PATH, JSON.stringify([], null, 2));
-      return [];
-    }
-    const jsonData = await fs.readFile(USERS_FILE_PATH, 'utf-8');
-    const users = JSON.parse(jsonData) as StoredUser[];
-    return users.map(user => ({
-      ...user,
-      failedPinAttempts: user.failedPinAttempts === undefined ? 0 : user.failedPinAttempts,
-      isLocked: user.isLocked === undefined ? false : user.isLocked,
-      twoFactorEnabled: user.twoFactorEnabled === undefined ? false : user.twoFactorEnabled,
-      canSetPrice: user.canSetPrice === undefined ? false : user.canSetPrice,
-      githubUrl: user.githubUrl || "",
-      linkedinUrl: user.linkedinUrl || "",
-      figmaUrl: user.figmaUrl || "",
-      isEmailPublic: user.isEmailPublic === undefined ? false : user.isEmailPublic,
-      isPhonePublic: user.isPhonePublic === undefined ? false : user.isPhonePublic,
-      isVerified: user.isVerified === undefined ? false : user.isVerified, // Ensure default
-    }));
-  } catch (error) {
-    console.error('Failed to read users.json:', error);
-    return [];
-  }
+  const users = await readJsonFile<StoredUser[]>(USERS_FILE_PATH, []);
+  return users.map(user => ({
+    ...user,
+    failedPinAttempts: user.failedPinAttempts === undefined ? 0 : user.failedPinAttempts,
+    isLocked: user.isLocked === undefined ? false : user.isLocked,
+    twoFactorEnabled: user.twoFactorEnabled === undefined ? false : user.twoFactorEnabled,
+    canSetPrice: user.canSetPrice === undefined ? false : user.canSetPrice,
+    githubUrl: user.githubUrl || "",
+    linkedinUrl: user.linkedinUrl || "",
+    figmaUrl: user.figmaUrl || "",
+    isEmailPublic: user.isEmailPublic === undefined ? false : user.isEmailPublic,
+    isPhonePublic: user.isPhonePublic === undefined ? false : user.isPhonePublic,
+    isVerified: user.isVerified === undefined ? false : user.isVerified,
+  }));
 }
 
 export async function saveUserToFile(newUser: StoredUser): Promise<void> {
@@ -361,7 +354,7 @@ export async function saveUserToFile(newUser: StoredUser): Promise<void> {
         figmaUrl: newUser.figmaUrl || "",
         isEmailPublic: newUser.isEmailPublic === undefined ? false : newUser.isEmailPublic,
         isPhonePublic: newUser.isPhonePublic === undefined ? false : newUser.isPhonePublic,
-        isVerified: newUser.isVerified === undefined ? false : newUser.isVerified, // Ensure default
+        isVerified: newUser.isVerified === undefined ? false : newUser.isVerified,
     });
     await fs.writeFile(USERS_FILE_PATH, JSON.stringify(users, null, 2), 'utf-8');
   } catch (error) {
@@ -389,7 +382,7 @@ export async function updateUserInFile(updatedUser: StoredUser): Promise<boolean
         figmaUrl: updatedUser.figmaUrl === undefined ? users[userIndex].figmaUrl : updatedUser.figmaUrl,
         isEmailPublic: updatedUser.isEmailPublic === undefined ? users[userIndex].isEmailPublic : updatedUser.isEmailPublic,
         isPhonePublic: updatedUser.isPhonePublic === undefined ? users[userIndex].isPhonePublic : updatedUser.isPhonePublic,
-        isVerified: updatedUser.isVerified === undefined ? users[userIndex].isVerified : updatedUser.isVerified, // Ensure update
+        isVerified: updatedUser.isVerified === undefined ? users[userIndex].isVerified : updatedUser.isVerified,
     };
     await fs.writeFile(USERS_FILE_PATH, JSON.stringify(users, null, 2), 'utf-8');
     return true;
@@ -426,22 +419,12 @@ export async function deleteUserFromFile(userId: string): Promise<boolean> {
 
 
 export async function getDesignsFromFile(): Promise<Design[]> {
-  try {
-     if (!(await fileExists(DESIGNS_FILE_PATH))) {
-      await fs.writeFile(DESIGNS_FILE_PATH, JSON.stringify([], null, 2));
-      return [];
-    }
-    const jsonData = await fs.readFile(DESIGNS_FILE_PATH, 'utf-8');
-    const designs = JSON.parse(jsonData) as Design[];
-    return designs.map(design => ({
-      ...design,
-      copyCount: design.copyCount === undefined ? 0 : design.copyCount,
-      likedBy: design.likedBy === undefined ? [] : design.likedBy,
-    }));
-  } catch (error) {
-    console.error('Failed to read designs.json:', error);
-    return [];
-  }
+  const designs = await readJsonFile<Design[]>(DESIGNS_FILE_PATH, []);
+  return designs.map(design => ({
+    ...design,
+    copyCount: design.copyCount === undefined ? 0 : design.copyCount,
+    likedBy: design.likedBy === undefined ? [] : design.likedBy,
+  }));
 }
 
 export async function saveDesignsToFile(designs: Design[]): Promise<void> {
@@ -589,23 +572,14 @@ export async function saveAdminAvatar(fileBuffer: Buffer, adminId: string, fileE
 }
 
 export async function getForumCategoriesFromFile(): Promise<ForumCategory[]> {
-  try {
-    if (!(await fileExists(FORUM_CATEGORIES_FILE_PATH))) {
-      const defaultCategories: ForumCategory[] = [
-        { id: "cat-001", name: "General Discussion", description: "Talk about anything related to UI/UX design, development, and Reactiverse.", iconName: "MessagesSquare", slug:"general-discussion", topicCount: 0, postCount: 0 },
-        { id: "cat-005", name: "Announcements", description: "Stay updated with the latest news and announcements from the Reactiverse team.", iconName: "Megaphone", slug: "announcements", topicCount: 0, postCount: 0 },
-        { id: "cat-006", name: "Support & Q/A", description: "Got questions about using Reactiverse? Find answers and support.", iconName: "HelpCircle", slug: "support-qa", topicCount: 0, postCount: 0 }
-      ];
-      await fs.writeFile(FORUM_CATEGORIES_FILE_PATH, JSON.stringify(defaultCategories, null, 2));
-      return defaultCategories;
-    }
-    const jsonData = await fs.readFile(FORUM_CATEGORIES_FILE_PATH, 'utf-8');
-    return JSON.parse(jsonData) as ForumCategory[];
-  } catch (error) {
-    console.error('Failed to read forum_categories.json:', error);
-    return [];
-  }
+  const defaultCategories: ForumCategory[] = [
+    { id: "cat-001", name: "General Discussion", description: "Talk about anything related to UI/UX design, development, and Reactiverse.", iconName: "MessagesSquare", slug:"general-discussion", topicCount: 0, postCount: 0 },
+    { id: "cat-005", name: "Announcements", description: "Stay updated with the latest news and announcements from the Reactiverse team.", iconName: "Megaphone", slug: "announcements", topicCount: 0, postCount: 0 },
+    { id: "cat-006", name: "Support & Q/A", description: "Got questions about using Reactiverse? Find answers and support.", iconName: "HelpCircle", slug: "support-qa", topicCount: 0, postCount: 0 }
+  ];
+  return readJsonFile<ForumCategory[]>(FORUM_CATEGORIES_FILE_PATH, defaultCategories);
 }
+
 
 export async function saveForumCategoriesToFile(categories: ForumCategory[]): Promise<void> {
   try {
@@ -636,6 +610,7 @@ async function getTopicsFromFile(filePath: string): Promise<ForumTopic[]> {
   return topics.map(topic => ({
     ...topic,
     viewCount: topic.viewCount === undefined ? 0 : topic.viewCount,
+    posts: topic.posts || [], // Ensure posts array exists
   }));
 }
 
@@ -679,7 +654,7 @@ export async function addForumTopicToFile(newTopic: ForumTopic, categorySlug: st
   let topics;
   let saveFunction;
 
-  const topicWithViewCount = { ...newTopic, viewCount: 0 }; // Initialize viewCount
+  const topicWithViewCountAndPosts = { ...newTopic, viewCount: 0, posts: newTopic.posts || [] };
 
   switch (categorySlug) {
     case 'general-discussion':
@@ -698,7 +673,7 @@ export async function addForumTopicToFile(newTopic: ForumTopic, categorySlug: st
       console.error(`Unknown category slug for adding topic: ${categorySlug}`);
       throw new Error(`Cannot add topic to unknown category: ${categorySlug}`);
   }
-  topics.push(topicWithViewCount);
+  topics.push(topicWithViewCountAndPosts);
   await saveFunction(topics);
 }
 

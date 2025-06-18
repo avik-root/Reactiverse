@@ -5,8 +5,8 @@
     "description": "Talk about anything related to UI/UX design, development, and Reactiverse.",
     "iconName": "MessagesSquare",
     "slug": "general-discussion",
-    "topicCount": 1,
-    "postCount": 4
+    "topicCount": 0,
+    "postCount": 0
   },
   {
     "id": "cat-005",
@@ -14,8 +14,8 @@
     "description": "Stay updated with the latest news and announcements from the Reactiverse team.",
     "iconName": "Megaphone",
     "slug": "announcements",
-    "topicCount": 1,
-    "postCount": 3
+    "topicCount": 0,
+    "postCount": 0
   },
   {
     "id": "cat-006",
@@ -23,7 +23,7 @@
     "description": "Got questions about using Reactiverse? Find answers and support.",
     "iconName": "HelpCircle",
     "slug": "support-qa",
-    "topicCount": 2,
-    "postCount": 7
+    "topicCount": 0,
+    "postCount": 0
   }
 ]

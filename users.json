@@ -19,25 +19,6 @@
     "isVerified": true
   },
   {
-    "id": "user-1749999187706",
-    "name": "DJ",
-    "username": "@djx",
-    "email": "dj@gmail.com",
-    "phone": "+919192929292",
-    "passwordHash": "$2a$10$nBP03fofdSqA8iyN4GdNDulwLUPZ.yGqfcdIzKvbUG.IHV56wW8Ti",
-    "avatarUrl": "/avatars/user-user-1749999187706-1750112586756.jpg",
-    "twoFactorEnabled": false,
-    "failedPinAttempts": 0,
-    "isLocked": false,
-    "canSetPrice": false,
-    "githubUrl": "",
-    "linkedinUrl": "",
-    "figmaUrl": "",
-    "isEmailPublic": true,
-    "isPhonePublic": false,
-    "isVerified": false
-  },
-  {
     "id": "user-1750185208418",
     "name": "AG",
     "username": "@agtg",

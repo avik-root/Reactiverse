@@ -234,35 +234,48 @@ async function readJsonFile<T>(filePath: string, defaultValue: T): Promise<T> {
       return Array.isArray(parsedData) ? parsedData as T : defaultValue;
     }
     
-    if (filePath === PAGE_CONTENT_FILE_PATH && typeof defaultValue === 'object' && defaultValue !== null && typeof parsedData === 'object' && parsedData !== null) {
-      // Specific deep merge for PageContentData
-      return {
-        ...defaultValue as PageContentData,
-        ...parsedData as Partial<PageContentData>,
-        aboutUs: { ...(defaultValue as PageContentData).aboutUs, ...(parsedData.aboutUs || {}) },
-        support: { ...(defaultValue as PageContentData).support, ...(parsedData.support || {}), faqs: parsedData.support?.faqs || (defaultValue as PageContentData).support.faqs },
-        guidelines: { ...(defaultValue as PageContentData).guidelines, ...(parsedData.guidelines || {}), keyAreas: parsedData.guidelines?.keyAreas || (defaultValue as PageContentData).guidelines.keyAreas },
-        topDesigners: { ...(defaultValue as PageContentData).topDesigners, ...(parsedData.topDesigners || {}) },
-        teamMembers: {
-          ...(defaultValue as PageContentData).teamMembers,
-          ...(parsedData.teamMembers || {}),
-          founder: { ...(defaultValue as PageContentData).teamMembers.founder, ...(parsedData.teamMembers?.founder || {}) },
-          coFounder: { ...(defaultValue as PageContentData).teamMembers.coFounder, ...(parsedData.teamMembers?.coFounder || {}) }
-        },
-        privacyPolicy: {
-            ...(defaultValue as PageContentData).privacyPolicy,
-            ...(parsedData.privacyPolicy || {}),
-            sections: parsedData.privacyPolicy?.sections || (defaultValue as PageContentData).privacyPolicy.sections,
-        }
-      } as T;
+    if (filePath === PAGE_CONTENT_FILE_PATH && typeof defaultValue === 'object' && defaultValue !== null) {
+        const defaultTyped = defaultValue as PageContentData;
+        const parsedTyped = parsedData as Partial<PageContentData>;
+
+        const result: PageContentData = {
+            aboutUs: { ...defaultTyped.aboutUs, ...(parsedTyped.aboutUs || {}) },
+            support: {
+                ...defaultTyped.support,
+                ...(parsedTyped.support || {}),
+                faqs: (parsedTyped.support?.faqs && Array.isArray(parsedTyped.support.faqs))
+                      ? parsedTyped.support.faqs
+                      : defaultTyped.support.faqs,
+            },
+            guidelines: {
+                ...defaultTyped.guidelines,
+                ...(parsedTyped.guidelines || {}),
+                keyAreas: (parsedTyped.guidelines?.keyAreas && Array.isArray(parsedTyped.guidelines.keyAreas))
+                          ? parsedTyped.guidelines.keyAreas
+                          : defaultTyped.guidelines.keyAreas,
+            },
+            topDesigners: { ...defaultTyped.topDesigners, ...(parsedTyped.topDesigners || {}) },
+            teamMembers: {
+                ...defaultTyped.teamMembers,
+                ...(parsedTyped.teamMembers || {}),
+                founder: { ...defaultTyped.teamMembers.founder, ...(parsedTyped.teamMembers?.founder || {}) },
+                coFounder: { ...defaultTyped.teamMembers.coFounder, ...(parsedTyped.teamMembers?.coFounder || {}) }
+            },
+            privacyPolicy: {
+                ...defaultTyped.privacyPolicy,
+                ...(parsedTyped.privacyPolicy || {}),
+                sections: (parsedTyped.privacyPolicy?.sections && Array.isArray(parsedTyped.privacyPolicy.sections))
+                          ? parsedTyped.privacyPolicy.sections
+                          : defaultTyped.privacyPolicy.sections,
+            }
+        };
+        return result as T;
     }
     
-    // General object merge
     if (typeof defaultValue === 'object' && defaultValue !== null && typeof parsedData === 'object' && parsedData !== null) {
-      return { ...defaultValue, ...parsedData as Partial<T> };
+      return { ...defaultValue, ...parsedData as Partial<T> } as T;
     }
 
-    // Fallback if types are unexpected or basic types
     return parsedData as T;
 
   } catch (error) {

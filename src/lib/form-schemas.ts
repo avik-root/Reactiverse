@@ -5,11 +5,20 @@ export const MAX_IMAGE_SIZE_MB = 5;
 export const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
 export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/jpg'];
 
-export const ValidImageFileSchema = z.instanceof(File, { message: "Image file is required." })
+// Updated ValidImageFileSchema
+export const ValidImageFileSchema = z
+  .custom<File>((val) => {
+    // Check if File constructor exists and if val is an instance of File
+    // This check will not throw if File is undefined (e.g., during server build static analysis)
+    return typeof File !== 'undefined' && val instanceof File;
+  }, {
+    message: "Invalid file input. Expected an image file.",
+  })
   .refine(file => file.size > 0, "Image file cannot be empty.")
   .refine(file => file.size <= MAX_IMAGE_SIZE_BYTES, `Image must be ${MAX_IMAGE_SIZE_MB}MB or less.`)
   .refine(file => ALLOWED_IMAGE_TYPES.includes(file.type), 'Invalid file type. Must be JPG, JPEG, or PNG.')
   .optional();
+
 
 export const AvatarFileSchema = ValidImageFileSchema;
 

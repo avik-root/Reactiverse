@@ -74,7 +74,7 @@ export default function TopicPage() {
     fetchTopicData();
   }, [fetchTopicData]);
 
-  const handlePostCreated = (newPost: ForumPost) => {
+  const handlePostCreated = useCallback((newPost: ForumPost) => {
     setPosts(prevPosts => {
         if (prevPosts.some(p => p.id === newPost.id)) {
           return prevPosts;
@@ -89,12 +89,12 @@ export default function TopicPage() {
             lastRepliedAt: newPost.createdAt,
         };
     });
-  };
+  }, []); // setPosts and setTopic are stable
 
-  const handleDeletePostClick = (post: ForumPost) => {
+  const handleDeletePostClick = useCallback((post: ForumPost) => {
     setPostForDialogData(post);
     setIsDeleteAlertOpen(true);
-  };
+  }, [setPostForDialogData, setIsDeleteAlertOpen]); // Dependencies are stable setters
 
   const handleConfirmDeletePost = async () => {
     if (!postForDialogData || !topic || !categorySlug) return;
@@ -112,13 +112,14 @@ export default function TopicPage() {
       });
     }
     
-    setIsDeleteAlertOpen(false); // This will trigger onAlertDialogOpenChange
-
     toast({
       title: result.success ? "Success" : "Error",
       description: result.message,
       variant: result.success ? "default" : "destructive",
     });
+    
+    setPostForDialogData(null); // Clear data first
+    setIsDeleteAlertOpen(false); // Then close dialog
   };
 
 
@@ -139,7 +140,7 @@ export default function TopicPage() {
     if (!isOpen) {
       setPostForDialogData(null); 
     }
-  }, []); 
+  }, [setIsDeleteAlertOpen, setPostForDialogData]); // Dependencies are stable setters
 
 
   if (isLoading || authIsLoading) {
@@ -337,7 +338,7 @@ export default function TopicPage() {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setIsDeleteAlertOpen(false)}>Cancel</AlertDialogCancel>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleConfirmDeletePost}
                 className="bg-destructive hover:bg-destructive/90"
@@ -352,3 +353,4 @@ export default function TopicPage() {
   );
 }
 
+    

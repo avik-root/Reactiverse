@@ -76,7 +76,7 @@ import type {
   SupportPageContent,
   GuidelinesPageContent,
   TopDesignersPageContent,
-  PrivacyPolicyContent, // Added import
+  PrivacyPolicyContent,
   SiteLogoUploadState,
   AdminSetUser2FAStatusFormState,
   AdminSetUserCanSetPriceFormState,
@@ -101,7 +101,7 @@ import type {
   ApplyForVerificationFormState,
   AdminApproveVerificationFormState,
   AdminRejectVerificationFormState,
-  FAQItem,
+  AdminDashboardStats,
 } from './types';
 import { revalidatePath } from 'next/cache';
 import { hashPassword, comparePassword, hashPin, comparePin } from './auth-utils';
@@ -360,7 +360,7 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
   const adminUsers = await getAdminUsers();
   let targetAdmin: StoredAdminUser | undefined;
 
-  if (adminIdForPin && pin) { // PIN Verification Stage
+  if (adminIdForPin && pin) {
     targetAdmin = adminUsers.find(admin => admin.id === adminIdForPin);
     if (!targetAdmin) {
       return { message: 'Admin user not found for PIN verification.', errors: { general: ['An error occurred. Please try logging in again.'] }, requiresPin: true, adminIdForPin };
@@ -377,8 +377,7 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
         adminIdForPin: targetAdmin.id,
       };
     }
-    // PIN is correct, targetAdmin is set
-  } else if (username && password) { // Initial Username/Password Stage
+  } else if (username && password) {
     targetAdmin = adminUsers.find(admin => admin.username === username);
     if (!targetAdmin || !targetAdmin.passwordHash) {
       return { message: 'Invalid username or password.', errors: { general: ['Invalid username or password.'] } };
@@ -395,7 +394,6 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
         adminIdForPin: targetAdmin.id,
       };
     }
-    // Password is correct, 2FA not enabled, targetAdmin is set
   } else {
     return { message: 'Invalid login attempt. Please provide credentials or PIN.', errors: { general: ['Invalid login state.'] } };
   }
@@ -404,13 +402,12 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
     return { message: 'Admin authentication failed. Please try again.', errors: { general: ['Authentication error.'] } };
   }
 
-  // Authentication successful (either password or PIN), set cookie and return success
-  const cookieStore = await cookies(); // Use await here based on TS error
+  const cookieStore = cookies();
   cookieStore.set(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS, targetAdmin.id, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     path: '/admin',
-    maxAge: 60 * 60 * 24, // 1 day
+    maxAge: 60 * 60 * 24,
     sameSite: 'lax',
   });
 
@@ -418,15 +415,15 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
   return {
     message: 'Admin login successful!',
     adminUser: { ...adminUserToReturn, isAdmin: true },
-    requiresPin: false,
-    adminIdForPin: undefined
+    requiresPin: false, // Explicitly set to false after successful login/PIN
+    adminIdForPin: undefined // Clear adminIdForPin after successful login/PIN
   };
 }
 
 
 export async function logoutAdminAction(): Promise<{ success: boolean }> {
   try {
-    (await cookies()).set(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS, '', { // Use await here based on TS error
+    (await cookies()).set(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS, '', {
       path: '/admin',
       maxAge: 0,
       httpOnly: true,
@@ -473,14 +470,14 @@ export async function submitDesignAction(prevState: AddDesignFormState, formData
             if(Array.isArray(rawCodeBlocks)) {
                 const codeBlockErrors : CodeBlockError[] = rawCodeBlocks.map(block => {
                     const errors: CodeBlockError = {};
-                    if(!block.language || block.language.trim() === '') errors.language = ["Language is required."];
-                    if(!block.code || block.code.trim().length < 10) errors.code = ["Code must be at least 10 characters."];
+                    if(!block.language || String(block.language).trim() === '') errors.language = ["Language is required."];
+                    if(!block.code || String(block.code).trim().length < 10) errors.code = ["Code must be at least 10 characters."];
                     return errors;
                 }).filter(e => Object.keys(e).length > 0);
 
                 if(codeBlockErrors.length > 0 && fieldErrors.codeBlocksJSON ) {
                     return {
-                        errors: { ...fieldErrors, codeBlocks: codeBlockErrors, codeBlocksJSON: undefined },
+                        errors: { ...fieldErrors, codeBlocks: codeBlockErrors, codeBlocksJSON: undefined } as any,
                         message: 'Invalid fields in code snippets. Please check your input.',
                         success: false,
                     };
@@ -491,7 +488,7 @@ export async function submitDesignAction(prevState: AddDesignFormState, formData
         }
     }
     return {
-      errors: fieldErrors,
+      errors: fieldErrors as any,
       message: 'Invalid fields. Please check your input.',
       success: false,
     };
@@ -584,14 +581,14 @@ export async function updateDesignAction(prevState: UpdateDesignFormState, formD
             if(Array.isArray(rawCodeBlocks)) {
                 const codeBlockErrors : CodeBlockError[] = rawCodeBlocks.map(block => {
                     const errors: CodeBlockError = {};
-                    if(!block.language || block.language.trim() === '') errors.language = ["Language is required."];
-                    if(!block.code || block.code.trim().length < 10) errors.code = ["Code must be at least 10 characters."];
+                    if(!block.language || String(block.language).trim() === '') errors.language = ["Language is required."];
+                    if(!block.code || String(block.code).trim().length < 10) errors.code = ["Code must be at least 10 characters."];
                     return errors;
                 }).filter(e => Object.keys(e).length > 0);
 
                 if(codeBlockErrors.length > 0 && fieldErrors.codeBlocksJSON ) {
                     return {
-                        errors: { ...fieldErrors, codeBlocks: codeBlockErrors, codeBlocksJSON: undefined },
+                        errors: { ...fieldErrors, codeBlocks: codeBlockErrors, codeBlocksJSON: undefined } as any,
                         message: 'Invalid fields in code snippets. Please check your input.',
                         success: false,
                     };
@@ -602,7 +599,7 @@ export async function updateDesignAction(prevState: UpdateDesignFormState, formD
         }
     }
     return {
-      errors: fieldErrors,
+      errors: fieldErrors as any,
       message: 'Invalid fields. Please check your input.',
       success: false,
     };
@@ -695,7 +692,7 @@ export async function updateProfileAction(prevState: UserUpdateProfileFormState,
 
   if (!validatedFields.success) {
     return {
-      errors: validatedFields.error.flatten().fieldErrors,
+      errors: validatedFields.error.flatten().fieldErrors as any,
       message: 'Invalid fields. Please check your input.',
       success: false,
     };
@@ -1431,21 +1428,15 @@ export async function getPageContentAction(pageKey: PageContentKeys): Promise<an
     if (allContent && Object.prototype.hasOwnProperty.call(allContent, pageKey)) {
       return allContent[pageKey];
     }
-    // Fallback to default if key is missing - should be handled by getPageContentFromFile defaults
     console.warn(`Content for key "${pageKey}" not found in getPageContentAction. This implies an issue with getPageContentFromFile's default handling.`);
-    return {}; // Return empty object or a more specific default based on pageKey if necessary
+    // Fallback to default if key is missing or file read error occurred and returned default
+    // The defaults from getPageContentFromFile should be comprehensive
+    const defaultFullContent = await getPageContentFromFile(); // This gets the default structure
+    return defaultFullContent[pageKey] || {}; // Return specific default or empty
   } catch (error) {
     console.error(`Error in getPageContentAction for key "${pageKey}":`, error);
-    // Robust default based on key in case of error
-    switch (pageKey) {
-      case 'aboutUs': return { title: "About Us", description: "", missionTitle: "", missionContentP1: "", missionContentP2: "", offerTitle: "", offerItems: [], joinTitle: "", joinContent: "" };
-      case 'support': return { title: "Support", description: "", emailSupportTitle: "", emailSupportDescription: "", emailAddress: "", forumTitle: "", forumDescription: "", forumLinkText: "", forumLinkUrl: "", faqTitle: "", faqs: [] };
-      case 'guidelines': return { title: "Guidelines", description: "", mainPlaceholderTitle: "", mainPlaceholderContent: "", keyAreasTitle: "", keyAreas: [] };
-      case 'topDesigners': return { title: "Top Designers", description: "", mainPlaceholderTitle: "", mainPlaceholderContent: "" };
-      case 'teamMembers': return { title: "Team Members", founder: {} as TeamMember, coFounder: {} as TeamMember };
-      case 'privacyPolicy': return { title: "Privacy Policy", description: "", lastUpdated: "", sections: [] };
-      default: return null;
-    }
+    const defaultFullContent = await getPageContentFromFile(); // Fallback to defaults on any error
+    return defaultFullContent[pageKey] || {};
   }
 }
 
@@ -1458,44 +1449,33 @@ export async function updatePageContentAction<T extends PageContentKeys>(
     return { message: `No validation schema found for page: ${pageKey}`, success: false, errors: { general: ["Configuration error."] } as any };
   }
 
-  let rawData = Object.fromEntries(formData.entries());
+  const rawData = Object.fromEntries(formData.entries());
   let dataToValidate: Record<string, any> = { ...rawData };
 
+  // Convert specific form data structures to what the Zod schema expects
   if (pageKey === 'aboutUs') {
     const currentOfferItems: { title: string; description: string }[] = [];
     let i = 0;
-    while(rawData[`offerItems[${i}].title`] !== undefined || rawData[`offerItems[${i}].description`] !== undefined) {
+    while (rawData[`offerItems[${i}].title`] !== undefined || rawData[`offerItems[${i}].description`] !== undefined) {
       currentOfferItems.push({
         title: String(rawData[`offerItems[${i}].title`] || ''),
         description: String(rawData[`offerItems[${i}].description`] || '')
       });
-      delete dataToValidate[`offerItems[${i}].title`];
-      delete dataToValidate[`offerItems[${i}].description`];
       i++;
     }
-    if (currentOfferItems.length > 0) {
-      dataToValidate.offerItems = currentOfferItems;
-    } else if (!dataToValidate.offerItems) {
-      dataToValidate.offerItems = [];
-    }
+    dataToValidate.offerItems = currentOfferItems.length > 0 ? currentOfferItems : [];
   }
 
   if (pageKey === 'guidelines' && typeof rawData.keyAreasJSON === 'string') {
-      try {
-          const parsedKeyAreas = JSON.parse(rawData.keyAreasJSON);
-          if (Array.isArray(parsedKeyAreas) && parsedKeyAreas.every(item => typeof item === 'string')) {
-            dataToValidate.keyAreas = parsedKeyAreas;
-          } else {
-             dataToValidate.keyAreas = [];
-          }
-      } catch (e) {
-          if(!dataToValidate.keyAreas) dataToValidate.keyAreas = [];
-      }
-      delete dataToValidate.keyAreasJSON;
+    try {
+      const parsedKeyAreas = JSON.parse(rawData.keyAreasJSON);
+      dataToValidate.keyAreas = Array.isArray(parsedKeyAreas) && parsedKeyAreas.every(item => typeof item === 'string') ? parsedKeyAreas : [];
+    } catch {
+      dataToValidate.keyAreas = [];
+    }
   } else if (pageKey === 'guidelines' && !dataToValidate.keyAreas) {
     dataToValidate.keyAreas = [];
   }
-
 
   const imageFields: { formKey: string; contentKey: string; subfolder: string, baseName?: string, memberType?: 'founder' | 'coFounder' }[] = [];
   if (pageKey === 'aboutUs') {
@@ -1511,7 +1491,7 @@ export async function updatePageContentAction<T extends PageContentKeys>(
     if (file && file.size > 0) {
       dataToValidate[imgField.formKey] = file;
     } else {
-      delete dataToValidate[imgField.formKey];
+      delete dataToValidate[imgField.formKey]; // Ensure it's removed if no file, schema handles optional
     }
   }
 
@@ -1551,14 +1531,12 @@ export async function updatePageContentAction<T extends PageContentKeys>(
                                 : `existing${imgField.contentKey.charAt(0).toUpperCase() + imgField.contentKey.slice(1)}`;
         const existingUrl = String(formData.get(existingUrlKey) || '');
 
-
-        let finalImageUrl = existingUrl || '';
-        if (pageKey === 'teamMembers' && imgField.memberType) {
-            finalImageUrl = existingUrl || (contentToSave as any)[imgField.memberType]?.imageUrl || '';
-        } else if (pageKey === 'aboutUs') {
+        let finalImageUrl = existingUrl;
+        if (pageKey === 'teamMembers' && imgField.memberType && (contentToSave as any)[imgField.memberType]) {
+            finalImageUrl = existingUrl || (contentToSave as any)[imgField.memberType].imageUrl || '';
+        } else if (pageKey === 'aboutUs' && (contentToSave as any)[imgField.contentKey]) {
              finalImageUrl = existingUrl || (contentToSave as any)[imgField.contentKey] || '';
         }
-
 
         if (file) {
             const buffer = Buffer.from(await file.arrayBuffer());
@@ -1572,15 +1550,16 @@ export async function updatePageContentAction<T extends PageContentKeys>(
         } else {
             (contentToSave as any)[imgField.contentKey] = finalImageUrl;
         }
-        delete (contentToSave as any)[imgField.formKey];
+        delete (contentToSave as any)[imgField.formKey]; // Remove file object from data to be saved as JSON
     }
 
+    // Clean up existingImage URLs from the object to be saved
     if (pageKey === 'aboutUs') {
       delete contentToSave.existingImage1Url;
       delete contentToSave.existingImage2Url;
     } else if (pageKey === 'teamMembers') {
-      delete contentToSave['founder.existingImageUrl'];
-      delete contentToSave['coFounder.existingImageUrl'];
+      if (contentToSave.founder) delete contentToSave.founder.existingImageUrl;
+      if (contentToSave.coFounder) delete contentToSave.coFounder.existingImageUrl;
     }
 
   } catch(error) {
@@ -1588,10 +1567,9 @@ export async function updatePageContentAction<T extends PageContentKeys>(
      return { message: `Failed to save image. Please try again.`, success: false, errors: { general: ['Image saving error.'] } as any };
   }
 
-  if (pageKey === 'support' && (rawData as any).faqsJSON) {
+  if (pageKey === 'support' && rawData.faqsJSON) {
     try {
-      contentToSave.faqs = JSON.parse((rawData as any).faqsJSON as string) as FAQItem[];
-      // No need to delete faqsJSON from contentToSave as it was never part of validatedFields.data
+      contentToSave.faqs = JSON.parse(String(rawData.faqsJSON)) as FAQItem[];
     } catch (e) {
       return { message: 'Invalid JSON format for FAQs.', success: false, errors: { faqsJSON: ['Invalid JSON.'] } as any };
     }
@@ -1656,15 +1634,14 @@ export async function adminSetUser2FAStatusAction(
     enable: z.preprocess((val) => String(val).toLowerCase() === 'true', z.boolean()),
     adminId: z.string().min(1, "Admin ID is required for authorization."),
   });
-  const cookieStore = await cookies();
-  const adminToken = cookieStore.get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
+  const adminToken = (await cookies()).get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
   if (!adminToken) {
     return { message: "Admin authorization failed.", success: false, errors: { general: ["Not authorized."] } };
   }
 
   const validatedFields = AdminSetUser2FAStatusSchema.safeParse(Object.fromEntries(formData.entries()));
   if (!validatedFields.success) {
-    return { errors: validatedFields.error.flatten().fieldErrors, message: 'Invalid input.', success: false };
+    return { errors: validatedFields.error.flatten().fieldErrors as any, message: 'Invalid input.', success: false };
   }
 
   const { userId, enable } = validatedFields.data;
@@ -1687,7 +1664,7 @@ export async function adminSetUser2FAStatusAction(
     await updateUserInFile(userToUpdate);
     revalidatePath('/admin/users');
     const { passwordHash, twoFactorPinHash, ...userToReturn } = userToUpdate;
-    return { message: `User 2FA status ${enable ? 'enabled' : 'disabled'} successfully. ${!enable ? 'Account has been unlocked if it was locked.' : ''}`.trim(), success: true, updatedUser: {...userToReturn, canSetPrice: userToReturn.canSetPrice || false} };
+    return { message: `User 2FA status ${enable ? 'enabled' : 'disabled'} successfully. ${!enable ? 'Account has been unlocked if it was locked.' : ''}`.trim(), success: true, updatedUser: {...userToReturn, canSetPrice: userToReturn.canSetPrice || false} as User };
   } catch (error) {
     console.error("Error setting user 2FA status by admin:", error);
     return { message: 'Failed to update user 2FA status.', success: false, errors: { general: ['Server error.'] } };
@@ -1703,15 +1680,14 @@ export async function adminSetUserCanSetPriceAction(
     canSetPrice: z.preprocess((val) => String(val).toLowerCase() === 'true', z.boolean()),
     adminId: z.string().min(1, "Admin ID is required for authorization."),
   });
-  const cookieStore = await cookies();
-  const adminToken = cookieStore.get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
+  const adminToken = (await cookies()).get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
   if (!adminToken) {
     return { message: "Admin authorization failed.", success: false, errors: { general: ["Not authorized."] } };
   }
 
   const validatedFields = AdminSetUserCanSetPriceSchema.safeParse(Object.fromEntries(formData.entries()));
   if (!validatedFields.success) {
-    return { errors: validatedFields.error.flatten().fieldErrors, message: 'Invalid input.', success: false };
+    return { errors: validatedFields.error.flatten().fieldErrors as any, message: 'Invalid input.', success: false };
   }
 
   const { userId, canSetPrice } = validatedFields.data;
@@ -1731,7 +1707,7 @@ export async function adminSetUserCanSetPriceAction(
     revalidatePath('/dashboard/designs/submit');
     revalidatePath(`/dashboard/designs/edit/[designId]`);
     const { passwordHash, twoFactorPinHash, ...userToReturn } = userToUpdate;
-    return { message: `User's ability to set prices ${canSetPrice ? 'enabled' : 'disabled'} successfully.`, success: true, updatedUser: {...userToReturn, canSetPrice: userToReturn.canSetPrice || false} };
+    return { message: `User's ability to set prices ${canSetPrice ? 'enabled' : 'disabled'} successfully.`, success: true, updatedUser: {...userToReturn, canSetPrice: userToReturn.canSetPrice || false} as User };
   } catch (error) {
     console.error("Error setting user's price setting ability by admin:", error);
     return { message: 'Failed to update user price setting ability.', success: false, errors: { general: ['Server error.'] } };
@@ -1747,15 +1723,14 @@ export async function adminSetUserVerificationStatusAction(
     isVerified: z.preprocess((val) => String(val).toLowerCase() === 'true', z.boolean()),
     adminId: z.string().min(1, "Admin ID is required for authorization."),
   });
-  const cookieStore = await cookies();
-  const adminToken = cookieStore.get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
+  const adminToken = (await cookies()).get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
   if (!adminToken) {
     return { message: "Admin authorization failed.", success: false, errors: { general: ["Not authorized."] } };
   }
 
   const validatedFields = AdminSetUserVerificationStatusSchema.safeParse(Object.fromEntries(formData.entries()));
   if (!validatedFields.success) {
-    return { errors: validatedFields.error.flatten().fieldErrors, message: 'Invalid input.', success: false };
+    return { errors: validatedFields.error.flatten().fieldErrors as any, message: 'Invalid input.', success: false };
   }
 
   const { userId, isVerified } = validatedFields.data;
@@ -1775,7 +1750,7 @@ export async function adminSetUserVerificationStatusAction(
     revalidatePath('/designers');
     revalidatePath('/'); // Revalidate home if verified users are featured
     const { passwordHash, twoFactorPinHash, ...userToReturn } = userToUpdate;
-    return { message: `User verification status updated to ${isVerified ? 'Verified' : 'Not Verified'} successfully.`, success: true, updatedUser: {...userToReturn, isVerified} };
+    return { message: `User verification status updated to ${isVerified ? 'Verified' : 'Not Verified'} successfully.`, success: true, updatedUser: {...userToReturn, isVerified} as User };
   } catch (error) {
     console.error("Error setting user verification status by admin:", error);
     return { message: 'Failed to update user verification status.', success: false, errors: { general: ['Server error.'] } };
@@ -2366,8 +2341,7 @@ export async function getUserByIdAction(userId: string): Promise<User | null> {
 }
 
 export async function adminDeleteTopicAction(topicId: string, categorySlug: string): Promise<AdminDeleteTopicResult> {
-  const cookieStore = await cookies();
-  const adminToken = cookieStore.get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
+  const adminToken = (await cookies()).get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
   if (!adminToken) {
     return { success: false, message: "Admin authorization failed." };
   }
@@ -2398,8 +2372,7 @@ export async function adminDeleteForumPostAction(
   topicId: string,
   categorySlug: string
 ): Promise<AdminDeletePostResult> {
-  const cookieStore = await cookies();
-  const adminToken = cookieStore.get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
+  const adminToken = (await cookies()).get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
   if (!adminToken) {
     return { success: false, message: "Admin authorization failed. Please log in as an admin." };
   }
@@ -2438,8 +2411,7 @@ export async function updateAdminAnnouncementAction(
     title: z.string().min(5, "Title must be at least 5 characters.").max(150, "Title cannot exceed 150 characters."),
     content: z.string().min(10, "Content must be at least 10 characters.").max(5000, "Content cannot exceed 5000 characters."),
   });
-  const cookieStore = await cookies();
-  const adminToken = cookieStore.get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
+  const adminToken = (await cookies()).get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
   if (!adminToken) {
     return { success: false, message: "Admin authorization failed.", errors: {general: ["Not authorized."]} };
   }
@@ -2604,15 +2576,14 @@ export async function adminApproveVerificationAction(
     adminId: z.string().min(1, "Admin ID is required for authorization."),
   });
 
-  const cookieStore = await cookies();
-  const adminToken = cookieStore.get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
+  const adminToken = (await cookies()).get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
   if (!adminToken) { // Basic auth check
     return { message: "Admin authorization failed.", success: false, errors: { general: ["Not authorized."] } };
   }
 
   const validatedFields = ApproveVerificationSchema.safeParse(Object.fromEntries(formData.entries()));
   if (!validatedFields.success) {
-    return { errors: validatedFields.error.flatten().fieldErrors, message: 'Invalid input.', success: false };
+    return { errors: validatedFields.error.flatten().fieldErrors as any, message: 'Invalid input.', success: false };
   }
 
   const { requestId } = validatedFields.data;
@@ -2667,15 +2638,14 @@ export async function adminRejectVerificationAction(
     adminId: z.string().min(1, "Admin ID is required for authorization."),
   });
 
-  const cookieStore = await cookies();
-  const adminToken = cookieStore.get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
+  const adminToken = (await cookies()).get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
    if (!adminToken) {
     return { message: "Admin authorization failed.", success: false, errors: { general: ["Not authorized."] } };
   }
 
   const validatedFields = RejectVerificationSchema.safeParse(Object.fromEntries(formData.entries()));
   if (!validatedFields.success) {
-    return { errors: validatedFields.error.flatten().fieldErrors, message: 'Invalid input.', success: false };
+    return { errors: validatedFields.error.flatten().fieldErrors as any, message: 'Invalid input.', success: false };
   }
 
   const { requestId } = validatedFields.data;
@@ -2705,3 +2675,31 @@ export async function adminRejectVerificationAction(
   }
 }
 
+export async function getAdminDashboardStatsAction(): Promise<AdminDashboardStats> {
+  try {
+    const users = await getUsersFromFile();
+    const designs = await getDesignsFromFile();
+    const verificationRequests = await getVerificationRequestsFromFile();
+    const subscribers = await getNewsletterSubscribersFromFile();
+
+    const totalUsers = users.length;
+    const totalDesigns = designs.length;
+    const pendingVerifications = verificationRequests.filter(req => req.status === 'pending').length;
+    const newsletterSubscribers = subscribers.length;
+
+    return {
+      totalUsers,
+      totalDesigns,
+      pendingVerifications,
+      newsletterSubscribers,
+    };
+  } catch (error) {
+    console.error("Error fetching admin dashboard stats:", error);
+    return {
+      totalUsers: 0,
+      totalDesigns: 0,
+      pendingVerifications: 0,
+      newsletterSubscribers: 0,
+    };
+  }
+}

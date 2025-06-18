@@ -475,5 +475,13 @@ export type AdminApproveVerificationFormState = {
   updatedUser?: User | null;
 };
 
-export type AdminRejectVerificationFormState = AdminApproveVerificationFormState; // Same structure for now
+export type AdminRejectVerificationFormState = AdminApproveVerificationFormState;
+
+
+export interface AdminDashboardStats {
+  totalUsers: number;
+  totalDesigns: number;
+  pendingVerifications: number;
+  newsletterSubscribers: number;
+}
 

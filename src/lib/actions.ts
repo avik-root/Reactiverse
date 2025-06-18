@@ -76,7 +76,7 @@ import type {
   SupportPageContent,
   GuidelinesPageContent,
   TopDesignersPageContent,
-  PrivacyPolicyContent,
+  PrivacyPolicyContent, // Import PrivacyPolicyContent
   SiteLogoUploadState,
   AdminSetUser2FAStatusFormState,
   AdminSetUserCanSetPriceFormState,
@@ -377,6 +377,7 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
         adminIdForPin: targetAdmin.id,
       };
     }
+    // PIN successful, proceed to cookie setting
   } else if (username && password) {
     targetAdmin = adminUsers.find(admin => admin.username === username);
     if (!targetAdmin || !targetAdmin.passwordHash) {
@@ -394,20 +395,24 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
         adminIdForPin: targetAdmin.id,
       };
     }
+    // Password successful and no 2FA, proceed to cookie setting
   } else {
     return { message: 'Invalid login attempt. Please provide credentials or PIN.', errors: { general: ['Invalid login state.'] } };
   }
 
   if (!targetAdmin) {
+    // This state should ideally not be reached if the logic above is correct,
+    // but as a fallback if targetAdmin isn't set after processing.
     return { message: 'Admin authentication failed. Please try again.', errors: { general: ['Authentication error.'] } };
   }
 
-  const cookieStore = cookies();
+  // Authentication successful (either password or PIN), set cookie and return success
+  const cookieStore = await cookies(); // Await cookies() call
   cookieStore.set(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS, targetAdmin.id, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     path: '/admin',
-    maxAge: 60 * 60 * 24,
+    maxAge: 60 * 60 * 24, // 1 day
     sameSite: 'lax',
   });
 
@@ -423,7 +428,7 @@ export async function loginAdmin(prevState: AdminLoginFormState, formData: FormD
 
 export async function logoutAdminAction(): Promise<{ success: boolean }> {
   try {
-    (await cookies()).set(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS, '', {
+    (await cookies()).set(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS, '', { // Await cookies()
       path: '/admin',
       maxAge: 0,
       httpOnly: true,
@@ -1422,29 +1427,27 @@ export async function disableAdminTwoFactorAction(
   }
 }
 
-export async function getPageContentAction(pageKey: PageContentKeys): Promise<any> {
+export async function getPageContentAction(pageKey: PageContentKeys): Promise<PageContentData[typeof pageKey]> {
   try {
-    const allContent = await getPageContentFromFile();
+    const allContent = await getPageContentFromFile(); // Reads from file or returns defaults
     if (allContent && Object.prototype.hasOwnProperty.call(allContent, pageKey)) {
       return allContent[pageKey];
     }
-    console.warn(`Content for key "${pageKey}" not found in getPageContentAction. This implies an issue with getPageContentFromFile's default handling.`);
-    // Fallback to default if key is missing or file read error occurred and returned default
-    // The defaults from getPageContentFromFile should be comprehensive
-    const defaultFullContent = await getPageContentFromFile(); // This gets the default structure
-    return defaultFullContent[pageKey] || {}; // Return specific default or empty
+    // If key doesn't exist in potentially incomplete file, fall back to global default for that key
+    console.warn(`Content for key "${pageKey}" not found. Returning default.`);
+    return DEFAULT_PAGE_CONTENT[pageKey];
   } catch (error) {
     console.error(`Error in getPageContentAction for key "${pageKey}":`, error);
-    const defaultFullContent = await getPageContentFromFile(); // Fallback to defaults on any error
-    return defaultFullContent[pageKey] || {};
+    return DEFAULT_PAGE_CONTENT[pageKey]; // Fallback to in-memory default on any error
   }
 }
+
 
 export async function updatePageContentAction<T extends PageContentKeys>(
   pageKey: T,
   formData: FormData
 ): Promise<UpdatePageContentFormState<PageContentData[T]>> {
-  const schema = pageContentSchemasMap[pageKey as keyof typeof pageContentSchemasMap];
+  const schema = pageContentSchemasMap[pageKey];
   if (!schema) {
     return { message: `No validation schema found for page: ${pageKey}`, success: false, errors: { general: ["Configuration error."] } as any };
   }
@@ -1452,18 +1455,18 @@ export async function updatePageContentAction<T extends PageContentKeys>(
   const rawData = Object.fromEntries(formData.entries());
   let dataToValidate: Record<string, any> = { ...rawData };
 
-  // Convert specific form data structures to what the Zod schema expects
+  // Convert specific form data structures
   if (pageKey === 'aboutUs') {
-    const currentOfferItems: { title: string; description: string }[] = [];
+    const offerItems: { title: string; description: string }[] = [];
     let i = 0;
     while (rawData[`offerItems[${i}].title`] !== undefined || rawData[`offerItems[${i}].description`] !== undefined) {
-      currentOfferItems.push({
+      offerItems.push({
         title: String(rawData[`offerItems[${i}].title`] || ''),
         description: String(rawData[`offerItems[${i}].description`] || '')
       });
       i++;
     }
-    dataToValidate.offerItems = currentOfferItems.length > 0 ? currentOfferItems : [];
+    dataToValidate.offerItems = offerItems;
   }
 
   if (pageKey === 'guidelines' && typeof rawData.keyAreasJSON === 'string') {
@@ -1471,11 +1474,12 @@ export async function updatePageContentAction<T extends PageContentKeys>(
       const parsedKeyAreas = JSON.parse(rawData.keyAreasJSON);
       dataToValidate.keyAreas = Array.isArray(parsedKeyAreas) && parsedKeyAreas.every(item => typeof item === 'string') ? parsedKeyAreas : [];
     } catch {
-      dataToValidate.keyAreas = [];
+      dataToValidate.keyAreas = []; // Default to empty array on parse error
     }
   } else if (pageKey === 'guidelines' && !dataToValidate.keyAreas) {
     dataToValidate.keyAreas = [];
   }
+
 
   const imageFields: { formKey: string; contentKey: string; subfolder: string, baseName?: string, memberType?: 'founder' | 'coFounder' }[] = [];
   if (pageKey === 'aboutUs') {
@@ -1491,31 +1495,33 @@ export async function updatePageContentAction<T extends PageContentKeys>(
     if (file && file.size > 0) {
       dataToValidate[imgField.formKey] = file;
     } else {
-      delete dataToValidate[imgField.formKey]; // Ensure it's removed if no file, schema handles optional
+      // If no new file, use the existing URL from the hidden input, or ensure it's optional in Zod
+      // Zod optional handles this if 'undefined', so ensure it becomes undefined if no file
+      delete dataToValidate[imgField.formKey];
     }
   }
 
   if (pageKey === 'teamMembers') {
+    // Structure data for Zod parsing for nested objects
     dataToValidate.founder = {
       name: String(rawData['founder.name'] || ''), title: String(rawData['founder.title'] || ''), bio: String(rawData['founder.bio'] || ''),
-      imageUrl: String(rawData['founder.existingImageUrl'] || ''),
+      existingImageUrl: String(rawData['founder.existingImageUrl'] || ''), // Pass existing to Zod
       imageAlt: String(rawData['founder.imageAlt'] || ''), imageDataAiHint: String(rawData['founder.imageDataAiHint'] || ''),
       githubUrl: String(rawData['founder.githubUrl'] || ''), linkedinUrl: String(rawData['founder.linkedinUrl'] || ''), emailAddress: String(rawData['founder.emailAddress'] || ''),
     };
     dataToValidate.coFounder = {
       name: String(rawData['coFounder.name'] || ''), title: String(rawData['coFounder.title'] || ''), bio: String(rawData['coFounder.bio'] || ''),
-      imageUrl: String(rawData['coFounder.existingImageUrl'] || ''),
+      existingImageUrl: String(rawData['coFounder.existingImageUrl'] || ''),
       imageAlt: String(rawData['coFounder.imageAlt'] || ''), imageDataAiHint: String(rawData['coFounder.imageDataAiHint'] || ''),
       githubUrl: String(rawData['coFounder.githubUrl'] || ''), linkedinUrl: String(rawData['coFounder.linkedinUrl'] || ''), emailAddress: String(rawData['coFounder.emailAddress'] || ''),
     };
   }
 
-
   const validatedFields = schema.safeParse(dataToValidate);
 
   if (!validatedFields.success) {
     return {
-      errors: validatedFields.error.flatten().fieldErrors as any,
+      errors: validatedFields.error.flatten().fieldErrors as any, // Cast to any for simplicity with generic error type
       message: 'Invalid fields. Please check your input.',
       success: false,
     };
@@ -1525,18 +1531,16 @@ export async function updatePageContentAction<T extends PageContentKeys>(
 
   try {
     for (const imgField of imageFields) {
-        const file = (validatedFields.data as any)[imgField.formKey] as File | undefined;
-        const existingUrlKey = pageKey === 'teamMembers' && imgField.memberType
-                                ? `${imgField.memberType}.existingImageUrl`
-                                : `existing${imgField.contentKey.charAt(0).toUpperCase() + imgField.contentKey.slice(1)}`;
-        const existingUrl = String(formData.get(existingUrlKey) || '');
+        const file = (validatedFields.data as any)[imgField.formKey] as File | undefined; // File from validated data
+        let existingUrl: string | undefined;
 
-        let finalImageUrl = existingUrl;
-        if (pageKey === 'teamMembers' && imgField.memberType && (contentToSave as any)[imgField.memberType]) {
-            finalImageUrl = existingUrl || (contentToSave as any)[imgField.memberType].imageUrl || '';
-        } else if (pageKey === 'aboutUs' && (contentToSave as any)[imgField.contentKey]) {
-             finalImageUrl = existingUrl || (contentToSave as any)[imgField.contentKey] || '';
+        if (pageKey === 'teamMembers' && imgField.memberType) {
+            existingUrl = (validatedFields.data as any)[imgField.memberType]?.existingImageUrl;
+        } else {
+            existingUrl = (validatedFields.data as any)[`existing${imgField.contentKey.charAt(0).toUpperCase() + imgField.contentKey.slice(1)}`];
         }
+        
+        let finalImageUrl = existingUrl;
 
         if (file) {
             const buffer = Buffer.from(await file.arrayBuffer());
@@ -1547,19 +1551,23 @@ export async function updatePageContentAction<T extends PageContentKeys>(
         if (pageKey === 'teamMembers' && imgField.memberType) {
             if (!(contentToSave as any)[imgField.memberType]) (contentToSave as any)[imgField.memberType] = {};
             (contentToSave as any)[imgField.memberType].imageUrl = finalImageUrl;
+            delete (contentToSave as any)[imgField.memberType].existingImageUrl; // Clean up
         } else {
-            (contentToSave as any)[imgField.contentKey] = finalImageUrl;
+            // For aboutUs or other direct contentKey cases
+            const keys = imgField.contentKey.split('.');
+            let current = contentToSave;
+            keys.forEach((key, index) => {
+                if (index === keys.length - 1) {
+                    current[key] = finalImageUrl;
+                } else {
+                    if (!current[key]) current[key] = {};
+                    current = current[key];
+                }
+            });
+            // Also remove the direct existingImageUrl from contentToSave if it was there
+            delete contentToSave[`existing${imgField.contentKey.charAt(0).toUpperCase() + imgField.contentKey.slice(1)}`];
         }
-        delete (contentToSave as any)[imgField.formKey]; // Remove file object from data to be saved as JSON
-    }
-
-    // Clean up existingImage URLs from the object to be saved
-    if (pageKey === 'aboutUs') {
-      delete contentToSave.existingImage1Url;
-      delete contentToSave.existingImage2Url;
-    } else if (pageKey === 'teamMembers') {
-      if (contentToSave.founder) delete contentToSave.founder.existingImageUrl;
-      if (contentToSave.coFounder) delete contentToSave.coFounder.existingImageUrl;
+        delete (contentToSave as any)[imgField.formKey];
     }
 
   } catch(error) {
@@ -1569,12 +1577,21 @@ export async function updatePageContentAction<T extends PageContentKeys>(
 
   if (pageKey === 'support' && rawData.faqsJSON) {
     try {
-      contentToSave.faqs = JSON.parse(String(rawData.faqsJSON)) as FAQItem[];
+      // The faqs are now part of validatedFields.data due to schema transform
+      // So, contentToSave.faqs should already be populated if faqsJSON was valid
+      // If it's not, the Zod schema would have caught it.
+      // We need to ensure faqsJSON itself is removed from the final object to save.
+      const parsedFAQs = JSON.parse(String(rawData.faqsJSON)) as Array<z.infer<typeof FAQItemSchema>>;
+      contentToSave.faqs = parsedFAQs; // Assign parsed and validated FAQs
     } catch (e) {
+      // This error should ideally be caught by Zod, but as a fallback:
       return { message: 'Invalid JSON format for FAQs.', success: false, errors: { faqsJSON: ['Invalid JSON.'] } as any };
     }
+    delete contentToSave.faqsJSON; // Remove the JSON string version
   }
-
+  if (pageKey === 'guidelines') {
+    delete contentToSave.keyAreasJSON; // Remove if it exists
+  }
 
   try {
     await savePageContentToFile(pageKey, contentToSave);
@@ -1609,6 +1626,10 @@ export async function updateSiteLogoAction(prevState: SiteLogoUploadState, formD
 
   const { logoFile } = validatedFields.data;
 
+  if (!logoFile) { // Should be caught by Zod, but good to double check
+      return { message: 'Logo file is required.', success: false, errors: {logoFile: ['Logo file is required.'] } };
+  }
+
   try {
     const buffer = Buffer.from(await logoFile.arrayBuffer());
     const fileExtension = path.extname(logoFile.name) || '.png';
@@ -1634,7 +1655,7 @@ export async function adminSetUser2FAStatusAction(
     enable: z.preprocess((val) => String(val).toLowerCase() === 'true', z.boolean()),
     adminId: z.string().min(1, "Admin ID is required for authorization."),
   });
-  const adminToken = (await cookies()).get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
+  const adminToken = (await cookies()).get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value; // Await cookies()
   if (!adminToken) {
     return { message: "Admin authorization failed.", success: false, errors: { general: ["Not authorized."] } };
   }
@@ -1680,7 +1701,7 @@ export async function adminSetUserCanSetPriceAction(
     canSetPrice: z.preprocess((val) => String(val).toLowerCase() === 'true', z.boolean()),
     adminId: z.string().min(1, "Admin ID is required for authorization."),
   });
-  const adminToken = (await cookies()).get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
+  const adminToken = (await cookies()).get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value; // Await cookies()
   if (!adminToken) {
     return { message: "Admin authorization failed.", success: false, errors: { general: ["Not authorized."] } };
   }
@@ -1723,7 +1744,7 @@ export async function adminSetUserVerificationStatusAction(
     isVerified: z.preprocess((val) => String(val).toLowerCase() === 'true', z.boolean()),
     adminId: z.string().min(1, "Admin ID is required for authorization."),
   });
-  const adminToken = (await cookies()).get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
+  const adminToken = (await cookies()).get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value; // Await cookies()
   if (!adminToken) {
     return { message: "Admin authorization failed.", success: false, errors: { general: ["Not authorized."] } };
   }
@@ -2341,7 +2362,7 @@ export async function getUserByIdAction(userId: string): Promise<User | null> {
 }
 
 export async function adminDeleteTopicAction(topicId: string, categorySlug: string): Promise<AdminDeleteTopicResult> {
-  const adminToken = (await cookies()).get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
+  const adminToken = (await cookies()).get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value; // Await cookies()
   if (!adminToken) {
     return { success: false, message: "Admin authorization failed." };
   }
@@ -2372,7 +2393,7 @@ export async function adminDeleteForumPostAction(
   topicId: string,
   categorySlug: string
 ): Promise<AdminDeletePostResult> {
-  const adminToken = (await cookies()).get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
+  const adminToken = (await cookies()).get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value; // Await cookies()
   if (!adminToken) {
     return { success: false, message: "Admin authorization failed. Please log in as an admin." };
   }
@@ -2411,7 +2432,7 @@ export async function updateAdminAnnouncementAction(
     title: z.string().min(5, "Title must be at least 5 characters.").max(150, "Title cannot exceed 150 characters."),
     content: z.string().min(10, "Content must be at least 10 characters.").max(5000, "Content cannot exceed 5000 characters."),
   });
-  const adminToken = (await cookies()).get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
+  const adminToken = (await cookies()).get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value; // Await cookies()
   if (!adminToken) {
     return { success: false, message: "Admin authorization failed.", errors: {general: ["Not authorized."]} };
   }
@@ -2576,7 +2597,7 @@ export async function adminApproveVerificationAction(
     adminId: z.string().min(1, "Admin ID is required for authorization."),
   });
 
-  const adminToken = (await cookies()).get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
+  const adminToken = (await cookies()).get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value; // Await cookies()
   if (!adminToken) { // Basic auth check
     return { message: "Admin authorization failed.", success: false, errors: { general: ["Not authorized."] } };
   }
@@ -2638,7 +2659,7 @@ export async function adminRejectVerificationAction(
     adminId: z.string().min(1, "Admin ID is required for authorization."),
   });
 
-  const adminToken = (await cookies()).get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value;
+  const adminToken = (await cookies()).get(ADMIN_AUTH_COOKIE_NAME_FOR_ACTIONS)?.value; // Await cookies()
    if (!adminToken) {
     return { message: "Admin authorization failed.", success: false, errors: { general: ["Not authorized."] } };
   }
@@ -2703,3 +2724,4 @@ export async function getAdminDashboardStatsAction(): Promise<AdminDashboardStat
     };
   }
 }
+

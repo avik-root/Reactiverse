@@ -1,6 +1,6 @@
 
 // This file is only imported by server-side code (e.g., server actions, API routes)
-import type { StoredAdminUser, StoredUser, Design, SiteSettings, PageContentData, PageContentKeys, TeamMembersContent, TeamMember, ForumCategory, NewsletterSubscriber, ForumTopic, ForumPost, VerificationRequest } from './types';
+import type { StoredAdminUser, StoredUser, Design, SiteSettings, PageContentData, PageContentKeys, TeamMembersContent, TeamMember, ForumCategory, NewsletterSubscriber, ForumTopic, ForumPost, PrivacyPolicyContent, VerificationRequest } from './types';
 import fs from 'fs/promises';
 import path from 'path';
 import { constants } from 'fs';
@@ -71,6 +71,46 @@ const DEFAULT_TEAM_MEMBERS_CONTENT: TeamMembersContent = {
     imageUrl: "/content_images/team/cofounder_image-1750057132178.jpg",
     imageAlt: "Anusha Gupta, Co-Founder of Reactiverse",
   }
+};
+
+const DEFAULT_PRIVACY_POLICY_CONTENT: PrivacyPolicyContent = {
+  title: "Privacy Policy for Reactiverse",
+  description: "Your privacy is important to us. This policy outlines how we collect, use, and protect your information.",
+  lastUpdated: "June 17, 2025",
+  sections: [
+    {
+      heading: "Information We Collect",
+      content: "We collect information you provide directly to us, such as when you create an account, submit designs, or communicate with us. This may include:\n- Account Information: Name, username, email address, phone number, password.\n- User Content: Designs, code snippets, descriptions, tags, and any other content you submit.\n- Communications: Information you provide when you contact us for support or other inquiries."
+    },
+    {
+      heading: "How We Use Your Information",
+      content: "We use the information we collect to:\n- Provide, maintain, and improve our services.\n- Allow you to create and manage your account and designs.\n- Enable communication between users (where applicable and with consent).\n- Respond to your comments, questions, and requests.\n- Send you technical notices, updates, security alerts, and support messages.\n- Monitor and analyze trends, usage, and activities in connection with our services.\n- Personalize and improve the services and provide content or features that match user profiles or interests.\n- Comply with legal obligations."
+    },
+    {
+      heading: "Sharing of Information",
+      content: "We do not share your personal information with third parties except in the following circumstances or as otherwise described in this Privacy Policy:\n- With your consent or at your direction.\n- For legal reasons, such as to comply with a subpoena, or if we believe in good faith that disclosure is necessary to protect our rights, protect your safety or the safety of others, investigate fraud, or respond to a government request.\n- In connection with, or during negotiations of, any merger, sale of company assets, financing or acquisition of all or a portion of our business by another company."
+    },
+    {
+      heading: "Your Choices",
+      content: "Account Information: You may update, correct, or delete information about you at any time by logging into your online account or emailing us at mintfire.official@gmail.com.\nPublic Information: Your username and submitted designs are public. You can control the visibility of your email and phone number in your profile settings.\nCookies: Most web browsers are set to accept cookies by default. If you prefer, you can usually choose to set your browser to remove or reject browser cookies."
+    },
+    {
+      heading: "Data Security",
+      content: "We take reasonable measures to help protect information about you from loss, theft, misuse, and unauthorized access, disclosure, alteration, and destruction."
+    },
+    {
+      heading: "Children's Privacy",
+      content: "Reactiverse is not intended for children under the age of 13. We do not knowingly collect personal information from children under 13. If we learn that we have collected personal information from a child under 13, we will take steps to delete the information as soon as possible."
+    },
+    {
+      heading: "Changes to This Policy",
+      content: "We may change this Privacy Policy from time to time. If we make changes, we will notify you by revising the date at the top of the policy and, in some cases, we may provide you with additional notice (such as adding a statement to our homepage or sending you a notification)."
+    },
+    {
+      heading: "Contact Us",
+      content: "If you have any questions about this Privacy Policy, please contact us at: mintfire.official@gmail.com"
+    }
+  ]
 };
 
 
@@ -160,45 +200,7 @@ const DEFAULT_PAGE_CONTENT: PageContentData = {
     mainPlaceholderContent: "We're currently curating our list of top designers. Check back soon to see who's leading the pack in creativity and innovation!"
   },
   teamMembers: DEFAULT_TEAM_MEMBERS_CONTENT,
-  privacyPolicy: {
-      title: "Privacy Policy for Reactiverse",
-      description: "Your privacy is important to us. This policy outlines how we collect, use, and protect your information.",
-      lastUpdated: "June 17, 2025",
-      sections: [
-        {
-          "heading": "Information We Collect",
-          "content": "We collect information you provide directly to us, such as when you create an account, submit designs, or communicate with us. This may include:\n- Account Information: Name, username, email address, phone number, password.\n- User Content: Designs, code snippets, descriptions, tags, and any other content you submit.\n- Communications: Information you provide when you contact us for support or other inquiries."
-        },
-        {
-          "heading": "How We Use Your Information",
-          "content": "We use the information we collect to:\n- Provide, maintain, and improve our services.\n- Allow you to create and manage your account and designs.\n- Enable communication between users (where applicable and with consent).\n- Respond to your comments, questions, and requests.\n- Send you technical notices, updates, security alerts, and support messages.\n- Monitor and analyze trends, usage, and activities in connection with our services.\n- Personalize and improve the services and provide content or features that match user profiles or interests.\n- Comply with legal obligations."
-        },
-        {
-          "heading": "Sharing of Information",
-          "content": "We do not share your personal information with third parties except in the following circumstances or as otherwise described in this Privacy Policy:\n- With your consent or at your direction.\n- For legal reasons, such as to comply with a subpoena, or if we believe in good faith that disclosure is necessary to protect our rights, protect your safety or the safety of others, investigate fraud, or respond to a government request.\n- In connection with, or during negotiations of, any merger, sale of company assets, financing or acquisition of all or a portion of our business by another company."
-        },
-        {
-          "heading": "Your Choices",
-          "content": "Account Information: You may update, correct, or delete information about you at any time by logging into your online account or emailing us at mintfire.official@gmail.com.\nPublic Information: Your username and submitted designs are public. You can control the visibility of your email and phone number in your profile settings.\nCookies: Most web browsers are set to accept cookies by default. If you prefer, you can usually choose to set your browser to remove or reject browser cookies."
-        },
-        {
-          "heading": "Data Security",
-          "content": "We take reasonable measures to help protect information about you from loss, theft, misuse, and unauthorized access, disclosure, alteration, and destruction."
-        },
-        {
-          "heading": "Children's Privacy",
-          "content": "Reactiverse is not intended for children under the age of 13. We do not knowingly collect personal information from children under 13. If we learn that we have collected personal information from a child under 13, we will take steps to delete the information as soon as possible."
-        },
-        {
-          "heading": "Changes to This Policy",
-          "content": "We may change this Privacy Policy from time to time. If we make changes, we will notify you by revising the date at the top of the policy and, in some cases, we may provide you with additional notice (such as adding a statement to our homepage or sending you a notification)."
-        },
-        {
-          "heading": "Contact Us",
-          "content": "If you have any questions about this Privacy Policy, please contact us at: mintfire.official@gmail.com"
-        }
-      ]
-    }
+  privacyPolicy: DEFAULT_PRIVACY_POLICY_CONTENT,
 };
 
 
@@ -226,16 +228,37 @@ async function readJsonFile<T>(filePath: string, defaultValue: T): Promise<T> {
       return defaultValue;
     }
     const jsonData = await fs.readFile(filePath, 'utf-8');
-    return JSON.parse(jsonData) as T;
+    // Ensure all top-level keys from defaultValue exist in the parsed data, merging deeply for known structures
+    const parsedData = JSON.parse(jsonData) as Partial<T>;
+    if (filePath === PAGE_CONTENT_FILE_PATH) {
+      return { // Deep merge for PageContentData
+        ...defaultValue as PageContentData,
+        ...parsedData as Partial<PageContentData>,
+        aboutUs: { ...(defaultValue as PageContentData).aboutUs, ...(parsedData.aboutUs || {}) },
+        support: { ...(defaultValue as PageContentData).support, ...(parsedData.support || {}), faqs: parsedData.support?.faqs || (defaultValue as PageContentData).support.faqs },
+        guidelines: { ...(defaultValue as PageContentData).guidelines, ...(parsedData.guidelines || {}), keyAreas: parsedData.guidelines?.keyAreas || (defaultValue as PageContentData).guidelines.keyAreas },
+        topDesigners: { ...(defaultValue as PageContentData).topDesigners, ...(parsedData.topDesigners || {}) },
+        teamMembers: {
+          ...(defaultValue as PageContentData).teamMembers,
+          ...(parsedData.teamMembers || {}),
+          founder: { ...(defaultValue as PageContentData).teamMembers.founder, ...(parsedData.teamMembers?.founder || {}) },
+          coFounder: { ...(defaultValue as PageContentData).teamMembers.coFounder, ...(parsedData.teamMembers?.coFounder || {}) }
+        },
+        privacyPolicy: {
+            ...(defaultValue as PageContentData).privacyPolicy,
+            ...(parsedData.privacyPolicy || {}),
+            sections: parsedData.privacyPolicy?.sections || (defaultValue as PageContentData).privacyPolicy.sections,
+        }
+      } as T;
+    }
+    return { ...defaultValue, ...parsedData };
   } catch (error) {
     console.error(`Failed to read or initialize ${filePath}:`, error);
-    // If parsing fails or any other error, try to write default and return it
     try {
         await fs.writeFile(filePath, JSON.stringify(defaultValue, null, 2));
         return defaultValue;
     } catch (writeError) {
         console.error(`Failed to write default value to ${filePath} after read error:`, writeError);
-        // If writing default also fails, return the in-memory default (this might lead to data loss if the file was corrupted)
         return defaultValue;
     }
   }
@@ -485,18 +508,7 @@ export async function deleteDesignFromFile(designId: string): Promise<boolean> {
 }
 
 export async function getSiteSettings(): Promise<SiteSettings> {
-  try {
-    if (!(await fileExists(SETTINGS_FILE_PATH))) {
-      await fs.writeFile(SETTINGS_FILE_PATH, JSON.stringify(DEFAULT_SITE_SETTINGS, null, 2));
-      return DEFAULT_SITE_SETTINGS;
-    }
-    const jsonData = await fs.readFile(SETTINGS_FILE_PATH, 'utf-8');
-    const parsedSettings = JSON.parse(jsonData);
-    return { ...DEFAULT_SITE_SETTINGS, ...parsedSettings, themeColors: { ...DEFAULT_SITE_SETTINGS.themeColors, ...parsedSettings.themeColors }};
-  } catch (error) {
-    console.warn('Failed to read settings.json, returning default settings:', error);
-    return DEFAULT_SITE_SETTINGS;
-  }
+  return readJsonFile<SiteSettings>(SETTINGS_FILE_PATH, DEFAULT_SITE_SETTINGS);
 }
 
 export async function saveSiteSettings(settings: SiteSettings): Promise<void> {
@@ -509,47 +521,12 @@ export async function saveSiteSettings(settings: SiteSettings): Promise<void> {
 }
 
 export async function getPageContent(): Promise<PageContentData> {
-  try {
-    if (!(await fileExists(PAGE_CONTENT_FILE_PATH))) {
-      await fs.writeFile(PAGE_CONTENT_FILE_PATH, JSON.stringify(DEFAULT_PAGE_CONTENT, null, 2));
-      return DEFAULT_PAGE_CONTENT;
-    }
-    const jsonData = await fs.readFile(PAGE_CONTENT_FILE_PATH, 'utf-8');
-    const parsedContent = JSON.parse(jsonData);
-    // Merge ensuring all default keys exist
-    const mergedContent: PageContentData = {
-      aboutUs: { ...DEFAULT_PAGE_CONTENT.aboutUs, ...parsedContent.aboutUs },
-      support: { ...DEFAULT_PAGE_CONTENT.support, ...parsedContent.support, faqs: parsedContent.support?.faqs || [] },
-      guidelines: { ...DEFAULT_PAGE_CONTENT.guidelines, ...parsedContent.guidelines, keyAreas: parsedContent.guidelines?.keyAreas || [] },
-      topDesigners: { ...DEFAULT_PAGE_CONTENT.topDesigners, ...parsedContent.topDesigners },
-      teamMembers: {
-        ...DEFAULT_PAGE_CONTENT.teamMembers,
-        ...(parsedContent.teamMembers || {}),
-        founder: {
-          ...DEFAULT_PAGE_CONTENT.teamMembers.founder,
-          ...(parsedContent.teamMembers?.founder || {}),
-        },
-        coFounder: {
-          ...DEFAULT_PAGE_CONTENT.teamMembers.coFounder,
-          ...(parsedContent.teamMembers?.coFounder || {}),
-        }
-      },
-      privacyPolicy: { // Ensure privacyPolicy is merged or defaulted
-        ...DEFAULT_PAGE_CONTENT.privacyPolicy,
-        ...(parsedContent.privacyPolicy || {}),
-        sections: parsedContent.privacyPolicy?.sections || DEFAULT_PAGE_CONTENT.privacyPolicy.sections,
-      },
-    };
-    return mergedContent;
-  } catch (error) {
-    console.warn('Failed to read page_content.json, returning default content:', error);
-    return DEFAULT_PAGE_CONTENT;
-  }
+    return readJsonFile<PageContentData>(PAGE_CONTENT_FILE_PATH, DEFAULT_PAGE_CONTENT);
 }
 
 export async function savePageContent(pageKey: PageContentKeys, content: any): Promise<void> {
   try {
-    const allContent = await getPageContent();
+    const allContent = await getPageContent(); // This will ensure defaults are loaded if file is new/corrupt
     allContent[pageKey] = content;
     await fs.writeFile(PAGE_CONTENT_FILE_PATH, JSON.stringify(allContent, null, 2), 'utf-8');
   } catch (error) {
@@ -984,3 +961,4 @@ export async function updateVerificationRequestInFile(updatedRequest: Verificati
     throw error;
   }
 }
+
